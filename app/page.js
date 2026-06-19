@@ -578,15 +578,28 @@ export default function MarketTerminal() {
   const fetchData = useCallback(async()=>{
     if(watchlist.length===0) return;
     try{
-      const [qr,nr] = await Promise.all([
-        fetch(`/api/quote?symbols=${watchlist.join(",")}`),
-        fetch(`/api/news?limit=25`),
-      ]);
-      if(qr.ok){
-        const d = await qr.json();
-        const m = {}; (d.data||[]).forEach(q=>{m[q.symbol]=q;});
-        setQuotes(m); setDataErr(null);
-      } else { const e = await qr.json(); setDataErr(e.error||"Quote error"); }
+      // Fetch quotes in small batches with delays to respect Finnhub's
+      // 60 calls/minute free-tier limit, instead of firing all at once.
+      const BATCH_SIZE = 8;
+      const merged = {};
+      for(let i=0;i<watchlist.length;i+=BATCH_SIZE){
+        const batch = watchlist.slice(i,i+BATCH_SIZE);
+        try{
+          const qr = await fetch(`/api/quote?symbols=${batch.join(",")}`);
+          if(qr.ok){
+            const d = await qr.json();
+            (d.data||[]).forEach(q=>{merged[q.symbol]=q;});
+            setDataErr(null);
+          }else{
+            const e = await qr.json();
+            setDataErr(e.error||"Quote error (rate limited — retrying next cycle)");
+          }
+        }catch{ setDataErr("Network error"); }
+        if(i+BATCH_SIZE<watchlist.length) await new Promise(r=>setTimeout(r,1100));
+      }
+      setQuotes(prev=>({...prev,...merged}));
+
+      const nr = await fetch(`/api/news?limit=25`);
       if(nr.ok){
         const d = await nr.json();
         const all = d.data||[];
@@ -597,7 +610,7 @@ export default function MarketTerminal() {
     }catch{ setDataErr("Network error"); }
   },[watchlist]);
 
-  useEffect(()=>{ fetchData(); const t=setInterval(fetchData,45000); return()=>clearInterval(t); },[fetchData]);
+  useEffect(()=>{ fetchData(); const t=setInterval(fetchData,60000); return()=>clearInterval(t); },[fetchData]);
 
   const ctx = useCallback(()=>({
     watchlist: watchlist.map(s=>({ symbol:s, name:watchlistMeta[s]||s, ...(quotes[s]||{}) })),
