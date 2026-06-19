@@ -1,7 +1,4 @@
 // app/api/quote/route.js
-// Fetches live quote data from Finnhub for one or more tickers.
-// Usage: /api/quote?symbols=NVDA,TSLA,SPY
-
 const FINNHUB_BASE = "https://finnhub.io/api/v1";
 
 export async function GET(request) {
@@ -27,25 +24,19 @@ export async function GET(request) {
     .split(",")
     .map((s) => s.trim().toUpperCase())
     .filter(Boolean)
-    .slice(0, 30); // safety cap per request
+    .slice(0, 60);
 
   try {
     const results = await Promise.all(
       symbols.map(async (symbol) => {
-        const [quoteRes, profileRes] = await Promise.all([
-          fetch(`${FINNHUB_BASE}/quote?symbol=${symbol}&token=${apiKey}`),
-          fetch(`${FINNHUB_BASE}/stock/profile2?symbol=${symbol}&token=${apiKey}`),
-        ]);
-
-        if (!quoteRes.ok) {
-          return { symbol, error: `Quote fetch failed (${quoteRes.status})` };
+        const res = await fetch(`${FINNHUB_BASE}/quote?symbol=${symbol}&token=${apiKey}`);
+        if (!res.ok) {
+          return { symbol, error: `Quote fetch failed (${res.status})` };
         }
-
-        const quote = await quoteRes.json();
-        const profile = profileRes.ok ? await profileRes.json() : {};
-
-        // Finnhub quote fields: c=current, d=change, dp=percent change,
-        // h=high, l=low, o=open, pc=previous close, t=timestamp
+        const quote = await res.json();
+        if (quote.c === 0 && quote.pc === 0) {
+          return { symbol, error: "No data for this symbol" };
+        }
         return {
           symbol,
           price: quote.c ?? null,
@@ -56,9 +47,6 @@ export async function GET(request) {
           open: quote.o ?? null,
           previousClose: quote.pc ?? null,
           timestamp: quote.t ?? null,
-          name: profile.name ?? symbol,
-          marketCap: profile.marketCapitalization ?? null,
-          exchange: profile.exchange ?? null,
         };
       })
     );

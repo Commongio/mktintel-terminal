@@ -1,9 +1,42 @@
 // app/api/news/route.js
-// Fetches market news from Finnhub.
+// Fetches market news from Finnhub + mock Trump/Truth Social news.
 // Usage: /api/news                -> general market news
+// Usage: /api/news?type=trump     -> Trump/Truth Social news (mocked)
 // Usage: /api/news?symbol=NVDA    -> company-specific news (last 7 days)
 
 const FINNHUB_BASE = "https://finnhub.io/api/v1";
+
+// Mock Trump/Truth Social news (placeholder until we have a real API)
+const TRUMP_NEWS_MOCKS = [
+  {
+    id: "trump-1",
+    headline: "Trump Truth Social: 'Rebuilding American energy independence. Offshore drilling permits approved.'",
+    source: "Truth Social",
+    datetime: Date.now() - 300000,
+    related: "XOM,COP,MPC",
+  },
+  {
+    id: "trump-2",
+    headline: "Trump tweet: 'EV tax credits under review. American auto manufacturing is key to competitiveness.'",
+    source: "Truth Social",
+    datetime: Date.now() - 600000,
+    related: "TSLA,F,GM",
+  },
+  {
+    id: "trump-3",
+    headline: "Trump Truth Social: 'Rebuilding the greatest military ever. Defense spending to increase.'",
+    source: "Truth Social",
+    datetime: Date.now() - 900000,
+    related: "LMT,RTX,BA,NOC",
+  },
+  {
+    id: "trump-4",
+    headline: "Trump post: 'Crypto is the future. Regulatory clarity coming soon.'",
+    source: "Truth Social",
+    datetime: Date.now() - 1200000,
+    related: "MSTR,COIN,RIOT",
+  },
+];
 
 function formatDate(d) {
   return d.toISOString().split("T")[0];
@@ -12,6 +45,7 @@ function formatDate(d) {
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const symbol = searchParams.get("symbol");
+  const type = searchParams.get("type");
   const limit = Math.min(parseInt(searchParams.get("limit") || "15", 10), 50);
 
   const apiKey = process.env.FINNHUB_API_KEY;
@@ -23,6 +57,22 @@ export async function GET(request) {
   }
 
   try {
+    // Trump/Truth Social news (mocked)
+    if (type === "trump") {
+      const items = TRUMP_NEWS_MOCKS.slice(0, limit).map((item) => ({
+        id: item.id,
+        headline: item.headline,
+        source: item.source,
+        datetime: item.datetime,
+        related: item.related,
+        summary: item.headline,
+        url: null,
+        image: null,
+      }));
+      return Response.json({ data: items, fetchedAt: Date.now() });
+    }
+
+    // General or company-specific news
     let url;
     if (symbol) {
       const to = new Date();
@@ -54,7 +104,7 @@ export async function GET(request) {
         source: item.source,
         url: item.url,
         image: item.image || null,
-        datetime: item.datetime ? item.datetime * 1000 : null, // ms epoch
+        datetime: item.datetime ? item.datetime * 1000 : null,
         related: item.related || symbol || null,
       }));
 
