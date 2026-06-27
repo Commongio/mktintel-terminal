@@ -1,4 +1,4 @@
-"use client";
+"use client";import BotDashboard from "./components/BotDashboard";
 import { useState, useEffect, useRef, useCallback, useMemo, memo } from "react";
 import TradingViewChart from "./components/TradingViewChart";
 
@@ -738,7 +738,17 @@ export default function MarketTerminal(){
         {/* HEADER */}
         <div style={{padding:"10px 18px",borderBottom:`1px solid ${T.border}`,display:"flex",alignItems:"center",justifyContent:"space-between",background:T.panel,flexShrink:0}}>
           <div style={{display:"flex",alignItems:"baseline",gap:18}}>
-            {["terminal","data","chart"].map(v=>(
+            {/* BOT FLIP BUTTON */}
+<button onClick={()=>setView(v=>v==="bot"?"terminal":"bot")} title="Toggle Bot Dashboard" style={{
+  width:34,height:34,borderRadius:8,display:"flex",alignItems:"center",
+  justifyContent:"center",fontSize:18,
+  color:view==="bot"?accent:T.dim,
+  background:view==="bot"?`${accent}12`:T.surface,
+  border:`1px solid ${view==="bot"?`${accent}30`:T.border}`,
+  cursor:"pointer",transition:"all 0.15s",marginRight:4,flexShrink:0,
+}}>⇄</button>
+
+{["terminal","data","chart"].map(v=>(
               <button key={v} onClick={()=>setView(v)} style={{cursor:"pointer"}}>
                 <span style={{fontFamily:FONT_DISPLAY,fontSize:18,fontWeight:700,letterSpacing:0.3,color:view===v?T.text:T.dim,transition:"color 0.15s",textTransform:"capitalize"}}>
                   {v==="terminal"?"Trading Terminal":v.charAt(0).toUpperCase()+v.slice(1)}
@@ -752,7 +762,7 @@ export default function MarketTerminal(){
 
         <div style={{display:"flex",flex:1,overflow:"hidden"}}>
           {/* LEFT PANEL — hidden on chart page */}
-          {view!=="chart"&&(
+          {view!=="chart"&&view!=="bot"&&(
             <>
               <div style={{width:leftWidth,minWidth:leftWidth,borderRight:`1px solid ${TL.border}`,display:"flex",flexDirection:"column",background:TL.panel}}>
                 <div style={{padding:"11px 12px 9px",borderBottom:`1px solid ${TL.border}`}}>
@@ -841,6 +851,11 @@ export default function MarketTerminal(){
           {view==="chart"&&(
             <ChartPage symbol={chartSymbol} onSymbolChange={setChartSymbol} messages={messages} input={input} setInput={setInput} send={send} loading={loading} accent={accent} T={T} TR={TR} chartRightWidth={chartRightWidth} onStartResizeRight={startResize("chartRight",chartRightWidth)}/>
           )}
+          {/* BOT DASHBOARD VIEW */}
+{view==="bot"&&(
+  <BotDashboard accent={accent} T={T} botName="KRONOS BOT" />
+)}
+          
         </div>
       </div>
     </>
