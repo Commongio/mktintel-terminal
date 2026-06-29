@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
+import { KronosOnboarding } from "./KronosOnboarding";
 
 // ─── TYPOGRAPHY (mirrors page.js) ──────────────────────────────────────────────
 const FM = "'JetBrains Mono',monospace";
@@ -305,6 +306,8 @@ export default function BotDashboard({ accent = "#00d4aa", T, botName = "KRONOS"
   const [botStatus, setBotStatus] = useState("SCANNING");
   const [etTime,    setEtTime]    = useState("--:--:-- ET");
   const [score,     setScore]     = useState(78);
+  const [profile,        setProfile]        = useState(null);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const streamRef = useRef(null);
   const sigId     = useRef(7);
 
@@ -323,6 +326,16 @@ export default function BotDashboard({ accent = "#00d4aa", T, botName = "KRONOS"
   useEffect(() => {
     if (streamRef.current) streamRef.current.scrollTop = streamRef.current.scrollHeight;
   }, [signals]);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("kronos_profile");
+    if (saved) {
+      try { setProfile(JSON.parse(saved)); }
+      catch { setShowOnboarding(true); }
+    } else {
+      setShowOnboarding(true);
+    }
+  }, []);
 
   // ── Simulated live signals (replace with Webull WS feed in V.7) ────────────
   useEffect(() => {
@@ -374,6 +387,9 @@ export default function BotDashboard({ accent = "#00d4aa", T, botName = "KRONOS"
 
   return (
     <div style={{ flex:1, display:"flex", flexDirection:"column", background:bg, overflow:"hidden", minWidth:0 }}>
+      {showOnboarding && (
+        <KronosOnboarding accent={accent} T={T} onComplete={(p)=>{setProfile(p);setShowOnboarding(false);}} />
+      )}
 
       {/* ── KEYFRAME ANIMATIONS ── */}
       <style>{`
@@ -412,6 +428,14 @@ export default function BotDashboard({ accent = "#00d4aa", T, botName = "KRONOS"
               {botStatus}
             </span>
           </div>
+          {profile && (
+            <button onClick={() => setShowOnboarding(true)} style={{
+              padding:"3px 10px", borderRadius:20, cursor:"pointer",
+              border:`1px solid ${dim}20`, fontFamily:FM, fontSize:8, color:dim,
+            }}>
+              {profile.riskTolerance?.toUpperCase()} | {profile.accountSize}
+            </button>
+          )}
         </div>
         <div style={{ fontFamily:FM, fontSize:12, color:dim, letterSpacing:1 }}>{etTime}</div>
       </div>

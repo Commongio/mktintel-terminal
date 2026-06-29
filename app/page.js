@@ -2,6 +2,11 @@
 import { useState, useEffect, useRef, useCallback, useMemo, memo } from "react";
 import TradingViewChart from "./components/TradingViewChart";
 
+import AccessGate from "./components/AccessGate";
+import FOMCOverlay from "./components/FOMCOverlay";
+import OptionsIntelligence from "./components/OptionsIntelligence";
+// KronosOnboarding is used inside BotDashboard.jsx directly
+
 const FONT_SANS = "'Geist',sans-serif", FONT_SERIF = "'Source Serif 4',serif";
 const FONT_DISPLAY = "'Fraunces',serif", FONT_CHAT = "'Inter',sans-serif", FONT_MONO = "'JetBrains Mono',monospace";
 
@@ -111,10 +116,10 @@ function TypingIndicator({accent}){
   );
 }
 
-const ChatMessage=memo(function ChatMessage({msg,accent,T}){
+const ChatMessage=memo(function ChatMessage({msg,accent,T,fontSize}){
   const u=msg.role==="user";
   return(
-    <div style={{display:"flex",flexDirection:"column",alignItems:u?"flex-end":"flex-start",marginBottom:9}}>
+    <div style={{display:"flex",flexDirection:"column",alignItems:u?"flex-end":"flex-start",marginBottom:5}}>
       <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:3}}>
         {!u&&<span style={{color:msg.isAlertDive?"#a78bfa":accent,fontSize:9,fontFamily:FONT_MONO,letterSpacing:2,fontWeight:700}}>{msg.isAlertDive?"◆ INTEL":"◈ DESK"}</span>}
         {u&&<span style={{color:T.dim,fontSize:9,fontFamily:FONT_MONO,letterSpacing:2,fontWeight:700}}>YOU ◈</span>}
@@ -157,7 +162,18 @@ function QuickActions({onAction,accent,T}){
 }
 
 const WatchlistRow=memo(function WatchlistRow({symbol,quote,name,onClick,T,density}){
+  const [techData,setTechData]=useState({});
   const pad=density==="compact"?"6px 9px":"8px 10px";
+
+  const fetchTechnicals=async(symbolKey)=>{
+    try{
+      const r=await fetch(`/api/twelve-data?symbols=${symbolKey}&type=technicals`);
+      const d=await r.json();
+      setTechData(prev=>({...prev,[symbolKey]:d}));
+    }catch{}
+  };
+
+  useEffect(()=>{fetchTechnicals(symbol);},[symbol]);
   if(!quote) return <div style={{padding:pad,borderRadius:7,marginBottom:5,background:T.surface,border:`1px solid ${T.border}`}}><span style={{fontFamily:FONT_MONO,fontSize:10,color:T.dim}}>{symbol} loading...</span></div>;
   if(quote.error) return <div style={{padding:pad,borderRadius:7,marginBottom:5,background:T.surface,border:`1px solid ${T.border}`}}><span style={{fontFamily:FONT_MONO,fontSize:10,color:"#ff4d6d"}}>{symbol} — unavailable</span></div>;
   const up=(quote.changePercent??0)>=0,clr=up?"#00d4aa":"#ff4d6d";
@@ -173,6 +189,12 @@ const WatchlistRow=memo(function WatchlistRow({symbol,quote,name,onClick,T,densi
       <div style={{textAlign:"right"}}>
         <div style={{fontFamily:FONT_MONO,fontSize:12.5,fontWeight:700,color:T.text}}>{quote.price!=null?`$${quote.price.toFixed(2)}`:"—"}</div>
         <div style={{fontFamily:FONT_MONO,fontSize:11,fontWeight:700,color:clr}}>{quote.changePercent!=null?`${up?"▲":"▼"} ${Math.abs(quote.changePercent).toFixed(2)}%`:""}</div>
+        {techData[symbol] && (
+          <div style={{fontFamily:FONT_MONO,fontSize:9,color:T.dim,marginTop:2,display:"flex",flexDirection:"column",alignItems:"flex-end"}}>
+            {techData[symbol].rsi!=null&&<span>RSI: {techData[symbol].rsi}</span>}
+            {techData[symbol].macd!=null&&<span>MACD: {techData[symbol].macd}</span>}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -206,6 +228,7 @@ function WatchlistModal({onClose,watchlist,onAdd,onRemove,onReset,accent,T}){
     try{const r=await fetch(`/api/search?q=${encodeURIComponent(query.trim())}`);const d=await r.json();setResults(d.data||[]);}
     catch{setResults([]);}finally{setSearching(false);}
   },[]);
+
   useEffect(()=>{const t=setTimeout(()=>doSearch(q),350);return()=>clearTimeout(t);},[q,doSearch]);
   const quickAdds=POPULAR_PICKS.filter(s=>!watchlist.includes(s)).slice(0,14);
   return(
@@ -308,7 +331,7 @@ function WidthControl({label,value,setValue,min,max,presets,T,accent,hint}){
 }
 
 function SettingsPanel(props){
-  const{onClose,mainBg,setMainBg,mainText,setMainText,leftBg,setLeftBg,leftText,setLeftText,rightBg,setRightBg,rightText,setRightText,accentKey,setAccentKey,density,setDensity,leftWidth,setLeftWidth,rightWidth,setRightWidth,chartRightWidth,setChartRightWidth,onResetAll,T,accent}=props;
+  const{onClose,mainBg,setMainBg,mainText,setMainText,leftBg,setLeftBg,leftText,setLeftText,rightBg,setRightBg,rightText,setRightText,accentKey,setAccentKey,density,setDensity,leftWidth,setLeftWidth,rightWidth,setRightWidth,chartRightWidth,setChartRightWidth,onResetAll,T,accent,fontSize,setFontSize}=props;
   const[tab,setTab]=useState("colors");
   return(
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:1000,display:"flex",justifyContent:"flex-end"}}
@@ -354,6 +377,14 @@ function SettingsPanel(props){
             <WidthControl label="LEFT PANEL WIDTH" value={leftWidth} setValue={setLeftWidth} min={180} max={500} presets={[{l:"Narrow",v:220},{l:"Standard",v:290},{l:"Wide",v:360}]} T={T} accent={accent} hint="💡 Or drag the panel border directly"/>
             <WidthControl label="RIGHT PANEL WIDTH" value={rightWidth} setValue={setRightWidth} min={200} max={560} presets={[{l:"Narrow",v:260},{l:"Standard",v:310},{l:"Wide",v:380}]} T={T} accent={accent} hint="💡 Or drag the panel border directly"/>
             <WidthControl label="CHART AI PANEL WIDTH" value={chartRightWidth} setValue={setChartRightWidth} min={200} max={600} presets={[{l:"Narrow",v:280},{l:"Standard",v:340},{l:"Wide",v:420}]} T={T} accent={accent} hint="💡 Or drag the panel border directly"/>
+            <div style={{marginBottom:18}}>
+              <div style={{fontFamily:FONT_MONO,fontSize:9,color:T.dim,letterSpacing:2,fontWeight:700,marginBottom:9}}>CHAT TEXT SIZE</div>
+              <div style={{display:"flex",gap:7}}>
+                {[{label:"S",val:12},{label:"M",val:14},{label:"L",val:16},{label:"XL",val:18}].map(({label,val})=>(
+                  <button key={label} onClick={()=>{setFontSize(val);localStorage.setItem("kronos_font_size",val);}} style={{flex:1,padding:"7px 0",fontFamily:FONT_MONO,fontSize:10,fontWeight:700,color:fontSize===val?accent:T.dim,background:fontSize===val?`${accent}12`:"transparent",border:`1px solid ${fontSize===val?accent+"40":T.border}`,borderRadius:7,cursor:"pointer",transition:"all 0.15s"}}>{label}</button>
+                ))}
+              </div>
+            </div>
           </>
         )}
         <button onClick={onResetAll} style={{width:"100%",padding:"9px",borderRadius:7,background:"transparent",border:`1px solid ${T.border}`,color:T.dim,fontFamily:FONT_MONO,fontSize:10,fontWeight:700,letterSpacing:1,cursor:"pointer",marginTop:6,marginBottom:16}}>RESET ALL TO DEFAULT</button>
@@ -392,7 +423,7 @@ function NewsPanel({news,onDiveDeep,onRefresh,refreshing,lastUpd,accent,T,densit
 }
 
 // ─── CHART PAGE ───────────────────────────────────────────────────────────────
-function ChartPage({symbol,onSymbolChange,messages,input,setInput,send,loading,accent,T,TR,chartRightWidth,onStartResizeRight}){
+function ChartPage({symbol,onSymbolChange,messages,input,setInput,fontSize=14,send,loading,accent,T,TR,chartRightWidth,onStartResizeRight}){
   const chatEndRef=useRef(null);
   const[symInput,setSymInput]=useState(symbol);
   const isDark=luminance(TR.bg)<=0.55;
@@ -432,7 +463,7 @@ function ChartPage({symbol,onSymbolChange,messages,input,setInput,send,loading,a
           <span style={{fontFamily:FONT_MONO,fontSize:10,fontWeight:700,color:accent,letterSpacing:2}}>AI DESK</span>
         </div>
         <div style={{flex:1,overflowY:"auto",padding:"12px 12px"}}>
-          {messages.slice(-30).map((msg,i)=><ChatMessage key={i} msg={msg} accent={accent} T={TR}/>)}
+          {messages.slice(-30).map((msg,i)=><ChatMessage key={i} msg={msg} accent={accent} T={TR} fontSize={fontSize}/>)}
           {loading&&<TypingIndicator accent={accent}/>}
           <div ref={chatEndRef}/>
         </div>
@@ -458,7 +489,7 @@ function ChartPage({symbol,onSymbolChange,messages,input,setInput,send,loading,a
 }
 
 // ─── DATA PAGE ────────────────────────────────────────────────────────────────
-function DataPage({news,secData,secLoading,onRefreshAll,onDiveNews,onDiveFiling,onDiveInsider,messages,input,setInput,send,loading,onOpenChat,accent,T}){
+function DataPage({news,secData,secLoading,onRefreshAll,onDiveNews,onDiveFiling,onDiveInsider,messages,input,setInput,send,loading,onOpenChat,accent,T,watchlist}){
   const lastMsg=[...messages].reverse().find(m=>m.role==="assistant");
   const handleKey=(e)=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send();}};
   return(
@@ -517,10 +548,8 @@ function DataPage({news,secData,secLoading,onRefreshAll,onDiveNews,onDiveFiling,
             ))}
           </div>
         </div>
-        <div style={{background:T.surface,border:`1px dashed ${T.border}`,borderRadius:10,padding:14,maxHeight:360,opacity:0.6}}>
-          <div style={{fontFamily:FONT_MONO,fontSize:9,color:T.dim,letterSpacing:2,fontWeight:700,marginBottom:10}}>◈ GAMMA EXPOSURE</div>
-          <div style={{fontFamily:FONT_CHAT,fontSize:11.5,color:T.dim,lineHeight:1.6}}>Coming soon. Live gamma exposure requires a paid options-data provider.</div>
-        </div>
+        {/* OPTIONS INTELLIGENCE */}
+        <OptionsIntelligence accent={accent} T={T} watchlist={watchlist}/>
       </div>
       <div style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:10,padding:14}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:9}}>
@@ -548,6 +577,37 @@ function DataPage({news,secData,secLoading,onRefreshAll,onDiveNews,onDiveFiling,
 
 // ─── MAIN ──────────────────────────────────────────────────────────────────────
 export default function MarketTerminal(){
+  const [accessState, setAccessState] = useState("loading");
+  const [fontSize, setFontSize] = useState(() => {
+    if (typeof window !== "undefined") {
+      return Number(localStorage.getItem("kronos_font_size") || 14);
+    }
+    return 14;
+  });
+
+  useEffect(() => {
+    const stored = sessionStorage.getItem("kronos_access");
+    if (!stored) {
+      setAccessState("locked");
+      return;
+    }
+
+    fetch("/api/auth", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code: stored }),
+    })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.valid) setAccessState("granted");
+        else {
+          sessionStorage.removeItem("kronos_access");
+          setAccessState("locked");
+        }
+      })
+      .catch(() => setAccessState("locked"));
+  }, []);
+
   const[view,setView]=useState("terminal");
   const[showWelcome,setShowWelcome]=useState(true);
   const[chartSymbol,setChartSymbol]=useState("AAPL");
@@ -719,21 +779,32 @@ export default function MarketTerminal(){
 
   return(
     <>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Source+Serif+4:wght@400;500;600;700&family=Fraunces:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap');
-        *{box-sizing:border-box;margin:0;padding:0;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;}
-        ::-webkit-scrollbar{width:3px;height:3px;}::-webkit-scrollbar-track{background:transparent;}::-webkit-scrollbar-thumb{background:#5557;border-radius:3px;}
-        @keyframes tickerScroll{from{transform:translateX(0);}to{transform:translateX(-50%);}}
-        @keyframes pulse{0%,100%{opacity:0.3;transform:scale(0.85);}50%{opacity:1;transform:scale(1.1);}}
-        @keyframes blink{0%,100%{opacity:1;}50%{opacity:0;}}
-        @keyframes spin{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
-        @keyframes scanLine{0%,100%{opacity:0.3;}50%{opacity:1;}}
-        textarea:focus,input:focus{outline:none;}textarea{resize:none;}button{cursor:pointer;border:none;background:none;}
-      `}</style>
-      <div style={{display:"flex",flexDirection:"column",height:"100vh",background:T.bg,fontFamily:FONT_CHAT,overflow:"hidden"}}>
-        {showWelcome&&<WelcomePopup onClose={()=>setShowWelcome(false)} accent={accent} T={T}/>}
+      {accessState === "loading" && (
+        <div style={{minHeight:"100vh",background:"#060910"}} />
+      )}
+
+      {accessState === "locked" && (
+        <AccessGate onAccess={() => setAccessState("granted")} />
+      )}
+
+      {accessState === "granted" && (
+        <>
+          <FOMCOverlay />
+          <style>{`
+            @import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Source+Serif+4:wght@400;500;600;700&family=Fraunces:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap');
+            *{box-sizing:border-box;margin:0;padding:0;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;}
+            ::-webkit-scrollbar{width:3px;height:3px;}::-webkit-scrollbar-track{background:transparent;}::-webkit-scrollbar-thumb{background:#5557;border-radius:3px;}
+            @keyframes tickerScroll{from{transform:translateX(0);}to{transform:translateX(-50%);}}
+            @keyframes pulse{0%,100%{opacity:0.3;transform:scale(0.85);}50%{opacity:1;transform:scale(1.1);}}
+            @keyframes blink{0%,100%{opacity:1;}50%{opacity:0;}}
+            @keyframes spin{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
+            @keyframes scanLine{0%,100%{opacity:0.3;}50%{opacity:1;}}
+            textarea:focus,input:focus{outline:none;}textarea{resize:none;}button{cursor:pointer;border:none;background:none;}
+          `}</style>
+          <div style={{display:"flex",flexDirection:"column",height:"100vh",background:T.bg,fontFamily:FONT_CHAT,overflow:"hidden"}}>
+            {showWelcome&&<WelcomePopup onClose={()=>setShowWelcome(false)} accent={accent} T={T}/>}
         {showWL&&<WatchlistModal onClose={()=>setShowWL(false)} watchlist={watchlist} onAdd={addWL} onRemove={rmWL} onReset={resetWL} accent={accent} T={TL}/>}
-        {showSettings&&<SettingsPanel onClose={()=>setShowSettings(false)} mainBg={mainBg} setMainBg={setMainBg} mainText={mainText} setMainText={setMainText} leftBg={leftBg} setLeftBg={setLeftBg} leftText={leftText} setLeftText={setLeftText} rightBg={rightBg} setRightBg={setRightBg} rightText={rightText} setRightText={setRightText} accentKey={accentKey} setAccentKey={setAccentKey} density={density} setDensity={setDensity} leftWidth={leftWidth} setLeftWidth={setLeftWidth} rightWidth={rightWidth} setRightWidth={setRightWidth} chartRightWidth={chartRightWidth} setChartRightWidth={setChartRightWidth} onResetAll={resetAll} T={T} accent={accent}/>}
+        {showSettings&&<SettingsPanel onClose={()=>setShowSettings(false)} mainBg={mainBg} setMainBg={setMainBg} mainText={mainText} setMainText={setMainText} leftBg={leftBg} setLeftBg={setLeftBg} leftText={leftText} setLeftText={setLeftText} rightBg={rightBg} setRightBg={setRightBg} rightText={rightText} setRightText={setRightText} accentKey={accentKey} setAccentKey={setAccentKey} density={density} setDensity={setDensity} leftWidth={leftWidth} setLeftWidth={setLeftWidth} rightWidth={rightWidth} setRightWidth={setRightWidth} chartRightWidth={chartRightWidth} setChartRightWidth={setChartRightWidth} onResetAll={resetAll} T={T} accent={accent} fontSize={fontSize} setFontSize={setFontSize}/>} 
 
         {/* HEADER */}
         <div style={{padding:"10px 18px",borderBottom:`1px solid ${T.border}`,display:"flex",alignItems:"center",justifyContent:"space-between",background:T.panel,flexShrink:0}}>
@@ -812,7 +883,7 @@ export default function MarketTerminal(){
                   </div>
                 </div>
                 <div style={{flex:1,overflowY:"auto",padding:"14px 18px"}}>
-                  {messages.map((msg,i)=><ChatMessage key={i} msg={msg} accent={accent} T={T}/>)}
+                  {messages.map((msg,i)=><ChatMessage key={i} msg={msg} accent={accent} T={T} fontSize={fontSize}/>)}
                   {loading&&<TypingIndicator accent={accent}/>}
                   <div ref={chatEndRef}/>
                 </div>
@@ -844,12 +915,12 @@ export default function MarketTerminal(){
 
           {/* DATA VIEW */}
           {view==="data"&&(
-            <DataPage news={news} secData={secData} secLoading={secLoading} onRefreshAll={()=>{fetchNews();loadSecData();}} onDiveNews={handleNews} onDiveFiling={handleFiling} onDiveInsider={handleInsider} messages={messages} input={input} setInput={setInput} send={send} loading={loading} onOpenChat={()=>setView("terminal")} accent={accent} T={T}/>
+            <DataPage news={news} secData={secData} secLoading={secLoading} onRefreshAll={()=>{fetchNews();loadSecData();}} onDiveNews={handleNews} onDiveFiling={handleFiling} onDiveInsider={handleInsider} messages={messages} input={input} setInput={setInput} send={send} loading={loading} onOpenChat={()=>setView("terminal")} accent={accent} T={T} watchlist={watchlist}/>
           )}
 
           {/* CHART VIEW */}
           {view==="chart"&&(
-            <ChartPage symbol={chartSymbol} onSymbolChange={setChartSymbol} messages={messages} input={input} setInput={setInput} send={send} loading={loading} accent={accent} T={T} TR={TR} chartRightWidth={chartRightWidth} onStartResizeRight={startResize("chartRight",chartRightWidth)}/>
+            <ChartPage symbol={chartSymbol} onSymbolChange={setChartSymbol} messages={messages} input={input} setInput={setInput} send={send} loading={loading} accent={accent} T={T} TR={TR} chartRightWidth={chartRightWidth} onStartResizeRight={startResize("chartRight",chartRightWidth)} fontSize={fontSize}/>
           )}
           {/* BOT DASHBOARD VIEW */}
 {view==="bot"&&(
@@ -858,6 +929,6 @@ export default function MarketTerminal(){
           
         </div>
       </div>
-    </>
-  );
+    </>      )}
+    </>  );
 }
