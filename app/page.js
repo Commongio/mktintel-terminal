@@ -1,6 +1,8 @@
 "use client";import BotDashboard from "./components/BotDashboard";
 import { useState, useEffect, useRef, useCallback, useMemo, memo } from "react";
 import TradingViewChart from "./components/TradingViewChart";
+import MarketStatusBadge from "./components/MarketStatusBadge";
+import TerminalChart from "./components/TerminalChart";
 
 import AccessGate from "./components/AccessGate";
 import FOMCOverlay from "./components/FOMCOverlay";
@@ -377,11 +379,17 @@ function SettingsPanel(props){
             <WidthControl label="LEFT PANEL WIDTH" value={leftWidth} setValue={setLeftWidth} min={180} max={500} presets={[{l:"Narrow",v:220},{l:"Standard",v:290},{l:"Wide",v:360}]} T={T} accent={accent} hint="💡 Or drag the panel border directly"/>
             <WidthControl label="RIGHT PANEL WIDTH" value={rightWidth} setValue={setRightWidth} min={200} max={560} presets={[{l:"Narrow",v:260},{l:"Standard",v:310},{l:"Wide",v:380}]} T={T} accent={accent} hint="💡 Or drag the panel border directly"/>
             <WidthControl label="CHART AI PANEL WIDTH" value={chartRightWidth} setValue={setChartRightWidth} min={200} max={600} presets={[{l:"Narrow",v:280},{l:"Standard",v:340},{l:"Wide",v:420}]} T={T} accent={accent} hint="💡 Or drag the panel border directly"/>
-            <div style={{marginBottom:18}}>
-              <div style={{fontFamily:FONT_MONO,fontSize:9,color:T.dim,letterSpacing:2,fontWeight:700,marginBottom:9}}>CHAT TEXT SIZE</div>
-              <div style={{display:"flex",gap:7}}>
+            <div style={{marginTop:18,paddingTop:14,borderTop:`1px solid ${T.border}`}}>
+              <div style={{fontFamily:FONT_MONO,fontSize:9,color:T.dim,letterSpacing:2,fontWeight:700,marginBottom:10}}>GLOBAL TEXT SIZE</div>
+              <div style={{display:"flex",gap:6}}>
                 {[{label:"S",val:12},{label:"M",val:14},{label:"L",val:16},{label:"XL",val:18}].map(({label,val})=>(
-                  <button key={label} onClick={()=>{setFontSize(val);localStorage.setItem("kronos_font_size",val);}} style={{flex:1,padding:"7px 0",fontFamily:FONT_MONO,fontSize:10,fontWeight:700,color:fontSize===val?accent:T.dim,background:fontSize===val?`${accent}12`:"transparent",border:`1px solid ${fontSize===val?accent+"40":T.border}`,borderRadius:7,cursor:"pointer",transition:"all 0.15s"}}>{label}</button>
+                  <button key={val} onClick={()=>{setFontSize(val);localStorage.setItem("kronos_font_size",val);}} style={{
+                    flex:1,padding:"7px 0",fontFamily:FONT_MONO,fontSize:10,fontWeight:700,
+                    color:fontSize===val?accent:T.dim,
+                    background:fontSize===val?`${accent}12`:"transparent",
+                    border:`1px solid ${fontSize===val?accent+"40":T.border}`,
+                    borderRadius:7,cursor:"pointer",transition:"all 0.15s",
+                  }}>{label}</button>
                 ))}
               </div>
             </div>
@@ -801,7 +809,7 @@ export default function MarketTerminal(){
             @keyframes scanLine{0%,100%{opacity:0.3;}50%{opacity:1;}}
             textarea:focus,input:focus{outline:none;}textarea{resize:none;}button{cursor:pointer;border:none;background:none;}
           `}</style>
-          <div style={{display:"flex",flexDirection:"column",height:"100vh",background:T.bg,fontFamily:FONT_CHAT,overflow:"hidden"}}>
+          <div style={{display:"flex",flexDirection:"column",height:"100vh",background:T.bg,fontFamily:FONT_CHAT,overflow:"hidden",zoom:fontSize/14}}>
             {showWelcome&&<WelcomePopup onClose={()=>setShowWelcome(false)} accent={accent} T={T}/>}
         {showWL&&<WatchlistModal onClose={()=>setShowWL(false)} watchlist={watchlist} onAdd={addWL} onRemove={rmWL} onReset={resetWL} accent={accent} T={TL}/>}
         {showSettings&&<SettingsPanel onClose={()=>setShowSettings(false)} mainBg={mainBg} setMainBg={setMainBg} mainText={mainText} setMainText={setMainText} leftBg={leftBg} setLeftBg={setLeftBg} leftText={leftText} setLeftText={setLeftText} rightBg={rightBg} setRightBg={setRightBg} rightText={rightText} setRightText={setRightText} accentKey={accentKey} setAccentKey={setAccentKey} density={density} setDensity={setDensity} leftWidth={leftWidth} setLeftWidth={setLeftWidth} rightWidth={rightWidth} setRightWidth={setRightWidth} chartRightWidth={chartRightWidth} setChartRightWidth={setChartRightWidth} onResetAll={resetAll} T={T} accent={accent} fontSize={fontSize} setFontSize={setFontSize}/>} 
@@ -828,7 +836,10 @@ export default function MarketTerminal(){
             ))}
             <span style={{fontFamily:FONT_MONO,fontSize:8,color:accent,background:`${accent}10`,border:`1px solid ${accent}22`,padding:"2px 6px",borderRadius:4,letterSpacing:2,fontWeight:700}}>LIVE</span>
           </div>
-          <button onClick={()=>setShowSettings(true)} style={{width:32,height:32,borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,color:T.dim,background:T.surface,border:`1px solid ${T.border}`,cursor:"pointer"}}>⚙</button>
+          <div style={{display:"flex",alignItems:"center",gap:10}}>
+            <MarketStatusBadge accent={accent} T={T}/>
+            <button onClick={()=>setShowSettings(true)} style={{width:32,height:32,borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,color:T.dim,background:T.surface,border:`1px solid ${T.border}`,cursor:"pointer"}}>⚙</button>
+          </div>
         </div>
 
         <div style={{display:"flex",flex:1,overflow:"hidden"}}>
@@ -861,6 +872,10 @@ export default function MarketTerminal(){
               <ResizeDivider onMouseDown={startResize("left",leftWidth)} accent={accent}/>
             </>
           )}
+
+          <div style={{display:view==="chart"?"flex":"none",flex:1,overflow:"hidden"}}>
+            <ChartPage symbol={chartSymbol} onSymbolChange={setChartSymbol} messages={messages} input={input} setInput={setInput} send={send} loading={loading} accent={accent} T={T} TR={TR} chartRightWidth={chartRightWidth} onStartResizeRight={startResize("chartRight",chartRightWidth)} fontSize={fontSize}/>
+          </div>
 
           {/* TERMINAL VIEW */}
           {view==="terminal"&&(
@@ -905,6 +920,7 @@ export default function MarketTerminal(){
                     <span style={{fontFamily:FONT_MONO,fontSize:7.5,color:T.dim,letterSpacing:1}}>NOT FINANCIAL ADVICE</span>
                   </div>
                 </div>
+                <TerminalChart accent={accent} T={T} defaultSymbol={watchlist[0]||"SPY"}/>
               </div>
               <ResizeDivider onMouseDown={startResize("right",rightWidth)} accent={accent}/>
               <div style={{width:rightWidth,minWidth:rightWidth,borderLeft:`1px solid ${TR.border}`}}>
@@ -918,10 +934,6 @@ export default function MarketTerminal(){
             <DataPage news={news} secData={secData} secLoading={secLoading} onRefreshAll={()=>{fetchNews();loadSecData();}} onDiveNews={handleNews} onDiveFiling={handleFiling} onDiveInsider={handleInsider} messages={messages} input={input} setInput={setInput} send={send} loading={loading} onOpenChat={()=>setView("terminal")} accent={accent} T={T} watchlist={watchlist}/>
           )}
 
-          {/* CHART VIEW */}
-          {view==="chart"&&(
-            <ChartPage symbol={chartSymbol} onSymbolChange={setChartSymbol} messages={messages} input={input} setInput={setInput} send={send} loading={loading} accent={accent} T={T} TR={TR} chartRightWidth={chartRightWidth} onStartResizeRight={startResize("chartRight",chartRightWidth)} fontSize={fontSize}/>
-          )}
           {/* BOT DASHBOARD VIEW */}
 {view==="bot"&&(
   <BotDashboard accent={accent} T={T} botName="KRONOS BOT" />
