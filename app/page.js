@@ -2,11 +2,15 @@
 import { useState, useEffect, useRef, useCallback, useMemo, memo } from "react";
 import TradingViewChart from "./components/TradingViewChart";
 import MarketStatusBadge from "./components/MarketStatusBadge";
+import PropFirmPanel from "./components/PropFirmPanel";
 import TerminalChart from "./components/TerminalChart";
 
-import AccessGate from "./components/AccessGate";
+import AuthGate from "./components/AuthGate";
 import FOMCOverlay from "./components/FOMCOverlay";
+import GridDock, { DEFAULT_TERMINAL_LAYOUT } from "./components/GridDock";
+import { getSupabase, supabaseConfigured, getAccessToken } from "../lib/supabase";
 import OptionsIntelligence from "./components/OptionsIntelligence";
+import TickerTape from "./components/TickerTape";
 // KronosOnboarding is used inside BotDashboard.jsx directly
 
 const FONT_SANS = "'Geist',sans-serif", FONT_SERIF = "'Source Serif 4',serif";
@@ -21,10 +25,26 @@ function rgbToHex(r,g,b){const c=x=>Math.max(0,Math.min(255,Math.round(x))).toSt
 function shade(hex,amt){const{r,g,b}=hexToRgb(hex),d=Math.round(2.55*amt);return rgbToHex(r+d,g+d,b+d);}
 function mix(a,b,w){const A=hexToRgb(a),B=hexToRgb(b);return rgbToHex(A.r*w+B.r*(1-w),A.g*w+B.g*(1-w),A.b*w+B.b*(1-w));}
 function luminance(hex){const{r,g,b}=hexToRgb(hex);return(0.299*r+0.587*g+0.114*b)/255;}
-function deriveTheme(bg,text){const d=luminance(bg)>0.55?-1:1;return{bg,panel:bg,surface:shade(bg,d*4),border:shade(bg,d*9),text,textDim:mix(text,bg,0.6),dim:mix(text,bg,0.32)};}
+function deriveTheme(bg,text){
+  const d=luminance(bg)>0.55?-1:1;
+  const s=shade(bg,d*5);
+  const b=shade(bg,d*11);
+  return{
+    bg,
+    panel:shade(bg,d*2),
+    surface:s,
+    surface2:shade(bg,d*8),
+    border:b,
+    border2:shade(bg,d*16),
+    text,
+    textDim:mix(text,bg,0.62),
+    dim:mix(text,bg,0.30),
+    ghost:mix(text,bg,0.14),
+  };
+}
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
-const DEFAULT_BG="#060910",DEFAULT_TEXT="#c8d8e8";
+const DEFAULT_BG="#05080F",DEFAULT_TEXT="#E2EDF8";
 const ACCENTS={teal:"#00d4aa",blue:"#7eb8f7",purple:"#a78bfa",orange:"#ff6b35",gold:"#f7c948",red:"#ff4d6d"};
 const THEME_DEFAULTS={mainBg:DEFAULT_BG,mainText:DEFAULT_TEXT,leftBg:DEFAULT_BG,leftText:DEFAULT_TEXT,rightBg:DEFAULT_BG,rightText:DEFAULT_TEXT,accent:"teal",density:"comfortable",leftWidth:290,rightWidth:310,chartRightWidth:340};
 const TRUMP_RE=/trump|truth social|tariff|executive order|maga|mar-a-lago|president trump|trade war/i;
@@ -127,7 +147,18 @@ const ChatMessage=memo(function ChatMessage({msg,accent,T,fontSize}){
         {u&&<span style={{color:T.dim,fontSize:9,fontFamily:FONT_MONO,letterSpacing:2,fontWeight:700}}>YOU ◈</span>}
       </div>
       <div style={{maxWidth:"91%",background:u?`${accent}10`:msg.isAlertDive?"rgba(167,139,250,0.08)":"rgba(127,127,127,0.06)",border:u?`1px solid ${accent}28`:msg.isAlertDive?"1px solid rgba(167,139,250,0.22)":`1px solid ${T.border}`,borderRadius:u?"12px 12px 3px 12px":"3px 12px 12px 12px",padding:"10px 14px"}}>
-        <p style={{color:u?T.text:T.textDim,fontSize:14,lineHeight:1.62,margin:0,fontFamily:FONT_CHAT,whiteSpace:"pre-wrap"}}>{msg.content}</p>
+        <p style={{
+  color:u?T.text:T.textDim,
+  fontSize:fontSize||14,
+  lineHeight:1.5,
+  margin:0,
+  fontFamily:FONT_CHAT,
+  whiteSpace:"pre-wrap",
+  textRendering:"geometricPrecision",
+  WebkitFontSmoothing:"antialiased",
+}}>
+  {(msg.content||"").replace(/\n{3,}/g,"\n\n")}
+</p>
       </div>
     </div>
   );
@@ -169,7 +200,7 @@ const WatchlistRow=memo(function WatchlistRow({symbol,quote,name,onClick,T,densi
 
   const fetchTechnicals=async(symbolKey)=>{
     try{
-      const r=await fetch(`/api/twelve-data?symbols=${symbolKey}&type=technicals`);
+      const r=await fetch(`/api/technicals?symbol=${symbolKey}`);
       const d=await r.json();
       setTechData(prev=>({...prev,[symbolKey]:d}));
     }catch{}
@@ -193,8 +224,19 @@ const WatchlistRow=memo(function WatchlistRow({symbol,quote,name,onClick,T,densi
         <div style={{fontFamily:FONT_MONO,fontSize:11,fontWeight:700,color:clr}}>{quote.changePercent!=null?`${up?"▲":"▼"} ${Math.abs(quote.changePercent).toFixed(2)}%`:""}</div>
         {techData[symbol] && (
           <div style={{fontFamily:FONT_MONO,fontSize:9,color:T.dim,marginTop:2,display:"flex",flexDirection:"column",alignItems:"flex-end"}}>
-            {techData[symbol].rsi!=null&&<span>RSI: {techData[symbol].rsi}</span>}
-            {techData[symbol].macd!=null&&<span>MACD: {techData[symbol].macd}</span>}
+            {techData[symbol].rsi!=null&&(
+              <span style={{
+                color: Number(techData[symbol].rsi)>70?"#ff3d57":Number(techData[symbol].rsi)<30?"#00e676":"#7A9AB5",
+                fontWeight:700
+              }}>
+                RSI {Number(techData[symbol].rsi).toFixed(0)}
+              </span>
+            )}
+            {techData[symbol].macd?.macd!=null&&(
+              <span style={{color:Number(techData[symbol].macd.macd)>=0?"#00e676":"#ff3d57",fontWeight:700}}>
+                MACD {Number(techData[symbol].macd.macd).toFixed(2)}
+              </span>
+            )}
           </div>
         )}
       </div>
@@ -333,8 +375,33 @@ function WidthControl({label,value,setValue,min,max,presets,T,accent,hint}){
 }
 
 function SettingsPanel(props){
-  const{onClose,mainBg,setMainBg,mainText,setMainText,leftBg,setLeftBg,leftText,setLeftText,rightBg,setRightBg,rightText,setRightText,accentKey,setAccentKey,density,setDensity,leftWidth,setLeftWidth,rightWidth,setRightWidth,chartRightWidth,setChartRightWidth,onResetAll,T,accent,fontSize,setFontSize}=props;
+  const{onClose,mainBg,setMainBg,mainText,setMainText,leftBg,setLeftBg,leftText,setLeftText,rightBg,setRightBg,rightText,setRightText,accentKey,setAccentKey,density,setDensity,leftWidth,setLeftWidth,rightWidth,setRightWidth,chartRightWidth,setChartRightWidth,onResetAll,T,accent,fontSize,setFontSize,chatStyle,setChatStyle,bgImage,setBgImage,user,onSignOut}=props;
   const[tab,setTab]=useState("colors");
+  const[uploadErr,setUploadErr]=useState("");
+
+  const handleBgUpload=(e)=>{
+    const file=e.target.files?.[0];if(!file)return;
+    setUploadErr("");
+    if(!/^image\//.test(file.type)){setUploadErr("Please choose an image file.");return;}
+    if(file.size>8*1024*1024){setUploadErr("Image too large (max 8MB).");return;}
+    const img=new Image();
+    const reader=new FileReader();
+    reader.onload=()=>{img.src=reader.result;};
+    img.onload=()=>{
+      // Downscale to max 1600px and compress so the data URL stays small.
+      const scale=Math.min(1,1600/Math.max(img.width,img.height));
+      const canvas=document.createElement("canvas");
+      canvas.width=Math.round(img.width*scale);canvas.height=Math.round(img.height*scale);
+      canvas.getContext("2d").drawImage(img,0,0,canvas.width,canvas.height);
+      let dataUrl=canvas.toDataURL("image/jpeg",0.82);
+      if(dataUrl.length>1_500_000)dataUrl=canvas.toDataURL("image/jpeg",0.6);
+      if(dataUrl.length>1_500_000){setUploadErr("Image is too complex to compress — try a smaller photo.");return;}
+      setBgImage(prev=>({...prev,dataUrl}));
+    };
+    img.onerror=()=>setUploadErr("Could not read that image.");
+    reader.readAsDataURL(file);
+    e.target.value="";
+  };
   return(
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:1000,display:"flex",justifyContent:"flex-end"}}
       onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
@@ -344,11 +411,76 @@ function SettingsPanel(props){
           <button onClick={onClose} style={{color:T.dim,fontSize:17,cursor:"pointer"}}>✕</button>
         </div>
         <div style={{display:"flex",gap:5,marginBottom:16}}>
-          {["colors","layout"].map(t=>(
+          {["colors","layout","personal"].map(t=>(
             <button key={t} onClick={()=>setTab(t)}
               style={{flex:1,padding:"7px",fontFamily:FONT_MONO,fontSize:10,fontWeight:700,letterSpacing:1,textTransform:"uppercase",color:tab===t?accent:T.dim,background:tab===t?`${accent}10`:"transparent",border:`1px solid ${tab===t?`${accent}28`:T.border}`,borderRadius:6,cursor:"pointer"}}>{t}</button>
           ))}
         </div>
+        {tab==="personal"&&(
+          <>
+            <div style={{marginBottom:18}}>
+              <div style={{fontFamily:FONT_MONO,fontSize:9,color:T.dim,letterSpacing:2,fontWeight:700,marginBottom:9}}>TERMINAL BACKGROUND PHOTO</div>
+              {bgImage?.dataUrl?(
+                <div style={{marginBottom:10}}>
+                  <div style={{width:"100%",height:90,borderRadius:8,border:`1px solid ${T.border}`,backgroundImage:`url(${bgImage.dataUrl})`,backgroundSize:"cover",backgroundPosition:"center",marginBottom:8}}/>
+                  <button onClick={()=>setBgImage(prev=>({...prev,dataUrl:""}))}
+                    style={{width:"100%",padding:"7px",borderRadius:6,background:"rgba(255,77,109,0.08)",border:"1px solid rgba(255,77,109,0.25)",color:"#ff4d6d",fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,cursor:"pointer"}}>REMOVE PHOTO</button>
+                </div>
+              ):(
+                <label style={{display:"block",width:"100%",padding:"16px 0",textAlign:"center",borderRadius:8,border:`1px dashed ${accent}45`,background:`${accent}08`,color:accent,fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,cursor:"pointer",marginBottom:10}}>
+                  + UPLOAD PHOTO (JPG/PNG, AUTO-COMPRESSED)
+                  <input type="file" accept="image/*" onChange={handleBgUpload} style={{display:"none"}}/>
+                </label>
+              )}
+              {uploadErr&&<div style={{fontFamily:FONT_MONO,fontSize:9,color:"#ff4d6d",marginBottom:8}}>⚠ {uploadErr}</div>}
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+                <span style={{fontFamily:FONT_MONO,fontSize:9,color:T.dim,letterSpacing:2,fontWeight:700}}>PHOTO DIM</span>
+                <span style={{fontFamily:FONT_MONO,fontSize:10,color:accent,fontWeight:700}}>{Math.round((bgImage?.dim??0.6)*100)}%</span>
+              </div>
+              <input type="range" min={0} max={95} value={Math.round((bgImage?.dim??0.6)*100)}
+                onChange={e=>setBgImage(prev=>({...prev,dim:Number(e.target.value)/100}))}
+                style={{width:"100%",accentColor:accent}}/>
+            </div>
+            <div style={{marginBottom:18,paddingTop:14,borderTop:`1px solid ${T.border}`}}>
+              <div style={{fontFamily:FONT_MONO,fontSize:9,color:T.dim,letterSpacing:2,fontWeight:700,marginBottom:9}}>CHAT BOX BACKGROUND</div>
+              <div style={{display:"flex",gap:6,marginBottom:10}}>
+                {[["solid","SOLID"],["transparent","TRANSPARENT"]].map(([m,label])=>(
+                  <button key={m} onClick={()=>setChatStyle(prev=>({...prev,mode:m}))}
+                    style={{flex:1,padding:"8px",borderRadius:7,fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,color:chatStyle?.mode===m?accent:T.dim,background:chatStyle?.mode===m?`${accent}10`:"transparent",border:`1px solid ${chatStyle?.mode===m?`${accent}28`:T.border}`,cursor:"pointer"}}>{label}</button>
+                ))}
+              </div>
+              {chatStyle?.mode==="solid"&&(
+                <>
+                  <div style={{display:"flex",gap:7,alignItems:"center",marginBottom:10}}>
+                    <span style={{fontFamily:FONT_MONO,fontSize:8,color:T.dim,width:44}}>COLOR</span>
+                    <input type="color" value={chatStyle?.color||mainBg} onChange={e=>setChatStyle(prev=>({...prev,color:e.target.value}))}
+                      style={{width:28,height:24,border:`1px solid ${T.border}`,borderRadius:4,cursor:"pointer",padding:0,background:"transparent"}}/>
+                    <button onClick={()=>setChatStyle(prev=>({...prev,color:""}))}
+                      style={{fontFamily:FONT_MONO,fontSize:8,color:T.dim,background:"transparent",border:`1px solid ${T.border}`,borderRadius:5,padding:"3px 8px",cursor:"pointer"}}>USE THEME</button>
+                  </div>
+                  <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+                    <span style={{fontFamily:FONT_MONO,fontSize:9,color:T.dim,letterSpacing:2,fontWeight:700}}>OPACITY</span>
+                    <span style={{fontFamily:FONT_MONO,fontSize:10,color:accent,fontWeight:700}}>{Math.round((chatStyle?.opacity??0.85)*100)}%</span>
+                  </div>
+                  <input type="range" min={20} max={100} value={Math.round((chatStyle?.opacity??0.85)*100)}
+                    onChange={e=>setChatStyle(prev=>({...prev,opacity:Number(e.target.value)/100}))}
+                    style={{width:"100%",accentColor:accent}}/>
+                </>
+              )}
+              {chatStyle?.mode==="transparent"&&(
+                <div style={{fontFamily:FONT_MONO,fontSize:8,color:T.dim,lineHeight:1.6}}>Chat floats directly over your background photo with a subtle blur for readability.</div>
+              )}
+            </div>
+            {user&&(
+              <div style={{marginBottom:16,paddingTop:14,borderTop:`1px solid ${T.border}`}}>
+                <div style={{fontFamily:FONT_MONO,fontSize:9,color:T.dim,letterSpacing:2,fontWeight:700,marginBottom:9}}>ACCOUNT</div>
+                <div style={{fontFamily:FONT_MONO,fontSize:10,color:T.text,marginBottom:10,overflow:"hidden",textOverflow:"ellipsis"}}>{user.email}</div>
+                <button onClick={onSignOut}
+                  style={{width:"100%",padding:"9px",borderRadius:7,background:"rgba(255,77,109,0.08)",border:"1px solid rgba(255,77,109,0.25)",color:"#ff4d6d",fontFamily:FONT_MONO,fontSize:10,fontWeight:700,letterSpacing:1,cursor:"pointer"}}>SIGN OUT</button>
+              </div>
+            )}
+          </>
+        )}
         {tab==="colors"&&(
           <>
             <div style={{marginBottom:16}}>
@@ -593,7 +725,20 @@ export default function MarketTerminal(){
     return 14;
   });
 
+  const [user, setUser] = useState(null);
+
   useEffect(() => {
+    // Multi-tenant mode: Supabase session is the source of truth.
+    if (supabaseConfigured()) {
+      getSupabase().auth.getSession()
+        .then(({ data }) => {
+          if (data?.session?.user) { setUser(data.session.user); setAccessState("granted"); }
+          else setAccessState("locked");
+        })
+        .catch(() => setAccessState("locked"));
+      return;
+    }
+    // Legacy single-user mode: session access code.
     const stored = sessionStorage.getItem("kronos_access");
     if (!stored) {
       setAccessState("locked");
@@ -630,6 +775,13 @@ export default function MarketTerminal(){
   const[leftWidth,setLeftWidth]=useState(THEME_DEFAULTS.leftWidth);
   const[rightWidth,setRightWidth]=useState(THEME_DEFAULTS.rightWidth);
   const[chartRightWidth,setChartRightWidth]=useState(THEME_DEFAULTS.chartRightWidth);
+  // V9 personalization + layouts (per-account when Supabase is configured)
+  const[chatStyle,setChatStyle]=useState({mode:"solid",color:"",opacity:0.85});
+  const[bgImage,setBgImage]=useState({dataUrl:"",dim:0.6});
+  const[layouts,setLayouts]=useState({});          // {terminal:[{i,x,y,w,h},...]}
+  const[layoutEdit,setLayoutEdit]=useState(false);
+  const[notes,setNotes]=useState([]);              // [{id,text}] free note panels
+  const settingsLoadedRef=useRef(false);
   const[watchlist,setWatchlist]=useState(DEFAULT_WATCHLIST);
   const[watchlistMeta,setWatchlistMeta]=useState(buildDefaultMeta());
   const[showWL,setShowWL]=useState(false);
@@ -685,6 +837,55 @@ export default function MarketTerminal(){
   useEffect(()=>{try{localStorage.setItem("mktintel_theme_v5",JSON.stringify({mainBg,mainText,leftBg,leftText,rightBg,rightText,accent:accentKey,density,leftWidth,rightWidth,chartRightWidth}));}catch{}},[mainBg,mainText,leftBg,leftText,rightBg,rightText,accentKey,density,leftWidth,rightWidth,chartRightWidth]);
   useEffect(()=>{try{localStorage.setItem("mktintel_w",JSON.stringify(watchlist));}catch{}},[watchlist]);
   useEffect(()=>{try{localStorage.setItem("mktintel_wm",JSON.stringify(watchlistMeta));}catch{}},[watchlistMeta]);
+  // V9: local persistence for personalization/layouts (works with or without accounts)
+  useEffect(()=>{try{const s=localStorage.getItem("kronos_personal");if(s){const p=JSON.parse(s);if(p.chatStyle)setChatStyle(p.chatStyle);if(p.bgImage)setBgImage(p.bgImage);if(p.layouts)setLayouts(p.layouts);if(p.notes)setNotes(p.notes);}}catch{}},[]);
+  useEffect(()=>{try{localStorage.setItem("kronos_personal",JSON.stringify({chatStyle,bgImage,layouts,notes}));}catch{}},[chatStyle,bgImage,layouts,notes]);
+
+  // ── V9 SERVER SETTINGS SYNC (per-account, only when signed in via Supabase) ──
+  const KRONOS_LS_KEYS=["kronos_botmode","kronos_flow_done","kronos_broker_url","kronos_papermode","kronos_profile","kronos_propfirm","kronos_font_size","kronos_tape","kronos_strategies","kronos_studio_config"];
+  useEffect(()=>{
+    if(!user||!supabaseConfigured())return;
+    (async()=>{
+      try{
+        const token=await getAccessToken();if(!token)return;
+        const r=await fetch("/api/settings",{headers:{Authorization:`Bearer ${token}`}});
+        if(!r.ok)return;
+        const{settings:s}=await r.json();
+        if(s&&typeof s==="object"){
+          if(s.theme){const p=s.theme;setMainBg(p.mainBg||DEFAULT_BG);setMainText(p.mainText||DEFAULT_TEXT);setLeftBg(p.leftBg||DEFAULT_BG);setLeftText(p.leftText||DEFAULT_TEXT);setRightBg(p.rightBg||DEFAULT_BG);setRightText(p.rightText||DEFAULT_TEXT);setAccentKey(p.accent||"teal");setDensity(p.density||"comfortable");setLeftWidth(p.leftWidth||290);setRightWidth(p.rightWidth||310);setChartRightWidth(p.chartRightWidth||340);}
+          if(s.fontSize)setFontSize(Number(s.fontSize)||14);
+          if(s.watchlist?.length)setWatchlist(s.watchlist);
+          if(s.watchlistMeta)setWatchlistMeta(s.watchlistMeta);
+          if(s.chatStyle)setChatStyle(s.chatStyle);
+          if(s.bgImage)setBgImage(s.bgImage);
+          if(s.layouts)setLayouts(s.layouts);
+          if(s.notes)setNotes(s.notes);
+          if(s.kronosLocal)try{Object.entries(s.kronosLocal).forEach(([k,v])=>{if(KRONOS_LS_KEYS.includes(k)&&v!=null)localStorage.setItem(k,v);});}catch{}
+        }
+      }catch{}
+      finally{settingsLoadedRef.current=true;}
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[user]);
+
+  // Debounced save of everything per-account (2s after last change).
+  useEffect(()=>{
+    if(!user||!supabaseConfigured()||!settingsLoadedRef.current)return;
+    const t=setTimeout(async()=>{
+      try{
+        const token=await getAccessToken();if(!token)return;
+        const kronosLocal={};
+        KRONOS_LS_KEYS.forEach(k=>{try{const v=localStorage.getItem(k);if(v!=null)kronosLocal[k]=v;}catch{}});
+        await fetch("/api/settings",{method:"PUT",headers:{"Content-Type":"application/json",Authorization:`Bearer ${token}`},
+          body:JSON.stringify({settings:{
+            theme:{mainBg,mainText,leftBg,leftText,rightBg,rightText,accent:accentKey,density,leftWidth,rightWidth,chartRightWidth},
+            fontSize,watchlist,watchlistMeta,chatStyle,bgImage,layouts,notes,kronosLocal,
+          }})});
+      }catch{}
+    },2000);
+    return()=>clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[user,mainBg,mainText,leftBg,leftText,rightBg,rightText,accentKey,density,leftWidth,rightWidth,chartRightWidth,fontSize,watchlist,watchlistMeta,chatStyle,bgImage,layouts,notes]);
   useEffect(()=>{chatEndRef.current?.scrollIntoView({behavior:"smooth"});},[messages,loading]);
 
   const fetchQuotes=useCallback(async()=>{
@@ -692,7 +893,7 @@ export default function MarketTerminal(){
     const BATCH=8;const merged={};
     for(let i=0;i<watchlist.length;i+=BATCH){
       const batch=watchlist.slice(i,i+BATCH);
-      try{const r=await fetch(`/api/quote?symbols=${batch.join(",")}`);if(r.ok){const d=await r.json();(d.data||[]).forEach(q=>{merged[q.symbol]=q;});setDataErr(null);}else{const e=await r.json();setDataErr(e.error||"Quote error");}}
+      try{const r=await fetch(`/api/yf-quotes?symbols=${batch.join(",")}`);if(r.ok){const d=await r.json();(d.data||[]).forEach(q=>{merged[q.symbol]=q;});setDataErr(null);}else{const e=await r.json();setDataErr(e.error||"Quote error");}}
       catch{setDataErr("Network error");}
       if(i+BATCH<watchlist.length)await new Promise(r=>setTimeout(r,1100));
     }
@@ -783,7 +984,88 @@ export default function MarketTerminal(){
   const resetWL=()=>{setWatchlist(DEFAULT_WATCHLIST);setWatchlistMeta(buildDefaultMeta());};
   const resetAll=()=>{setMainBg(THEME_DEFAULTS.mainBg);setMainText(THEME_DEFAULTS.mainText);setLeftBg(THEME_DEFAULTS.leftBg);setLeftText(THEME_DEFAULTS.leftText);setRightBg(THEME_DEFAULTS.rightBg);setRightText(THEME_DEFAULTS.rightText);setAccentKey(THEME_DEFAULTS.accent);setDensity(THEME_DEFAULTS.density);setLeftWidth(THEME_DEFAULTS.leftWidth);setRightWidth(THEME_DEFAULTS.rightWidth);setChartRightWidth(THEME_DEFAULTS.chartRightWidth);};
   const handleKey=(e)=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send();}};
-  const tapeDuration=Math.max(35,watchlist.length*2.2);
+
+  // ── V9: shared panel elements (used by both classic flex + drag-drop grid) ──
+  const chatBgStyle = chatStyle?.mode==="transparent"
+    ? {background:"transparent"}
+    : (()=>{const c=hexToRgb(chatStyle?.color||T.bg);return{background:`rgba(${c.r},${c.g},${c.b},${chatStyle?.opacity??0.85})`};})();
+
+  const watchlistInner=(
+    <div style={{height:"100%",display:"flex",flexDirection:"column",background:TL.panel,minHeight:0}}>
+      <div style={{padding:"11px 12px 9px",borderBottom:`1px solid ${TL.border}`,flexShrink:0}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+          <div style={{display:"flex",alignItems:"center",gap:7}}>
+            <div style={{width:7,height:7,borderRadius:"50%",background:dataErr?"#ff4d6d":accent,boxShadow:dataErr?"none":`0 0 8px ${accent}`}}/>
+            <span style={{fontFamily:FONT_SANS,fontSize:14,fontWeight:700,color:TL.text,letterSpacing:0.2}}>Watchlist</span>
+          </div>
+          <span style={{fontFamily:FONT_MONO,fontSize:8,color:TL.dim}}>{lastUpd?new Date(lastUpd).toLocaleTimeString():"—"}</span>
+        </div>
+        {dataErr&&<div style={{fontFamily:FONT_MONO,fontSize:9,color:"#ff4d6d",background:"rgba(255,77,109,0.07)",border:"1px solid rgba(255,77,109,0.18)",borderRadius:5,padding:"4px 8px",marginBottom:7}}>⚠ {dataErr}</div>}
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <span style={{fontFamily:FONT_MONO,fontSize:8,color:TL.dim,letterSpacing:2,fontWeight:700}}>{watchlist.length} TICKERS</span>
+          <button onClick={()=>setShowWL(true)} style={{fontFamily:FONT_MONO,fontSize:9,color:accent,background:`${accent}0e`,border:`1px solid ${accent}22`,borderRadius:5,padding:"3px 9px",fontWeight:700,cursor:"pointer"}}>★ EDIT</button>
+        </div>
+      </div>
+      <div style={{flex:1,overflowY:"auto",padding:"7px 9px",minHeight:0}}>
+        {watchlist.map(s=><WatchlistRow key={s} symbol={s} quote={quotes[s]} name={watchlistMeta[s]} onClick={handleWLClick} T={TL} density={density}/>)}
+      </div>
+      <div style={{padding:"5px 12px",borderTop:`1px solid ${TL.border}`,display:"flex",justifyContent:"space-between",flexShrink:0}}>
+        <span style={{fontFamily:FONT_MONO,fontSize:8,color:TL.dim,letterSpacing:1}}>AUTO 60S</span>
+        <span style={{fontFamily:FONT_MONO,fontSize:8,color:TL.dim,animation:"scanLine 3s infinite"}}>● LIVE</span>
+      </div>
+    </div>
+  );
+
+  const consoleInner=(
+    <div style={{height:"100%",display:"flex",flexDirection:"column",overflow:"hidden",minWidth:0,minHeight:0}}>
+      <TickerTape accent={accent} T={T} speed={55}/>
+      <div style={{flex:1,overflowY:"auto",padding:"14px 18px",minHeight:0,...chatBgStyle}}>
+        {messages.map((msg,i)=><ChatMessage key={i} msg={msg} accent={accent} T={T} fontSize={fontSize}/>)}
+        {loading&&<TypingIndicator accent={accent}/>}
+        <div ref={chatEndRef}/>
+      </div>
+      <QuickActions onAction={handleQuick} accent={accent} T={T}/>
+      <div style={{padding:"7px 18px 13px",borderTop:`1px solid ${T.border}`,flexShrink:0}}>
+        <div style={{display:"flex",alignItems:"flex-end",gap:8,background:T.surface,border:`1px solid ${T.border}`,borderRadius:10,padding:"8px 12px"}}
+          onFocusCapture={e=>e.currentTarget.style.borderColor=`${accent}32`}
+          onBlurCapture={e=>e.currentTarget.style.borderColor=T.border}>
+          <span style={{fontFamily:FONT_MONO,fontSize:12,color:accent,paddingBottom:1,animation:"blink 1.2s infinite"}}>▸</span>
+          <textarea value={input} onChange={e=>setInput(e.target.value)} onKeyDown={handleKey}
+            placeholder="Ask the desk anything..." rows={1}
+            style={{flex:1,background:"transparent",border:"none",color:T.text,fontFamily:FONT_CHAT,fontSize:14,lineHeight:1.5,maxHeight:100,overflowY:"auto"}}
+            onInput={e=>{e.target.style.height="auto";e.target.style.height=Math.min(e.target.scrollHeight,100)+"px";}}/>
+          <button onClick={send} disabled={!input.trim()||loading}
+            style={{width:28,height:28,borderRadius:6,flexShrink:0,background:input.trim()&&!loading?`${accent}12`:"transparent",border:`1px solid ${input.trim()&&!loading?`${accent}28`:T.border}`,color:input.trim()&&!loading?accent:T.dim,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13}}>▸</button>
+        </div>
+        <div style={{display:"flex",justifyContent:"space-between",marginTop:3,padding:"0 2px"}}>
+          <span style={{fontFamily:FONT_MONO,fontSize:7.5,color:T.dim,letterSpacing:1}}>SHIFT+ENTER FOR NEW LINE</span>
+          <span style={{fontFamily:FONT_MONO,fontSize:7.5,color:T.dim,letterSpacing:1}}>NOT FINANCIAL ADVICE</span>
+        </div>
+      </div>
+      <TerminalChart accent={accent} T={T} defaultSymbol={watchlist[0]||"SPY"}/>
+    </div>
+  );
+
+  const newsInner=(
+    <NewsPanel news={news} onDiveDeep={handleNews} onRefresh={manualRefreshNews} refreshing={newsRefreshing} lastUpd={newsLastUpd} accent={accent} T={TR} density={density}/>
+  );
+
+  const noteItems={};
+  notes.forEach(n=>{
+    noteItems[`note-${n.id}`]=(
+      <div style={{height:"100%",display:"flex",flexDirection:"column",background:T.surface}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 10px",borderBottom:`1px solid ${T.border}`,flexShrink:0}}>
+          <span style={{fontFamily:FONT_MONO,fontSize:8,color:"#f7c948",letterSpacing:2,fontWeight:700}}>📝 NOTE</span>
+          <button onClick={()=>setNotes(prev=>prev.filter(x=>x.id!==n.id))} style={{color:T.dim,fontSize:12,cursor:"pointer"}}>✕</button>
+        </div>
+        <textarea value={n.text} onChange={e=>setNotes(prev=>prev.map(x=>x.id===n.id?{...x,text:e.target.value}:x))}
+          placeholder="Trade notes, levels, reminders..."
+          style={{flex:1,background:"transparent",border:"none",color:T.text,fontFamily:FONT_CHAT,fontSize:12,lineHeight:1.6,padding:"10px 12px",resize:"none",minHeight:0}}/>
+      </div>
+    );
+  });
+
+  const terminalGrid=layoutEdit||Boolean(layouts?.terminal);
 
   return(
     <>
@@ -792,27 +1074,75 @@ export default function MarketTerminal(){
       )}
 
       {accessState === "locked" && (
-        <AccessGate onAccess={() => setAccessState("granted")} />
+        <AuthGate onAccess={(u) => { setUser(u || null); setAccessState("granted"); }} />
       )}
 
       {accessState === "granted" && (
         <>
           <FOMCOverlay />
           <style>{`
-            @import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Source+Serif+4:wght@400;500;600;700&family=Fraunces:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap');
-            *{box-sizing:border-box;margin:0;padding:0;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;}
-            ::-webkit-scrollbar{width:3px;height:3px;}::-webkit-scrollbar-track{background:transparent;}::-webkit-scrollbar-thumb{background:#5557;border-radius:3px;}
-            @keyframes tickerScroll{from{transform:translateX(0);}to{transform:translateX(-50%);}}
+            @import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Source+Serif+4:wght@400;500;600;700&family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;0,9..144,800;1,9..144,700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap');
+
+            /* ── RESET & BASE ── */
+            *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+
+            /* ── CRYSTAL CLEAR TEXT RENDERING ── */
+            html{
+              -webkit-font-smoothing:antialiased;
+              -moz-osx-font-smoothing:grayscale;
+              text-rendering:geometricPrecision;
+              font-feature-settings:"kern" 1,"liga" 1,"calt" 1;
+              -webkit-text-size-adjust:100%;
+              font-size:${fontSize||14}px;
+            }
+
+            /* ── SHARP SCROLLBARS ── */
+            ::-webkit-scrollbar{width:2px;height:2px;}
+            ::-webkit-scrollbar-track{background:transparent;}
+            ::-webkit-scrollbar-thumb{background:#2A3D5288;border-radius:2px;}
+            ::-webkit-scrollbar-thumb:hover{background:#7A9AB566;}
+
+            /* ── MONO FONT OPTIMIZATION ── */
+            .mono,span[style*="JetBrains"]{
+              font-variant-numeric:tabular-nums;
+              font-feature-settings:"tnum" 1,"calt" 0;
+              letter-spacing:0.02em;
+            }
+
+            /* ── ANIMATIONS ── */
             @keyframes pulse{0%,100%{opacity:0.3;transform:scale(0.85);}50%{opacity:1;transform:scale(1.1);}}
             @keyframes blink{0%,100%{opacity:1;}50%{opacity:0;}}
             @keyframes spin{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
             @keyframes scanLine{0%,100%{opacity:0.3;}50%{opacity:1;}}
-            textarea:focus,input:focus{outline:none;}textarea{resize:none;}button{cursor:pointer;border:none;background:none;}
+            @keyframes shimmer{0%{opacity:0.4;}50%{opacity:0.9;}100%{opacity:0.4;}}
+            @keyframes slideIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+
+            /* ── INTERACTIVE STATES ── */
+            button{cursor:pointer;border:none;background:none;-webkit-tap-highlight-color:transparent;}
+            textarea:focus,input:focus{outline:none;}
+            textarea{resize:none;}
+
+            /* ── GPU ACCELERATION FOR ANIMATED ELEMENTS ── */
+            [data-animated]{will-change:transform;transform:translateZ(0);backface-visibility:hidden;}
+
+            /* ── REDUCED MOTION ── */
+            @media(prefers-reduced-motion:reduce){
+              *{animation-duration:0.01ms!important;animation-iteration-count:1!important;transition-duration:0.01ms!important;}
+            }
           `}</style>
-          <div style={{display:"flex",flexDirection:"column",height:"100vh",background:T.bg,fontFamily:FONT_CHAT,overflow:"hidden",zoom:fontSize/14}}>
+          <div style={{
+            display:"flex",flexDirection:"column",height:"100vh",
+            backgroundColor:T.bg,fontFamily:FONT_CHAT,overflow:"hidden",
+            backgroundImage: bgImage?.dataUrl
+              ? `linear-gradient(rgba(0,0,0,${bgImage.dim??0.6}),rgba(0,0,0,${bgImage.dim??0.6})),url(${bgImage.dataUrl})`
+              : `radial-gradient(circle, ${T.border}55 1px, transparent 1px)`,
+            backgroundSize: bgImage?.dataUrl ? "cover" : "22px 22px",
+            backgroundPosition: bgImage?.dataUrl ? "center" : "0 0",
+            backgroundAttachment: bgImage?.dataUrl ? "fixed" : undefined,
+          }}>
             {showWelcome&&<WelcomePopup onClose={()=>setShowWelcome(false)} accent={accent} T={T}/>}
         {showWL&&<WatchlistModal onClose={()=>setShowWL(false)} watchlist={watchlist} onAdd={addWL} onRemove={rmWL} onReset={resetWL} accent={accent} T={TL}/>}
-        {showSettings&&<SettingsPanel onClose={()=>setShowSettings(false)} mainBg={mainBg} setMainBg={setMainBg} mainText={mainText} setMainText={setMainText} leftBg={leftBg} setLeftBg={setLeftBg} leftText={leftText} setLeftText={setLeftText} rightBg={rightBg} setRightBg={setRightBg} rightText={rightText} setRightText={setRightText} accentKey={accentKey} setAccentKey={setAccentKey} density={density} setDensity={setDensity} leftWidth={leftWidth} setLeftWidth={setLeftWidth} rightWidth={rightWidth} setRightWidth={setRightWidth} chartRightWidth={chartRightWidth} setChartRightWidth={setChartRightWidth} onResetAll={resetAll} T={T} accent={accent} fontSize={fontSize} setFontSize={setFontSize}/>} 
+        {showSettings&&<SettingsPanel onClose={()=>setShowSettings(false)} mainBg={mainBg} setMainBg={setMainBg} mainText={mainText} setMainText={setMainText} leftBg={leftBg} setLeftBg={setLeftBg} leftText={leftText} setLeftText={setLeftText} rightBg={rightBg} setRightBg={setRightBg} rightText={rightText} setRightText={setRightText} accentKey={accentKey} setAccentKey={setAccentKey} density={density} setDensity={setDensity} leftWidth={leftWidth} setLeftWidth={setLeftWidth} rightWidth={rightWidth} setRightWidth={setRightWidth} chartRightWidth={chartRightWidth} setChartRightWidth={setChartRightWidth} onResetAll={resetAll} T={T} accent={accent} fontSize={fontSize} setFontSize={setFontSize} chatStyle={chatStyle} setChatStyle={setChatStyle} bgImage={bgImage} setBgImage={setBgImage} user={user} onSignOut={async()=>{try{await getSupabase()?.auth.signOut();}catch{}window.location.reload();}}/>}
 
         {/* HEADER */}
         <div style={{padding:"10px 18px",borderBottom:`1px solid ${T.border}`,display:"flex",alignItems:"center",justifyContent:"space-between",background:T.panel,flexShrink:0}}>
@@ -837,37 +1167,33 @@ export default function MarketTerminal(){
             <span style={{fontFamily:FONT_MONO,fontSize:8,color:accent,background:`${accent}10`,border:`1px solid ${accent}22`,padding:"2px 6px",borderRadius:4,letterSpacing:2,fontWeight:700}}>LIVE</span>
           </div>
           <div style={{display:"flex",alignItems:"center",gap:10}}>
+            {/* V9: drag-and-drop layout controls (terminal view) */}
+            {view==="terminal"&&(
+              layoutEdit?(
+                <div style={{display:"flex",gap:6}}>
+                  <button onClick={()=>setNotes(prev=>[...prev,{id:Date.now(),text:""}])}
+                    style={{padding:"5px 10px",borderRadius:7,fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,color:"#f7c948",background:"rgba(247,201,72,0.08)",border:"1px solid rgba(247,201,72,0.3)",cursor:"pointer"}}>+ NOTE</button>
+                  <button onClick={()=>{setLayouts(prev=>{const p={...prev};delete p.terminal;return p;});setLayoutEdit(false);}}
+                    style={{padding:"5px 10px",borderRadius:7,fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,color:"#ff4d6d",background:"rgba(255,77,109,0.08)",border:"1px solid rgba(255,77,109,0.3)",cursor:"pointer"}}>RESET</button>
+                  <button onClick={()=>{if(!layouts?.terminal)setLayouts(prev=>({...prev,terminal:DEFAULT_TERMINAL_LAYOUT}));setLayoutEdit(false);}}
+                    style={{padding:"5px 10px",borderRadius:7,fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,color:accent,background:`${accent}12`,border:`1px solid ${accent}40`,cursor:"pointer"}}>🔒 SAVE LAYOUT</button>
+                </div>
+              ):(
+                <button onClick={()=>setLayoutEdit(true)} title="Customize layout — drag & resize panels"
+                  style={{padding:"5px 10px",borderRadius:7,fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,color:T.dim,background:T.surface,border:`1px solid ${T.border}`,cursor:"pointer"}}>🔓 LAYOUT</button>
+              )
+            )}
             <MarketStatusBadge accent={accent} T={T}/>
             <button onClick={()=>setShowSettings(true)} style={{width:32,height:32,borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,color:T.dim,background:T.surface,border:`1px solid ${T.border}`,cursor:"pointer"}}>⚙</button>
           </div>
         </div>
 
         <div style={{display:"flex",flex:1,overflow:"hidden"}}>
-          {/* LEFT PANEL — hidden on chart page */}
-          {view!=="chart"&&view!=="bot"&&(
+          {/* LEFT PANEL — data page (terminal renders its own copy, grid-aware) */}
+          {(view==="data"||(view==="terminal"&&!terminalGrid))&&(
             <>
               <div style={{width:leftWidth,minWidth:leftWidth,borderRight:`1px solid ${TL.border}`,display:"flex",flexDirection:"column",background:TL.panel}}>
-                <div style={{padding:"11px 12px 9px",borderBottom:`1px solid ${TL.border}`}}>
-                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
-                    <div style={{display:"flex",alignItems:"center",gap:7}}>
-                      <div style={{width:7,height:7,borderRadius:"50%",background:dataErr?"#ff4d6d":accent,boxShadow:dataErr?"none":`0 0 8px ${accent}`}}/>
-                      <span style={{fontFamily:FONT_SANS,fontSize:14,fontWeight:700,color:TL.text,letterSpacing:0.2}}>Watchlist</span>
-                    </div>
-                    <span style={{fontFamily:FONT_MONO,fontSize:8,color:TL.dim}}>{lastUpd?new Date(lastUpd).toLocaleTimeString():"—"}</span>
-                  </div>
-                  {dataErr&&<div style={{fontFamily:FONT_MONO,fontSize:9,color:"#ff4d6d",background:"rgba(255,77,109,0.07)",border:"1px solid rgba(255,77,109,0.18)",borderRadius:5,padding:"4px 8px",marginBottom:7}}>⚠ {dataErr}</div>}
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                    <span style={{fontFamily:FONT_MONO,fontSize:8,color:TL.dim,letterSpacing:2,fontWeight:700}}>{watchlist.length} TICKERS</span>
-                    <button onClick={()=>setShowWL(true)} style={{fontFamily:FONT_MONO,fontSize:9,color:accent,background:`${accent}0e`,border:`1px solid ${accent}22`,borderRadius:5,padding:"3px 9px",fontWeight:700,cursor:"pointer"}}>★ EDIT</button>
-                  </div>
-                </div>
-                <div style={{flex:1,overflowY:"auto",padding:"7px 9px"}}>
-                  {watchlist.map(s=><WatchlistRow key={s} symbol={s} quote={quotes[s]} name={watchlistMeta[s]} onClick={handleWLClick} T={TL} density={density}/>)}
-                </div>
-                <div style={{padding:"5px 12px",borderTop:`1px solid ${TL.border}`,display:"flex",justifyContent:"space-between"}}>
-                  <span style={{fontFamily:FONT_MONO,fontSize:8,color:TL.dim,letterSpacing:1}}>AUTO 60S</span>
-                  <span style={{fontFamily:FONT_MONO,fontSize:8,color:TL.dim,animation:"scanLine 3s infinite"}}>● LIVE</span>
-                </div>
+                {watchlistInner}
               </div>
               <ResizeDivider onMouseDown={startResize("left",leftWidth)} accent={accent}/>
             </>
@@ -877,56 +1203,28 @@ export default function MarketTerminal(){
             <ChartPage symbol={chartSymbol} onSymbolChange={setChartSymbol} messages={messages} input={input} setInput={setInput} send={send} loading={loading} accent={accent} T={T} TR={TR} chartRightWidth={chartRightWidth} onStartResizeRight={startResize("chartRight",chartRightWidth)} fontSize={fontSize}/>
           </div>
 
-          {/* TERMINAL VIEW */}
-          {view==="terminal"&&(
+          {/* TERMINAL VIEW — classic flex (default) */}
+          {view==="terminal"&&!terminalGrid&&(
             <>
               <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",minWidth:0}}>
-                <div style={{borderBottom:`1px solid ${T.border}`,background:T.surface,overflow:"hidden",height:46,display:"flex",alignItems:"center",flexShrink:0}}>
-                  <div style={{display:"flex",alignItems:"center",animation:`tickerScroll ${tapeDuration}s linear infinite`,whiteSpace:"nowrap"}}>
-                    {[...watchlist,...watchlist].map((sym,i)=>{
-                      const q=quotes[sym];const up=q&&(q.changePercent??0)>=0;
-                      return(
-                        <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"0 22px",borderRight:`1px solid ${T.border}`}}>
-                          <span style={{fontFamily:FONT_MONO,fontSize:14,fontWeight:700,color:T.textDim,letterSpacing:1.5}}>{sym}</span>
-                          <span style={{fontFamily:FONT_MONO,fontSize:13,color:T.text,fontWeight:500}}>{q?.price!=null?`$${q.price.toFixed(2)}`:"—"}</span>
-                          <span style={{fontFamily:FONT_MONO,fontSize:12,fontWeight:700,color:up?"#00d4aa":"#ff4d6d"}}>
-                            {q?.changePercent!=null?`${up?"▲":"▼"} ${Math.abs(q.changePercent).toFixed(2)}%`:""}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-                <div style={{flex:1,overflowY:"auto",padding:"14px 18px"}}>
-                  {messages.map((msg,i)=><ChatMessage key={i} msg={msg} accent={accent} T={T} fontSize={fontSize}/>)}
-                  {loading&&<TypingIndicator accent={accent}/>}
-                  <div ref={chatEndRef}/>
-                </div>
-                <QuickActions onAction={handleQuick} accent={accent} T={T}/>
-                <div style={{padding:"7px 18px 13px",borderTop:`1px solid ${T.border}`,flexShrink:0}}>
-                  <div style={{display:"flex",alignItems:"flex-end",gap:8,background:T.surface,border:`1px solid ${T.border}`,borderRadius:10,padding:"8px 12px"}}
-                    onFocusCapture={e=>e.currentTarget.style.borderColor=`${accent}32`}
-                    onBlurCapture={e=>e.currentTarget.style.borderColor=T.border}>
-                    <span style={{fontFamily:FONT_MONO,fontSize:12,color:accent,paddingBottom:1,animation:"blink 1.2s infinite"}}>▸</span>
-                    <textarea value={input} onChange={e=>setInput(e.target.value)} onKeyDown={handleKey}
-                      placeholder="Ask the desk anything..." rows={1}
-                      style={{flex:1,background:"transparent",border:"none",color:T.text,fontFamily:FONT_CHAT,fontSize:14,lineHeight:1.5,maxHeight:100,overflowY:"auto"}}
-                      onInput={e=>{e.target.style.height="auto";e.target.style.height=Math.min(e.target.scrollHeight,100)+"px";}}/>
-                    <button onClick={send} disabled={!input.trim()||loading}
-                      style={{width:28,height:28,borderRadius:6,flexShrink:0,background:input.trim()&&!loading?`${accent}12`:"transparent",border:`1px solid ${input.trim()&&!loading?`${accent}28`:T.border}`,color:input.trim()&&!loading?accent:T.dim,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13}}>▸</button>
-                  </div>
-                  <div style={{display:"flex",justifyContent:"space-between",marginTop:3,padding:"0 2px"}}>
-                    <span style={{fontFamily:FONT_MONO,fontSize:7.5,color:T.dim,letterSpacing:1}}>SHIFT+ENTER FOR NEW LINE</span>
-                    <span style={{fontFamily:FONT_MONO,fontSize:7.5,color:T.dim,letterSpacing:1}}>NOT FINANCIAL ADVICE</span>
-                  </div>
-                </div>
-                <TerminalChart accent={accent} T={T} defaultSymbol={watchlist[0]||"SPY"}/>
+                {consoleInner}
               </div>
               <ResizeDivider onMouseDown={startResize("right",rightWidth)} accent={accent}/>
               <div style={{width:rightWidth,minWidth:rightWidth,borderLeft:`1px solid ${TR.border}`}}>
-                <NewsPanel news={news} onDiveDeep={handleNews} onRefresh={manualRefreshNews} refreshing={newsRefreshing} lastUpd={newsLastUpd} accent={accent} T={TR} density={density}/>
+                {newsInner}
               </div>
             </>
+          )}
+
+          {/* TERMINAL VIEW — V9 drag-and-drop grid (custom layouts) */}
+          {view==="terminal"&&terminalGrid&&(
+            <GridDock
+              layout={layouts?.terminal||DEFAULT_TERMINAL_LAYOUT}
+              onLayoutChange={(l)=>{if(layoutEdit)setLayouts(prev=>({...prev,terminal:l}));}}
+              editMode={layoutEdit}
+              accent={accent} T={T}
+              items={{watchlist:watchlistInner,console:consoleInner,news:newsInner,...noteItems}}
+            />
           )}
 
           {/* DATA VIEW */}

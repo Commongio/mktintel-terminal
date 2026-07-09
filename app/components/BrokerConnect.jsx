@@ -7,6 +7,7 @@ const FD = "'Fraunces',serif";
 const BROKERS = [
   { id: "tradier",    label: "Tradier",     live: true,  desc: "Free sandbox + live API. Fully automated." },
   { id: "ibkr",       label: "IBKR",        live: true,  desc: "Requires IBKR Gateway running locally. Fully automated." },
+  { id: "schwab",     label: "Schwab / ThinkorSwim", live: true, desc: "Official Schwab OAuth2 API. Register at developer.schwab.com." },
   { id: "webull",     label: "Webull",      live: false, desc: "No official public API. Manual entry for now." },
   { id: "robinhood",  label: "Robinhood",   live: false, desc: "No official public API. Manual entry for now." },
   { id: "thinkorswim",label: "ThinkorSwim", live: false, desc: "Schwab API requires developer app approval. Manual entry for now." },
@@ -278,6 +279,35 @@ export default function BrokerConnect({ accent, T, onClose }) {
                   cursor: loading ? "default" : "pointer",
                 }}>
                   {loading ? "CONNECTING..." : "CONNECT IBKR"}
+                </button>
+              </>
+            )}
+
+            {selectedBroker === "schwab" && (
+              <>
+                <Field label="SCHWAB CLIENT ID" value={creds.clientId || ""} onChange={v => setCreds(c => ({...c, clientId: v}))} placeholder="Your Schwab Client ID" dim={dim} border={border} text={text} />
+                <Field label="SCHWAB CLIENT SECRET" value={creds.clientSecret || ""} onChange={v => setCreds(c => ({...c, clientSecret: v}))} placeholder="Your Schwab Client Secret (optional)" dim={dim} border={border} text={text} />
+                <Field label="REDIRECT URI" value={creds.redirectUri || "https://localhost:3000/auth/schwab/callback"} onChange={v => setCreds(c => ({...c, redirectUri: v}))} placeholder="https://yourapp.com/callback" dim={dim} border={border} text={text} />
+                <div style={{ fontFamily: FM, fontSize: 8, color: dim, marginBottom: 12, lineHeight: 1.6 }}>
+                  Schwab uses OAuth2. Register an app at developer.schwab.com and set the redirect URI. This will open the Schwab consent page to authorize Kronos.
+                </div>
+                {error && <div style={{ fontFamily: FM, fontSize: 9, color: "#ff4d6d", marginBottom: 10 }}>⚠ {error}</div>}
+                <button onClick={async () => {
+                  setLoading(true); setError("");
+                  try {
+                    const r = await fetch('/api/broker/schwab/start', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ clientId: creds.clientId, redirectUri: creds.redirectUri }) });
+                    const d = await r.json();
+                    if (!r.ok) throw new Error(d.error || 'Failed to start Schwab OAuth');
+                    // open auth URL
+                    window.open(d.authUrl, '_blank');
+                    localStorage.setItem('kronos_broker_creds', JSON.stringify({ broker: 'schwab', clientId: creds.clientId }));
+                  } catch (e) { setError(e.message); }
+                  finally { setLoading(false); }
+                }} disabled={loading || !creds.clientId} style={{
+                  width: "100%", padding: "11px 0", fontFamily: FM, fontSize: 11, fontWeight: 700, letterSpacing: 2,
+                  color: accent, background: `${accent}10`, border: `1px solid ${accent}30`, borderRadius: 8, cursor: loading ? 'default' : 'pointer'
+                }}>
+                  {loading ? 'STARTING...' : 'CONNECT SCHWAB (OAUTH)'}
                 </button>
               </>
             )}

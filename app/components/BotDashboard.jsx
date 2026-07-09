@@ -1,7 +1,18 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { KronosOnboarding } from "./KronosOnboarding";
 import BrokerConnect from "./BrokerConnect";
+import PropFirmPanel, { PROP_FIRMS } from "./PropFirmPanel";
+import MultiAgentSignal, { getPaperState, savePaperState } from "./MultiAgentSignal";
+import ShadowAccountPanel, { PaperTradingPanel } from "./ShadowAccountPanel";
+import { ModeSelectPopup, BrokerSideBySidePopup } from "./BotFlowPopups";
+import SignalFeed from "./SignalFeed";
+
+// Per-mode instrument lists + interval defaults (mode-aware engine, V9)
+const MODE_CONFIG = {
+  futures: { symbols: ["NQ", "MNQ", "ES", "MES", "CL", "GC"], intervals: ["1min", "5min", "15min", "1h"], defaultSymbol: "NQ", defaultInterval: "15min", color: "#7eb8f7" },
+  options: { symbols: ["SPY", "QQQ", "NVDA", "AAPL", "TSLA", "META", "AMD"], intervals: ["15min", "1h", "4h", "1d"], defaultSymbol: "SPY", defaultInterval: "1h", color: "#a78bfa" },
+};
 
 // ─── TYPOGRAPHY ─────────────────────────────────────────────────────────────────
 const FM = "'JetBrains Mono',monospace";
@@ -330,7 +341,7 @@ function StrategiesTab({ accent, T }) {
 }
 
 // ─── ANALYTICS TAB ─────────────────────────────────────────────────────────────
-function AnalyticsTab({ accent, T, fills }) {
+function AnalyticsTab({ accent, T, fills, paperMode, setPaperMode }) {
   const surface = T?.surface ?? "#0b1320";
   const border  = T?.border  ?? "#172030";
   const text    = T?.text    ?? "#c8d8e8";
@@ -358,6 +369,12 @@ function AnalyticsTab({ accent, T, fills }) {
 
   return (
     <div style={{ flex: 1, overflowY: "auto", padding: 20 }}>
+      <div style={{ marginBottom: 16 }}>
+        <PaperTradingPanel accent={accent} T={T} paperMode={paperMode} setPaperMode={setPaperMode} />
+      </div>
+      <div style={{ marginBottom: 16 }}>
+        <ShadowAccountPanel accent={accent} T={T} />
+      </div>
       <div style={{ display: "flex", gap: 30, marginBottom: 24, flexWrap: "wrap" }}>
         <Stat label="WIN RATE" value={`${wr}%`} accent={accent} />
         <Stat label="TOTAL P&L" value={`${totalPnl >= 0 ? "+" : ""}$${totalPnl}`} accent={totalPnl >= 0 ? "#00ff88" : "#ff4d6d"} />
@@ -399,7 +416,7 @@ function AnalyticsTab({ accent, T, fills }) {
 }
 
 // ─── STUDIO TAB ────────────────────────────────────────────────────────────────
-function StudioTab({ accent, T, profile, onEditProfile, onOpenBroker, brokerData }) {
+function StudioTab({ accent, T, profile, onEditProfile, onOpenBroker, brokerData, onSelectPropFirm }) {
   const surface = T?.surface ?? "#0b1320";
   const border  = T?.border  ?? "#172030";
   const text    = T?.text    ?? "#c8d8e8";
@@ -501,6 +518,8 @@ function StudioTab({ accent, T, profile, onEditProfile, onOpenBroker, brokerData
           </div>
         </div>
 
+        <PropFirmPanel accent={accent} T={T} onFirmSelect={onSelectPropFirm} />
+
         <div style={{ fontFamily: FM, fontSize: 8, color: dim, lineHeight: 1.6, padding: "0 4px" }}>
           These limits feed directly into the Kronos executor prompt — signals exceeding your daily loss or position limits will be held instead of fired.
         </div>
@@ -522,8 +541,59 @@ export default function BotDashboard({ accent = "#00d4aa", T, botName = "KRONOS"
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showBroker,     setShowBroker]     = useState(false);
   const [brokerData,     setBrokerData]     = useState(null);
+  const [propFirm,       setPropFirm]       = useState(null);
+  const [signalSymbol,   setSignalSymbol]   = useState("NQ");
+  const [signalInterval, setSignalInterval] = useState("15min");
+  // V9: Options vs Futures mode + two-step entry flow (mode select → broker side-by-side)
+  const [botMode, setBotMode] = useState(() => {
+    try { return localStorage.getItem("kronos_botmode") || null; } catch { return null; }
+  });
+  const [flowStep, setFlowStep] = useState(() => {
+    try {
+      if (!localStorage.getItem("kronos_botmode")) return "mode";
+      return localStorage.getItem("kronos_flow_done") === "1" ? "done" : "broker";
+    } catch { return "mode"; }
+  });
+  const assetClass = botMode === "options" ? "options" : "futures";
+  const modeCfg = MODE_CONFIG[assetClass];
+
+  const selectMode = (m) => {
+    setBotMode(m);
+    try { localStorage.setItem("kronos_botmode", m); } catch {}
+    const cfg = MODE_CONFIG[m] || MODE_CONFIG.futures;
+    setSignalSymbol(cfg.defaultSymbol);
+    setSignalInterval(cfg.defaultInterval);
+    setFlowStep((prev) => (prev === "mode" ? "broker" : prev));
+  };
+
+  const toggleMode = () => {
+    const next = assetClass === "futures" ? "options" : "futures";
+    setBotMode(next);
+    try { localStorage.setItem("kronos_botmode", next); } catch {}
+    const cfg = MODE_CONFIG[next];
+    setSignalSymbol(cfg.defaultSymbol);
+    setSignalInterval(cfg.defaultInterval);
+  };
+
+  const [paperMode, setPaperMode] = useState(() => {
+    try { return localStorage.getItem("kronos_papermode") === "1"; }
+    catch { return false; }
+  });
   const streamRef = useRef(null);
   const sigId     = useRef(7);
+
+  useEffect(() => {
+    try { localStorage.setItem("kronos_papermode", paperMode ? "1" : "0"); } catch {}
+  }, [paperMode]);
+
+  const handlePaperTrade = useCallback((sig) => {
+    const p = getPaperState();
+    const riskAmt = p.balance * 0.01;
+    const stopDist = Math.abs(sig.entry - sig.stop) || sig.entry * 0.005;
+    const qty = Math.max(1, Math.floor(riskAmt / stopDist));
+    p.positions.push({ ...sig, qty, openedAt: Date.now() });
+    savePaperState(p);
+  }, []);
 
   useEffect(() => {
     const tick = () => {
@@ -550,6 +620,13 @@ export default function BotDashboard({ accent = "#00d4aa", T, botName = "KRONOS"
     try {
       const b = localStorage.getItem("kronos_broker");
       if (b) setBrokerData(JSON.parse(b));
+    } catch {}
+    try {
+      const pf = localStorage.getItem("kronos_propfirm");
+      if (pf) {
+        const parsed = JSON.parse(pf);
+        setPropFirm(parsed.firmId || null);
+      }
     } catch {}
   }, []);
 
@@ -607,6 +684,23 @@ export default function BotDashboard({ accent = "#00d4aa", T, botName = "KRONOS"
   const TABS = ["TRADING", "STRATEGIES", "ANALYTICS", "STUDIO"];
   const statusColor = botStatus === "LIVE" ? "#00ff88" : botStatus === "SCANNING" ? "#f7c948" : "#ff4d6d";
 
+  const propRules = useMemo(() => {
+    try {
+      const pf = JSON.parse(localStorage.getItem("kronos_propfirm") || "null");
+      if (!pf) return null;
+      const firm = PROP_FIRMS[pf.firmId];
+      const account = firm?.accounts?.[pf.accountIdx ?? 0];
+      if (!account) return null;
+      return {
+        minConviction: profile?.riskTolerance === "Conservative" ? 75 : profile?.riskTolerance === "Aggressive" ? 55 : 65,
+        dailyLossUsed: brokerData?.portfolio?.dayPnl ?? 0,
+        dailyLossLimit: account.dailyLoss ?? account.trailingDD,
+        firmName: firm.name, accountLabel: account.label,
+      };
+    } catch { return null; }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile, brokerData, propFirm]);
+
   return (
     <div style={{ flex:1, display:"flex", flexDirection:"column", background:bg, overflow:"hidden", minWidth:0 }}>
       {showOnboarding && (
@@ -614,6 +708,15 @@ export default function BotDashboard({ accent = "#00d4aa", T, botName = "KRONOS"
       )}
       {showBroker && (
         <BrokerConnect accent={accent} T={T} onClose={() => { setShowBroker(false); refreshBrokerFromStorage(); }} />
+      )}
+
+      {/* V9 entry flow: mode select → broker side-by-side */}
+      {flowStep === "mode" && !showOnboarding && (
+        <ModeSelectPopup accent={accent} T={T} onSelect={selectMode} />
+      )}
+      {flowStep === "broker" && !showOnboarding && (
+        <BrokerSideBySidePopup accent={accent} T={T}
+          onDone={() => setFlowStep("done")} onSkip={() => setFlowStep("done")} />
       )}
 
       <style>{`
@@ -660,8 +763,44 @@ export default function BotDashboard({ accent = "#00d4aa", T, botName = "KRONOS"
               ◈ {brokerData.broker?.toUpperCase()}
             </button>
           )}
+          {propRules && (
+            <div style={{
+              display:"flex",alignItems:"center",gap:6,padding:"3px 10px",borderRadius:20,
+              border:"1px solid rgba(247,201,72,0.3)",background:"rgba(247,201,72,0.07)",
+            }}>
+              <span style={{fontFamily:FM,fontSize:8,fontWeight:700,letterSpacing:1,color:"#f7c948"}}>
+                EVAL: {propRules.firmName} {propRules.accountLabel}
+              </span>
+              {propRules.dailyLossLimit && (
+                <span style={{fontFamily:FM,fontSize:8,color:Math.abs(Math.min(0,propRules.dailyLossUsed))/propRules.dailyLossLimit>0.5?"#ff3d57":"#7A9AB5"}}>
+                  DL: ${Math.abs(Math.min(0,propRules.dailyLossUsed)).toFixed(0)}/${propRules.dailyLossLimit}
+                </span>
+              )}
+            </div>
+          )}
         </div>
-        <div style={{ fontFamily:FM, fontSize:12, color:dim, letterSpacing:1 }}>{etTime}</div>
+        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+          {/* V9: reopen broker side-by-side */}
+          <button onClick={() => setFlowStep("broker")} title="Open broker side-by-side" style={{
+            padding:"4px 10px", borderRadius:7, cursor:"pointer",
+            fontFamily:FM, fontSize:9, fontWeight:700, letterSpacing:1,
+            color:dim, background:"transparent", border:`1px solid ${border}`,
+          }}>⧉ BROKER</button>
+          {/* V9: persistent Options/Futures mode toggle */}
+          <div style={{ display:"flex", borderRadius:8, overflow:"hidden", border:`1px solid ${border}` }}>
+            {[["futures","FUT"],["options","OPT"]].map(([m,label]) => (
+              <button key={m} onClick={() => { if (assetClass !== m) toggleMode(); }} style={{
+                padding:"5px 12px", cursor:"pointer",
+                fontFamily:FM, fontSize:9, fontWeight:800, letterSpacing:2,
+                color: assetClass === m ? MODE_CONFIG[m].color : dim,
+                background: assetClass === m ? `${MODE_CONFIG[m].color}16` : "transparent",
+                border:"none",
+                borderRight: m === "futures" ? `1px solid ${border}` : "none",
+              }}>{label}</button>
+            ))}
+          </div>
+          <div style={{ fontFamily:FM, fontSize:12, color:dim, letterSpacing:1 }}>{etTime}</div>
+        </div>
       </div>
 
       {/* NAV TABS */}
@@ -750,6 +889,46 @@ export default function BotDashboard({ accent = "#00d4aa", T, botName = "KRONOS"
               ◈ {brokerData ? `${brokerData.broker?.toUpperCase()} LIVE` : "CONNECT BROKER"}
             </button>
           </div>
+
+          <div style={{ width:300, borderLeft:`1px solid ${border}`, overflowY:"auto", padding:12, background:surface, flexShrink:0 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:8 }}>
+              <span style={{ fontFamily:FM, fontSize:8, fontWeight:800, letterSpacing:2, color:modeCfg.color }}>
+                {assetClass === "options" ? "🎯 OPTIONS MODE" : "📈 FUTURES MODE"}
+              </span>
+            </div>
+            <div style={{ display:"flex", gap:4, marginBottom:10, flexWrap:"wrap" }}>
+              {modeCfg.symbols.map(s => (
+                <button key={s} onClick={() => setSignalSymbol(s)} style={{
+                  fontFamily:FM, fontSize:8, fontWeight:700,
+                  color:signalSymbol===s?accent:dim,
+                  background:signalSymbol===s?`${accent}12`:"transparent",
+                  border:`1px solid ${signalSymbol===s?`${accent}30`:border}`,
+                  padding:"3px 7px", borderRadius:4, cursor:"pointer",
+                }}>{s}</button>
+              ))}
+            </div>
+            <div style={{ display:"flex", gap:4, marginBottom:12 }}>
+              {modeCfg.intervals.map(iv => (
+                <button key={iv} onClick={() => setSignalInterval(iv)} style={{
+                  fontFamily:FM, fontSize:7, fontWeight:700,
+                  color:signalInterval===iv?accent:dim,
+                  background:signalInterval===iv?`${accent}10`:"transparent",
+                  border:`1px solid ${signalInterval===iv?`${accent}25`:border}`,
+                  padding:"2px 6px", borderRadius:4, cursor:"pointer",
+                }}>{iv}</button>
+              ))}
+            </div>
+            <MultiAgentSignal
+              accent={accent} T={T}
+              symbol={modeCfg.symbols.includes(signalSymbol) ? signalSymbol : modeCfg.defaultSymbol}
+              interval={modeCfg.intervals.includes(signalInterval) ? signalInterval : modeCfg.defaultInterval}
+              assetClass={assetClass}
+              propRules={propRules}
+              paperMode={paperMode}
+              onPaperTrade={handlePaperTrade}
+            />
+            <SignalFeed accent={accent} T={T} assetClass={assetClass} />
+          </div>
         </div>
       )}
 
@@ -757,7 +936,9 @@ export default function BotDashboard({ accent = "#00d4aa", T, botName = "KRONOS"
       {tab === "strategies" && <StrategiesTab accent={accent} T={T} />}
 
       {/* ANALYTICS TAB */}
-      {tab === "analytics" && <AnalyticsTab accent={accent} T={T} fills={fills} />}
+      {tab === "analytics" && (
+        <AnalyticsTab accent={accent} T={T} fills={fills} paperMode={paperMode} setPaperMode={setPaperMode} />
+      )}
 
       {/* STUDIO TAB */}
       {tab === "studio" && (
@@ -765,6 +946,7 @@ export default function BotDashboard({ accent = "#00d4aa", T, botName = "KRONOS"
           accent={accent} T={T} profile={profile}
           onEditProfile={() => setShowOnboarding(true)}
           onOpenBroker={() => setShowBroker(true)}
+          onSelectPropFirm={(d) => setPropFirm(d)}
           brokerData={brokerData}
         />
       )}
