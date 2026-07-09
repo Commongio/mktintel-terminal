@@ -5,6 +5,7 @@ import MarketStatusBadge from "./components/MarketStatusBadge";
 import PropFirmPanel from "./components/PropFirmPanel";
 import TerminalChart from "./components/TerminalChart";
 
+
 import AuthGate from "./components/AuthGate";
 import FOMCOverlay from "./components/FOMCOverlay";
 import GridDock, { DEFAULT_TERMINAL_LAYOUT } from "./components/GridDock";
