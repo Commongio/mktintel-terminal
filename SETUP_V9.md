@@ -37,10 +37,14 @@ Supabase → Authentication → Providers → Email: you can leave "Confirm emai
 
 ## 2. Signal feed cron
 
-- **Vercel:** `vercel.json` already schedules `/api/cron/generate-signals`
-  every 5 min, 13:00–21:00 UTC, Mon–Fri (covers US market hours incl. DST slop).
-  Add env var `CRON_SECRET=<any-long-random-string>` — Vercel sends it automatically
-  as the Authorization bearer for cron invocations.
+- Add env var `CRON_SECRET=<any-long-random-string>` (locally and on Vercel).
+- **Vercel free (Hobby) tier only allows once-per-day crons**, so `vercel.json`
+  schedules one daily run (14:00 UTC Mon–Fri) as a baseline. For the real
+  every-5-minutes cadence during market hours, use a free external scheduler:
+  **cron-job.org** → create a job hitting
+  `https://<your-domain>/api/cron/generate-signals`
+  every 5 minutes (Mon–Fri, 13:00–21:00 UTC) with a custom request header
+  `Authorization: Bearer <your CRON_SECRET>`. (Vercel Pro can do it natively.)
 - **Local test:**
   `curl -H "Authorization: Bearer <CRON_SECRET>" http://localhost:3000/api/cron/generate-signals`
 

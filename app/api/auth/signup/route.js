@@ -51,8 +51,11 @@ export async function POST(request) {
     return Response.json({ error: "This registration code has already been used." }, { status: 409 });
   }
 
-  // Seed an empty settings row so first PUT is an update.
-  await admin.from("user_settings").upsert({ user_id: userId, settings: {} }).catch(() => {});
+  // Seed an empty settings row so first PUT is an update. Best-effort:
+  // NOTE supabase-js query builders are thenables WITHOUT .catch — destructure
+  // the error instead of chaining (a .catch() here throws TypeError → 500).
+  const { error: settingsErr } = await admin.from("user_settings").upsert({ user_id: userId, settings: {} });
+  if (settingsErr) console.warn("signup: user_settings seed failed (non-fatal):", settingsErr.message);
 
   return Response.json({ ok: true });
 }

@@ -5,7 +5,7 @@
 create table if not exists public.registration_codes (
   code         text primary key,
   status       text not null default 'unused' check (status in ('unused','used','revoked')),
-  redeemed_by  uuid references auth.users(id),
+  redeemed_by  uuid references auth.users(id) on delete set null,
   redeemed_at  timestamptz,
   batch_label  text,
   note         text,
