@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 
 const FM = "'JetBrains Mono',monospace";
 
-function getMarketStatus() {
+export function getMarketStatus() {
   const now = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
   const day = now.getDay(); // 0 = Sun, 6 = Sat
   const mins = now.getHours() * 60 + now.getMinutes();

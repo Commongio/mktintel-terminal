@@ -1,5 +1,7 @@
 // app/api/news/route.js
 // Fetches market news from Finnhub + mock Trump/Truth Social news.
+// V10: every article ships with a market-impact rating (score/label/why).
+import { scoreNewsImpact } from "../../../lib/newsImpact";
 // Usage: /api/news                -> general market news
 // Usage: /api/news?type=trump     -> Trump/Truth Social news (mocked)
 // Usage: /api/news?symbol=NVDA    -> company-specific news (last 7 days)
@@ -97,16 +99,19 @@ export async function GET(request) {
 
     const items = (Array.isArray(raw) ? raw : [])
       .slice(0, limit)
-      .map((item) => ({
-        id: item.id,
-        headline: item.headline,
-        summary: item.summary,
-        source: item.source,
-        url: item.url,
-        image: item.image || null,
-        datetime: item.datetime ? item.datetime * 1000 : null,
-        related: item.related || symbol || null,
-      }));
+      .map((item) => {
+        const base = {
+          id: item.id,
+          headline: item.headline,
+          summary: item.summary,
+          source: item.source,
+          url: item.url,
+          image: item.image || null,
+          datetime: item.datetime ? item.datetime * 1000 : null,
+          related: item.related || symbol || null,
+        };
+        return { ...base, impact: scoreNewsImpact(base) };
+      });
 
     return Response.json({ data: items, fetchedAt: Date.now() });
   } catch (err) {

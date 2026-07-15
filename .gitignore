@@ -39,3 +39,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+.vercel
+.env*
+
+# Original (unoptimized) theme videos — kept locally, never committed.
+# The web-optimized versions in public/themes/ are the ones that ship.
+media-source/

@@ -36,7 +36,7 @@ export default function TerminalChart({ accent, T, defaultSymbol = "SPY" }) {
     script.innerHTML = JSON.stringify({
       symbol: `${symbol.includes(":") ? symbol : `NASDAQ:${symbol}`}`,
       width: "100%",
-      height: 220,
+      height: 460,
       locale: "en",
       dateRange: "1D",
       colorTheme: isDark ? "dark" : "light",

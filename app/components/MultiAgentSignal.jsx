@@ -5,6 +5,7 @@
 // and manages paper trading positions.
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import TickerLogo from "./TickerLogo";
 
 const FM = "'JetBrains Mono',monospace";
 const FC = "'Inter',sans-serif";
@@ -25,24 +26,107 @@ export function logShadowSignal(sig) {
   } catch {}
 }
 
-// ── Paper trading helpers ─────────────────────────────────────────────────────
-export function getPaperState() {
-  try { return JSON.parse(localStorage.getItem("kronos_paper") || '{"balance":10000,"positions":[],"history":[],"startedAt":null}'); }
-  catch { return { balance: 10000, positions: [], history: [], startedAt: null }; }
+// ── Paper trading helpers (V10: separate account per asset class) ─────────────
+const EMPTY_PAPER = '{"balance":10000,"positions":[],"history":[],"startedAt":null}';
+export function getPaperState(assetClass = "futures") {
+  try {
+    const key = `kronos_paper_${assetClass}`;
+    let raw = localStorage.getItem(key);
+    // One-time migration: legacy single account becomes the futures account.
+    if (!raw && assetClass === "futures") {
+      const legacy = localStorage.getItem("kronos_paper");
+      if (legacy) { localStorage.setItem(key, legacy); localStorage.removeItem("kronos_paper"); raw = legacy; }
+    }
+    return JSON.parse(raw || EMPTY_PAPER);
+  } catch { return JSON.parse(EMPTY_PAPER); }
 }
-export function savePaperState(s) {
-  try { localStorage.setItem("kronos_paper", JSON.stringify(s)); } catch {}
+export function savePaperState(s, assetClass = "futures") {
+  try { localStorage.setItem(`kronos_paper_${assetClass}`, JSON.stringify(s)); } catch {}
 }
 
-function AgentCard({ a, T }) {
+// What each agent actually measures, and how much it counts. Keyed by the agent
+// name the engine emits (lib/signalEngine). Weights mirror the engine's own
+// weighting — if you change them there, change them here.
+export const AGENT_INFO = {
+  TECHNICAL: {
+    weight: "35% of the vote",
+    what: "Classic momentum and trend indicators on the price series.",
+    reads: ["RSI — overbought / oversold pressure", "MACD histogram — momentum shifting", "EMA20 vs EMA50 — trend direction"],
+    note: "Fast to react, but it can fire early in a choppy tape. That's why it never decides alone.",
+  },
+  STRUCTURE: {
+    weight: "40% of the vote — the heaviest",
+    what: "Smart-money market structure: where price actually broke, swept, or left an imbalance.",
+    reads: ["BOS — break of structure (trend continuation)", "Liquidity sweeps — stop hunts above/below swing points", "FVG — fair value gaps price tends to return to"],
+    note: "Weighted highest because structure tends to lead indicators rather than lag them.",
+  },
+  "OPTIONS FLOW": {
+    weight: "25% of the vote",
+    what: "What the options market is positioned for — the money, not the chart.",
+    reads: ["Put/call volume — directional skew", "Unusual strikes — big volume vs open interest", "ATM implied volatility — the move being priced in"],
+    note: "Options mode only. In futures mode this slot is a sentiment agent instead.",
+  },
+  SENTIMENT: {
+    weight: "25% of the vote",
+    what: "Directional bias from news, session behaviour, and volatility context.",
+    reads: ["News/catalyst tone", "Session and volatility regime"],
+    note: "Futures mode's counterpart to Options Flow.",
+  },
+  RISK: {
+    weight: "Hard gate — can veto anything",
+    what: "The final gate. It does not vote; it blocks.",
+    reads: ["Conviction vs your minimum threshold", "Prop-firm rules, if an eval is active"],
+    note: "Deliberately plain code, not an AI call — the thing that decides whether real money moves must be auditable and reproducible.",
+  },
+};
+
+// Small (i) with a rich hover card. Pure CSS hover (no JS state) so it can't get
+// stuck open when the panel re-renders under the cursor.
+export function InfoDot({ info, accent = "#00d4aa", T }) {
+  if (!info) return null;
+  const panel = T?.panel ?? "#0A1018";
+  const border = T?.border ?? "#1A2535";
+  const text = T?.text ?? "#E2EDF8";
+  const dim = T?.dim ?? "#7A9AB5";
+  return (
+    <span className="kronos-info" style={{ position: "relative", display: "inline-flex", marginLeft: 5 }}>
+      <span tabIndex={0} aria-label="What is this?" style={{
+        width: 12, height: 12, borderRadius: "50%", display: "inline-flex", alignItems: "center", justifyContent: "center",
+        fontFamily: FM, fontSize: 7.5, fontWeight: 800, color: accent,
+        border: `1px solid ${accent}55`, background: `${accent}12`, cursor: "help", flexShrink: 0,
+      }}>i</span>
+      <span className="kronos-info-card" style={{
+        position: "absolute", bottom: "calc(100% + 7px)", left: "50%", transform: "translateX(-50%)",
+        width: 250, zIndex: 200, padding: "10px 11px", borderRadius: 9,
+        background: panel, border: `1px solid ${accent}45`, boxShadow: "0 10px 34px rgba(0,0,0,0.75)",
+        pointerEvents: "none", textAlign: "left",
+      }}>
+        <span style={{ display: "block", fontFamily: FM, fontSize: 7, fontWeight: 800, letterSpacing: 1.5, color: accent, marginBottom: 5 }}>{info.weight}</span>
+        <span style={{ display: "block", fontFamily: FC, fontSize: 10.5, color: text, lineHeight: 1.5, marginBottom: 7 }}>{info.what}</span>
+        {info.reads.map((r, i) => (
+          <span key={i} style={{ display: "block", fontFamily: FC, fontSize: 9.5, color: dim, lineHeight: 1.5, paddingLeft: 8, textIndent: -8 }}>· {r}</span>
+        ))}
+        {info.note && (
+          <span style={{ display: "block", marginTop: 7, paddingTop: 6, borderTop: `1px solid ${border}`, fontFamily: FC, fontSize: 9.5, color: dim, lineHeight: 1.5, fontStyle: "italic" }}>{info.note}</span>
+        )}
+      </span>
+    </span>
+  );
+}
+
+function AgentCard({ a, T, accent }) {
   const c = sigColor(a.signal);
+  const info = AGENT_INFO[String(a.agent || "").toUpperCase()];
   return (
     <div style={{
       padding: "9px 11px", borderRadius: 8, marginBottom: 6,
       background: `${c}08`, border: `1px solid ${c}22`, borderLeft: `3px solid ${c}`,
     }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-        <span style={{ fontFamily: FM, fontSize: 9, fontWeight: 800, letterSpacing: 1.5, color: T?.text ?? "#E2EDF8" }}>{a.agent}</span>
+        <span style={{ display: "flex", alignItems: "center" }}>
+          <span style={{ fontFamily: FM, fontSize: 9, fontWeight: 800, letterSpacing: 1.5, color: T?.text ?? "#E2EDF8" }}>{a.agent}</span>
+          <InfoDot info={info} accent={accent} T={T} />
+        </span>
         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
           <span style={{ fontFamily: FM, fontSize: 9, fontWeight: 700, color: c }}>{a.signal.toUpperCase()}</span>
           <span style={{ fontFamily: FM, fontSize: 9, fontWeight: 800, color: c }}>{a.confidence}%</span>
@@ -55,7 +139,7 @@ function AgentCard({ a, T }) {
   );
 }
 
-export default function MultiAgentSignal({ accent = "#00d4aa", T, symbol = "NQ", interval = "15min", assetClass = "futures", propRules = null, paperMode = false, onPaperTrade = null }) {
+export default function MultiAgentSignal({ accent = "#00d4aa", T, symbol = "NQ", interval = "15min", assetClass = "futures", propRules = null, paperMode = false, onPaperTrade = null, onFire = null }) {
   const surface = T?.surface ?? "#0A1018";
   const border  = T?.border  ?? "#1A2535";
   const text    = T?.text    ?? "#E2EDF8";
@@ -92,11 +176,12 @@ export default function MultiAgentSignal({ accent = "#00d4aa", T, symbol = "NQ",
           };
           logShadowSignal(sig);
           if (paperMode && onPaperTrade) onPaperTrade(sig);
+          if (onFire) onFire({ ...sig, conviction: d.conviction, status: "FIRE" });
         }
       }
     } catch (e) { setError(e.message); }
     finally { setLoading(false); }
-  }, [symbol, interval, assetClass, propRules, paperMode, onPaperTrade]);
+  }, [symbol, interval, assetClass, propRules, paperMode, onPaperTrade, onFire]);
 
   useEffect(() => {
     fetchSignal();
@@ -107,7 +192,14 @@ export default function MultiAgentSignal({ accent = "#00d4aa", T, symbol = "NQ",
   const st = data?.status;
 
   return (
-    <div style={{ background: surface, border: `1px solid ${border}`, borderRadius: 12, overflow: "hidden" }}>
+    <div style={{ background: surface, border: `1px solid ${border}`, borderRadius: 12, overflow: "visible" }}>
+      {/* Info hover-cards. Pure CSS so they can never get stuck open on re-render.
+          The panel must NOT clip them — hence overflow:visible above. */}
+      <style>{`
+        .kronos-info .kronos-info-card { opacity: 0; visibility: hidden; transform: translateX(-50%) translateY(4px); transition: opacity .16s ease, transform .16s ease, visibility .16s; }
+        .kronos-info:hover .kronos-info-card,
+        .kronos-info:focus-within .kronos-info-card { opacity: 1; visibility: visible; transform: translateX(-50%) translateY(0); }
+      `}</style>
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", borderBottom: `1px solid ${border}` }}>
         <div>
@@ -129,21 +221,30 @@ export default function MultiAgentSignal({ accent = "#00d4aa", T, symbol = "NQ",
 
       {data && (
         <div style={{ padding: 14 }}>
-          {/* Status banner */}
+          {/* Status banner — leads with the SYMBOL so it's never ambiguous which
+              instrument this verdict belongs to. */}
           <div style={{
-            display: "flex", justifyContent: "space-between", alignItems: "center",
-            padding: "10px 14px", borderRadius: 9, marginBottom: 12,
+            padding: "11px 14px", borderRadius: 9, marginBottom: 12,
             background: `${statusColor(st)}0d`, border: `1px solid ${statusColor(st)}35`,
           }}>
-            <div>
-              <div style={{ fontFamily: FM, fontSize: 8, color: dim, letterSpacing: 2, marginBottom: 2 }}>SIGNAL STATUS</div>
-              <div style={{ fontFamily: FM, fontSize: 17, fontWeight: 900, color: statusColor(st), letterSpacing: 1 }}>
-                {st === "FIRE" ? `⚡ FIRE — ${data.direction}` : st === "HOLD" ? `HOLD — ${data.direction} forming` : "SCANNING"}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, paddingBottom: 8, borderBottom: `1px solid ${statusColor(st)}22` }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                <TickerLogo symbol={data.symbol || symbol} size={20} />
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontFamily: FM, fontSize: 15, fontWeight: 900, color: text, letterSpacing: 1, lineHeight: 1.1 }}>{data.symbol || symbol}</div>
+                  <div style={{ fontFamily: FM, fontSize: 7, color: dim, letterSpacing: 1 }}>{interval} · {assetClass.toUpperCase()}</div>
+                </div>
+              </div>
+              <div style={{ textAlign: "right", flexShrink: 0 }}>
+                <div style={{ fontFamily: FM, fontSize: 22, fontWeight: 900, color: dirColor(data.direction), lineHeight: 1 }}>{data.conviction}%</div>
+                <div style={{ fontFamily: FM, fontSize: 7, color: dim, letterSpacing: 1, marginTop: 2 }}>CONVICTION</div>
               </div>
             </div>
-            <div style={{ textAlign: "right" }}>
-              <div style={{ fontFamily: FM, fontSize: 22, fontWeight: 900, color: dirColor(data.direction), lineHeight: 1 }}>{data.conviction}%</div>
-              <div style={{ fontFamily: FM, fontSize: 7, color: dim, letterSpacing: 1, marginTop: 2 }}>CONVICTION</div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
+              <span style={{ fontFamily: FM, fontSize: 7.5, color: dim, letterSpacing: 2 }}>SIGNAL STATUS</span>
+              <span style={{ fontFamily: FM, fontSize: 14, fontWeight: 900, color: statusColor(st), letterSpacing: 0.5, textAlign: "right" }}>
+                {st === "FIRE" ? `⚡ FIRE — ${data.direction}` : st === "HOLD" ? `HOLD — ${data.direction} forming` : "SCANNING"}
+              </span>
             </div>
           </div>
 
@@ -179,8 +280,11 @@ export default function MultiAgentSignal({ accent = "#00d4aa", T, symbol = "NQ",
           )}
 
           {/* Agent votes */}
-          <div style={{ fontFamily: FM, fontSize: 7, color: dim, letterSpacing: 2, marginBottom: 7 }}>AGENT VOTES</div>
-          {(data.agents || []).map((a, i) => <AgentCard key={i} a={a} T={T} />)}
+          <div style={{ fontFamily: FM, fontSize: 7, color: dim, letterSpacing: 2, marginBottom: 7, display: "flex", alignItems: "center" }}>
+            AGENT VOTES
+            <span style={{ fontFamily: FC, fontSize: 8.5, color: dim, opacity: 0.7, marginLeft: 6, fontStyle: "italic", letterSpacing: 0 }}>hover ⓘ to learn each one</span>
+          </div>
+          {(data.agents || []).map((a, i) => <AgentCard key={i} a={a} T={T} accent={accent} />)}
 
           {/* Risk gate */}
           {data.risk && (

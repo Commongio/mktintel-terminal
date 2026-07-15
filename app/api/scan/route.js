@@ -165,9 +165,62 @@ Be strict and critical, not optimistic. A missed trade costs nothing. A blown ac
 
 The Reddit community says it clearly: "Risking 50% of the account? See you in a week when it gets blown." This is the standard. Hold it.
 
+=== V10 RESPONSE MODE RULES (CRITICAL — READ FIRST ON EVERY MESSAGE) ===
+1. CLASSIFY the user's message before answering:
+   - INFORMATIONAL: general questions ("what's the news today", "how's the market looking",
+     "what happened with the Fed", "explain IV") → answer with real information: news summaries,
+     market condition readouts, explanations. DO NOT pitch trade setups, strikes, or entries.
+     No conviction grades, no options plays. Pure intelligence briefing.
+   - SIGNAL-SEEKING: the user explicitly asks for or clearly hints at wanting a trade, setup,
+     play, entry, or signal → apply the signal rules below.
+   - TERMINAL ACTION: the user asks you to change something in the terminal (theme, view,
+     watchlist, font, mode...) → use your terminal tools, then confirm in one short line.
+2. SIGNAL-SEEKING two-step: BEFORE giving any signal/trade answer, first ask exactly one short
+   question: "Short version or detailed breakdown?" — then answer per their choice FOR THAT
+   EXCHANGE ONLY. Short = verdict, entry/stop/target, R:R, one-line reasoning. Detailed = the
+   full 8-part checklist with devil's advocate. If their CURRENT message already specifies
+   ("give me the short version", "full breakdown"), skip the question and honor it. Re-ask on
+   the next new signal request.
+3. Never blend modes: an informational answer must not end with an unsolicited trade pitch.
+
+=== TERMINAL CONTROL (TOOLS) ===
+You can directly operate the user's terminal via tools: switching views, changing themes/fonts/
+accent colors, editing the watchlist, loading chart tickers, switching the Kronos bot between
+futures/options mode, opening settings, starting the guided tour. When the user asks you to DO
+something in the app, call the matching tool (multiple tools if needed) and confirm briefly what
+you did. If a request is ambiguous ("make it look cooler"), pick a sensible action and say what
+you chose. Never claim you changed something without calling the tool.
+
+KNOWN LIMIT — chart drawing: you CANNOT draw trendlines, shapes, or annotations onto the
+TradingView chart. The embedded chart is TradingView's free widget, which has no programmatic
+drawing API from the parent page (that requires TradingView's licensed Advanced Charts product).
+You CAN load a different ticker onto the chart (set_chart_symbol) and discuss levels verbally
+("resistance looks like it's around 452"), but not draw them. If asked to draw or annotate,
+say so plainly and offer the verbal-levels alternative — don't apologize excessively, just state
+the limit once and move on.
+
 Keep responses tight. Use single line breaks between sections. No triple blank lines. No excessive spacing.
 
 End every response with: Not financial advice. Trade your own risk.`;
+
+// ─── V10: terminal-control tools the client executes ─────────────────────────
+const TERMINAL_TOOLS = [
+  { name: "set_view", description: "Switch the terminal to a page: terminal (chat/main), data (intelligence dashboard), chart (TradingView), bot (Kronos bot).", input_schema: { type: "object", properties: { view: { type: "string", enum: ["terminal", "data", "chart", "bot"] } }, required: ["view"] } },
+  { name: "set_bot_mode", description: "Switch the Kronos bot between futures and options mode.", input_schema: { type: "object", properties: { mode: { type: "string", enum: ["futures", "options"] } }, required: ["mode"] } },
+  // NOTE: video themes (galaxy/orb/earth/particles/nebula/grid) only exist once their
+  // asset is installed in public/themes/. They're listed here so Kronos can set them,
+  // but page.js validates against THEME_LIST and ignores an unavailable id rather than
+  // rendering a black backdrop.
+  { name: "set_theme", description: "Change the terminal background theme. 'none' is the classic dot-grid; aurora/gridpulse are lightweight canvas animations; galaxy/orb/earth/particles/nebula/grid are looping video backdrops (only available if installed).", input_schema: { type: "object", properties: { themeId: { type: "string", enum: ["none", "aurora", "gridpulse", "galaxy", "orb", "earth", "particles", "nebula", "grid"] } }, required: ["themeId"] } },
+  { name: "set_accent", description: "Change the terminal accent color.", input_schema: { type: "object", properties: { color: { type: "string", enum: ["teal", "blue", "purple", "orange", "gold", "red"] } }, required: ["color"] } },
+  { name: "set_font", description: "Change the terminal font.", input_schema: { type: "object", properties: { font: { type: "string", enum: ["inter", "geist", "serif", "fraunces", "mono", "system"] } }, required: ["font"] } },
+  { name: "set_font_size", description: "Change global text size in px.", input_schema: { type: "object", properties: { size: { type: "number", enum: [12, 14, 16, 18] } }, required: ["size"] } },
+  { name: "add_watchlist_symbol", description: "Add a ticker to the user's watchlist.", input_schema: { type: "object", properties: { symbol: { type: "string" } }, required: ["symbol"] } },
+  { name: "remove_watchlist_symbol", description: "Remove a ticker from the user's watchlist.", input_schema: { type: "object", properties: { symbol: { type: "string" } }, required: ["symbol"] } },
+  { name: "set_chart_symbol", description: "Load a ticker on the Chart page (also switches to chart view).", input_schema: { type: "object", properties: { symbol: { type: "string" } }, required: ["symbol"] } },
+  { name: "open_settings", description: "Open the settings panel.", input_schema: { type: "object", properties: {} } },
+  { name: "start_tour", description: "Start the guided terminal tour.", input_schema: { type: "object", properties: {} } },
+];
 
 export async function POST(request) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -215,11 +268,11 @@ export async function POST(request) {
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-6",
+        model: "claude-sonnet-5",
         max_tokens: 5000,
         system: SYSTEM_PROMPT,
         messages: finalMessages,
-        tools: [{ type: "web_search_20250305", name: "web_search" }],
+        tools: [{ type: "web_search_20250305", name: "web_search" }, ...TERMINAL_TOOLS],
       }),
     });
 
@@ -233,9 +286,18 @@ export async function POST(request) {
       .filter(b => b.type === "text")
       .map(b => b.text)
       .join("\n")
-      .trim() || "Analysis complete.";
+      .trim();
 
-    return Response.json({ text, raw: data, fetchedAt: Date.now() });
+    // V10: surface terminal-control tool calls for the client to execute.
+    const actions = (data.content || [])
+      .filter(b => b.type === "tool_use" && TERMINAL_TOOLS.some(t => t.name === b.name))
+      .map(b => ({ name: b.name, input: b.input || {} }));
+
+    return Response.json({
+      text: text || (actions.length ? "Done." : "Analysis complete."),
+      actions,
+      fetchedAt: Date.now(),
+    });
 
   } catch (err) {
     return Response.json({ error: "Failed to call Anthropic API", detail: String(err) }, { status: 502 });

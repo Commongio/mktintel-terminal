@@ -25,8 +25,9 @@ export async function PUT(request) {
   if (!incoming || typeof incoming !== "object") {
     return Response.json({ error: "Expected { settings: object }" }, { status: 400 });
   }
-  // Guard against oversized payloads (layouts + a data-URL background can get big; cap at 2MB).
-  if (JSON.stringify(incoming).length > 2_000_000) {
+  // Guard against oversized payloads (background photo + chat history + layouts can
+  // add up; cap at 6MB — comfortably inside Postgres jsonb limits on the free tier).
+  if (JSON.stringify(incoming).length > 6_000_000) {
     return Response.json({ error: "Settings payload too large" }, { status: 413 });
   }
 

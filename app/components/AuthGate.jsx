@@ -158,7 +158,53 @@ function SupabaseGate({ onAccess }) {
   );
 }
 
+// ── DEV-ONLY AUTH BYPASS ──────────────────────────────────────────────────────
+// Skips the login gate on localhost so development/verification doesn't require
+// typing credentials. DOUBLE-GUARDED and cannot reach production:
+//
+//   1. process.env.NODE_ENV !== "production"  — Vercel builds are always
+//      "production", so this alone already kills it on the deployed site.
+//   2. NEXT_PUBLIC_DEV_BYPASS_AUTH === "true" — opt-in, and it lives only in
+//      .env.local, which is gitignored and never set in Vercel.
+//
+// Both are inlined at BUILD time, so a production bundle contains `false && …`
+// and the bypass is dead code there — it isn't a runtime flag someone can flip.
+//
+// It grants a NULL user (the same "local mode" the legacy code gate uses) rather
+// than forging a Supabase session. That's deliberate: a fake user id would not
+// satisfy RLS, so server settings-sync would silently misbehave and we'd be
+// testing a state no real user is ever in. Local mode is honest — localStorage
+// persistence, anon reads for the signal feed, no account features.
+export const DEV_AUTH_BYPASS =
+  process.env.NODE_ENV !== "production" &&
+  process.env.NEXT_PUBLIC_DEV_BYPASS_AUTH === "true";
+
+// Always-visible marker while the bypass is on, so a bypassed session can never
+// be mistaken for a real signed-in one during testing.
+export function DevBypassBadge() {
+  if (!DEV_AUTH_BYPASS) return null;
+  return (
+    <div style={{
+      position: "fixed", bottom: 8, left: 8, zIndex: 99999, pointerEvents: "none",
+      fontFamily: FM, fontSize: 8, fontWeight: 800, letterSpacing: 1.5,
+      color: "#f7c948", background: "rgba(247,201,72,0.10)",
+      border: "1px solid rgba(247,201,72,0.40)", borderRadius: 5, padding: "3px 8px",
+    }}>
+      ⚠ DEV AUTH BYPASS · LOCAL MODE
+    </div>
+  );
+}
+
 export default function AuthGate({ onAccess }) {
+  useEffect(() => {
+    if (DEV_AUTH_BYPASS) {
+      console.warn("[DEV] Auth bypass active — running in local mode, no account. Never active in production.");
+      onAccess(null);
+    }
+  }, [onAccess]);
+
+  if (DEV_AUTH_BYPASS) return null;
+
   // Supabase configured → real accounts; otherwise legacy single-user code gate.
   if (supabaseConfigured()) return <SupabaseGate onAccess={(user) => onAccess(user)} />;
   return <AccessGate onAccess={() => onAccess(null)} />;

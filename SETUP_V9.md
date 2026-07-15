@@ -40,11 +40,24 @@ Supabase → Authentication → Providers → Email: you can leave "Confirm emai
 - Add env var `CRON_SECRET=<any-long-random-string>` (locally and on Vercel).
 - **Vercel free (Hobby) tier only allows once-per-day crons**, so `vercel.json`
   schedules one daily run (14:00 UTC Mon–Fri) as a baseline. For the real
-  every-5-minutes cadence during market hours, use a free external scheduler:
+  intraday cadence during market hours, use a free external scheduler:
   **cron-job.org** → create a job hitting
   `https://<your-domain>/api/cron/generate-signals`
-  every 5 minutes (Mon–Fri, 13:00–21:00 UTC) with a custom request header
+  **every 2 minutes** (Mon–Fri, 13:00–21:00 UTC) with a custom request header
   `Authorization: Bearer <your CRON_SECRET>`. (Vercel Pro can do it natively.)
+- **Why 2 min, not 1 min (V10.2 decision):** the engine's signals run on 15min–
+  1h timeframes, so 1-minute regeneration gives essentially no edge over 2-min,
+  while roughly doubling calls to the free data tiers (Yahoo/Finnhub) — which
+  risks IP throttling/soft-bans that would take the whole feed down. 2 min is the
+  sweet spot: fresh enough to feel live, gentle on the free providers. The market-
+  data layer also short-TTL-caches candles (60s) and quotes (15s), so bursts of
+  requests within a run are deduped. cron-job.org's free tier *does* support
+  1-min if you later move to paid data with real rate limits.
+- **Signal integrity (audited V10.2):** every signal the cron writes passes the
+  full multi-agent pipeline (technical + structure + sentiment/options-flow →
+  portfolio-manager vote → risk gate) before a FIRE/HOLD/SCAN status is assigned.
+  There is no raw-price-trigger path — cron frequency only changes how often that
+  same pipeline re-runs, never what qualifies as a signal.
 - **Local test:**
   `curl -H "Authorization: Bearer <CRON_SECRET>" http://localhost:3000/api/cron/generate-signals`
 

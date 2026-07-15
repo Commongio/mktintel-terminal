@@ -14,7 +14,7 @@ const outcomeColor = (o) =>
   o === "STOPPED" || o === "LOSING" ? "#ff3d57" : "#7A9AB5";
 
 // ─── SHADOW ACCOUNT PANEL ─────────────────────────────────────────────────────
-export default function ShadowAccountPanel({ accent = "#00d4aa", T }) {
+export default function ShadowAccountPanel({ accent = "#00d4aa", T, assetClass = "futures" }) {
   const surface = T?.surface ?? "#0A1018";
   const border  = T?.border  ?? "#1A2535";
   const text    = T?.text    ?? "#E2EDF8";
@@ -27,7 +27,9 @@ export default function ShadowAccountPanel({ accent = "#00d4aa", T }) {
   const evaluate = useCallback(async () => {
     setLoading(true);
     try {
-      const signals = JSON.parse(localStorage.getItem("kronos_shadow") || "[]");
+      // V10: strict mode isolation — only this asset class's signals.
+      const all = JSON.parse(localStorage.getItem("kronos_shadow") || "[]");
+      const signals = all.filter((s) => (s.assetClass || "futures") === assetClass);
       if (!signals.length) { setEvaluated([]); setStats(null); return; }
       const r = await fetch("/api/shadow-account", {
         method: "POST", headers: { "Content-Type": "application/json" },
@@ -37,13 +39,16 @@ export default function ShadowAccountPanel({ accent = "#00d4aa", T }) {
       if (r.ok) { setEvaluated((d.evaluated || []).reverse()); setStats(d.stats); }
     } catch {}
     finally { setLoading(false); }
-  }, []);
+  }, [assetClass]);
 
   useEffect(() => { evaluate(); }, [evaluate]);
 
   const clear = () => {
-    if (!confirm("Clear all shadow account history?")) return;
-    localStorage.removeItem("kronos_shadow");
+    if (!confirm(`Clear ${assetClass} shadow history?`)) return;
+    try {
+      const all = JSON.parse(localStorage.getItem("kronos_shadow") || "[]");
+      localStorage.setItem("kronos_shadow", JSON.stringify(all.filter((s) => (s.assetClass || "futures") !== assetClass)));
+    } catch { localStorage.removeItem("kronos_shadow"); }
     setEvaluated([]); setStats(null);
   };
 
@@ -61,7 +66,7 @@ export default function ShadowAccountPanel({ accent = "#00d4aa", T }) {
     <div style={{ background: surface, border: `1px solid ${border}`, borderRadius: 12, overflow: "hidden" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", borderBottom: `1px solid ${border}` }}>
         <div style={{ fontFamily: FM, fontSize: 9, fontWeight: 700, color: text, letterSpacing: 2 }}>
-          SHADOW ACCOUNT — SIGNAL ACCURACY
+          SHADOW ACCOUNT — {assetClass.toUpperCase()} ACCURACY
         </div>
         <div style={{ display: "flex", gap: 6 }}>
           <button onClick={exportCSV} style={{ fontFamily: FM, fontSize: 8, color: dim, background: "none", border: `1px solid ${border}`, borderRadius: 5, padding: "3px 8px", cursor: "pointer" }}>CSV</button>
@@ -123,15 +128,15 @@ export default function ShadowAccountPanel({ accent = "#00d4aa", T }) {
 }
 
 // ─── PAPER TRADING PANEL ──────────────────────────────────────────────────────
-export function PaperTradingPanel({ accent = "#00d4aa", T, paperMode, setPaperMode }) {
+export function PaperTradingPanel({ accent = "#00d4aa", T, paperMode, setPaperMode, assetClass = "futures" }) {
   const surface = T?.surface ?? "#0A1018";
   const border  = T?.border  ?? "#1A2535";
   const text    = T?.text    ?? "#E2EDF8";
   const dim     = T?.dim     ?? "#7A9AB5";
 
-  const [paper, setPaper] = useState(getPaperState());
+  const [paper, setPaper] = useState(() => getPaperState(assetClass));
 
-  useEffect(() => { setPaper(getPaperState()); }, [paperMode]);
+  useEffect(() => { setPaper(getPaperState(assetClass)); }, [paperMode, assetClass]);
 
   const daysPaper = paper.startedAt ? Math.floor((Date.now() - paper.startedAt) / 864e5) : 0;
   const liveUnlocked = daysPaper >= 30;
@@ -142,20 +147,20 @@ export function PaperTradingPanel({ accent = "#00d4aa", T, paperMode, setPaperMo
     setPaperMode(next);
     if (next && !paper.startedAt) {
       const np = { ...paper, startedAt: Date.now() };
-      setPaper(np); savePaperState(np);
+      setPaper(np); savePaperState(np, assetClass);
     }
   };
 
   const reset = () => {
-    if (!confirm("Reset paper account to $10,000?")) return;
+    if (!confirm(`Reset ${assetClass} paper account to $10,000?`)) return;
     const np = { balance: 10000, positions: [], history: [], startedAt: paper.startedAt };
-    setPaper(np); savePaperState(np);
+    setPaper(np); savePaperState(np, assetClass);
   };
 
   return (
     <div style={{ background: surface, border: `1px solid ${border}`, borderRadius: 12, padding: "14px 16px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-        <div style={{ fontFamily: FM, fontSize: 9, fontWeight: 700, color: text, letterSpacing: 2 }}>PAPER TRADING</div>
+        <div style={{ fontFamily: FM, fontSize: 9, fontWeight: 700, color: text, letterSpacing: 2 }}>PAPER TRADING — {assetClass.toUpperCase()}</div>
         <button onClick={togglePaper} style={{
           width: 42, height: 22, borderRadius: 12, position: "relative", cursor: "pointer",
           background: paperMode ? `${accent}30` : border,

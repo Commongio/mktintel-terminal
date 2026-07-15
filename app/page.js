@@ -6,11 +6,28 @@ import PropFirmPanel from "./components/PropFirmPanel";
 import TerminalChart from "./components/TerminalChart";
 
 
-import AuthGate from "./components/AuthGate";
+import AuthGate, { DevBypassBadge } from "./components/AuthGate";
+import BotSettings from "./components/BotSettings";
 import FOMCOverlay from "./components/FOMCOverlay";
 import GridDock, { DEFAULT_TERMINAL_LAYOUT } from "./components/GridDock";
+import ThemeBackdrop, { THEME_LIST, isVideoTheme } from "./components/ThemeBackdrop";
+import { saveBgVideo, loadBgVideo, clearBgVideo } from "../lib/mediaStore";
+import TickerLogo from "./components/TickerLogo";
+import TourGuide from "./components/TourGuide";
+import KronosMentor from "./components/KronosMentor";
+import { CollapsedRail } from "./components/CollapseRail";
+import { vixFilter } from "../lib/vixColor";
 import { getSupabase, supabaseConfigured, getAccessToken } from "../lib/supabase";
-import OptionsIntelligence from "./components/OptionsIntelligence";
+
+// V10: user-selectable chat/body font (all faces already loaded via Google import)
+const FONT_CHOICES=[
+  {id:"inter",label:"Inter (default)",stack:"'Inter',sans-serif"},
+  {id:"geist",label:"Geist",stack:"'Geist',sans-serif"},
+  {id:"serif",label:"Source Serif",stack:"'Source Serif 4',serif"},
+  {id:"fraunces",label:"Fraunces",stack:"'Fraunces',serif"},
+  {id:"mono",label:"JetBrains Mono",stack:"'JetBrains Mono',monospace"},
+  {id:"system",label:"System",stack:"system-ui,sans-serif"},
+];
 import TickerTape from "./components/TickerTape";
 // KronosOnboarding is used inside BotDashboard.jsx directly
 
@@ -54,6 +71,29 @@ const COMPANY_NAMES={NVDA:"NVIDIA Corp",AAPL:"Apple Inc",MSFT:"Microsoft Corp",G
 const DEFAULT_WATCHLIST=["NVDA","AAPL","MSFT","GOOGL","AMZN","META","TSLA","AMD","JPM","V","UNH","LLY","XOM","BA","WMT","COST","NKE","DIS","PLTR","RKLB","IONQ","SMCI","GME","MSTR","SPY","QQQ"];
 const POPULAR_PICKS=["ADBE","CRM","ORCL","INTC","QCOM","PYPL","SQ","SHOP","UBER","SBUX","MCD","TGT","HD","CAT","GE","RTX","KO","PEP","PG","JNJ","T","VZ","C","WFC","GS","MS","BAC","AVGO","NFLX","COIN","RIOT","MARA","CLSK","IWM","DIA"];
 function buildDefaultMeta(){const m={};DEFAULT_WATCHLIST.forEach(s=>{m[s]=COMPANY_NAMES[s]||s;});return m;}
+
+// V10.4 theme set = Classic + lightweight canvas themes + looping-video themes.
+// (Spline was removed; its scene themes are now video themes with the same ids.)
+//
+// migrateTheme resolves a persisted theme id against what's ACTUALLY available.
+// THEME_LIST only contains video themes whose asset file exists, so a user sitting
+// on e.g. "galaxy" before the galaxy.mp4 is installed would otherwise get a black
+// backdrop. Anything unresolvable falls back to `aurora` — a real, always-present
+// canvas theme. Never default to a video id: that's the black-screen case.
+const FALLBACK_THEME="aurora";
+const RETIRED_THEMES={
+  globe:"orb", newsglobe:"orb",         // renamed
+  worldmap:FALLBACK_THEME, candles:FALLBACK_THEME, // removed in V10.3
+  sphere:FALLBACK_THEME, flux:FALLBACK_THEME,      // Spline-only scenes, dropped in V10.4
+};
+function migrateTheme(t){
+  const valid=THEME_LIST.map(x=>x.id);
+  const raw=t?.id;
+  const mapped=RETIRED_THEMES[raw]??raw;
+  const id=valid.includes(mapped)?mapped:FALLBACK_THEME;
+  // tint: a hex color blended over the theme; tintStrength 0..1 its intensity.
+  return { id, hue:t?.hue??0, sat:t?.sat??1, bri:t?.bri??1, tint:t?.tint??"", tintStrength:t?.tintStrength??0.5 };
+}
 
 const QA_GROUPS=[
   {label:"📰 NEWS",color:"#f7c948",actions:[
@@ -100,7 +140,7 @@ function ResizeDivider({onMouseDown,accent}){
 }
 
 // ─── WELCOME POPUP ────────────────────────────────────────────────────────────
-function WelcomePopup({onClose,accent,T}){
+function WelcomePopup({onClose,onTour,accent,T}){
   return(
     <div style={{position:"fixed",inset:0,zIndex:3000,background:"rgba(0,0,0,0.92)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
       <div style={{width:"100%",maxWidth:520,background:T.panel,border:`1px solid ${accent}45`,borderRadius:20,overflow:"hidden",boxShadow:`0 0 100px ${accent}25,0 0 200px rgba(0,0,0,0.8)`}}>
@@ -117,12 +157,21 @@ function WelcomePopup({onClose,accent,T}){
             This is a project by me that I hope you can find useful and efficient. I appreciate any feedback and tips for future builds.
           </p>
           <p style={{fontFamily:FONT_DISPLAY,fontSize:16,fontWeight:600,color:accent,marginBottom:24,fontStyle:"italic"}}>— Gio</p>
-          <button onClick={onClose}
-            style={{width:"100%",padding:"13px 0",background:`linear-gradient(135deg,${accent}28,${accent}12)`,border:`1px solid ${accent}50`,borderRadius:10,color:accent,fontFamily:FONT_MONO,fontSize:12,fontWeight:700,letterSpacing:2,cursor:"pointer",transition:"all 0.2s"}}
-            onMouseEnter={e=>{e.currentTarget.style.background=`${accent}30`;e.currentTarget.style.borderColor=`${accent}70`;e.currentTarget.style.boxShadow=`0 0 20px ${accent}30`;}}
-            onMouseLeave={e=>{e.currentTarget.style.background=`linear-gradient(135deg,${accent}28,${accent}12)`;e.currentTarget.style.borderColor=`${accent}50`;e.currentTarget.style.boxShadow="none";}}>
-            LAUNCH TERMINAL
-          </button>
+          <div style={{display:"flex",gap:10}}>
+            <button onClick={onClose}
+              style={{flex:1.4,padding:"13px 0",background:`linear-gradient(135deg,${accent}28,${accent}12)`,border:`1px solid ${accent}50`,borderRadius:10,color:accent,fontFamily:FONT_MONO,fontSize:12,fontWeight:700,letterSpacing:2,cursor:"pointer",transition:"all 0.2s"}}
+              onMouseEnter={e=>{e.currentTarget.style.background=`${accent}30`;e.currentTarget.style.borderColor=`${accent}70`;e.currentTarget.style.boxShadow=`0 0 20px ${accent}30`;}}
+              onMouseLeave={e=>{e.currentTarget.style.background=`linear-gradient(135deg,${accent}28,${accent}12)`;e.currentTarget.style.borderColor=`${accent}50`;e.currentTarget.style.boxShadow="none";}}>
+              LAUNCH TERMINAL
+            </button>
+            {/* V10: guided onboarding */}
+            <button onClick={onTour}
+              style={{flex:1,padding:"13px 0",background:"transparent",border:`1px solid ${T.border}`,borderRadius:10,color:T.textDim,fontFamily:FONT_MONO,fontSize:12,fontWeight:700,letterSpacing:2,cursor:"pointer",transition:"all 0.2s"}}
+              onMouseEnter={e=>{e.currentTarget.style.borderColor=`${accent}45`;e.currentTarget.style.color=accent;}}
+              onMouseLeave={e=>{e.currentTarget.style.borderColor=T.border;e.currentTarget.style.color=T.textDim;}}>
+              🧭 TAKE A TOUR
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -216,9 +265,12 @@ const WatchlistRow=memo(function WatchlistRow({symbol,quote,name,onClick,T,densi
       style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:pad,borderRadius:7,marginBottom:5,background:T.surface,border:`1px solid ${T.border}`,cursor:"pointer",transition:"background 0.12s"}}
       onMouseEnter={e=>e.currentTarget.style.background="rgba(127,127,127,0.08)"}
       onMouseLeave={e=>e.currentTarget.style.background=T.surface}>
-      <div>
-        <div style={{fontFamily:FONT_MONO,fontWeight:700,fontSize:12.5,color:T.text,letterSpacing:1}}>{symbol}</div>
-        <div style={{fontFamily:FONT_CHAT,fontSize:10,color:T.dim,marginTop:1}}>{(name||symbol).slice(0,20)}</div>
+      <div style={{display:"flex",alignItems:"center",gap:8,minWidth:0}}>
+        <TickerLogo symbol={symbol} size={22}/>
+        <div style={{minWidth:0}}>
+          <div style={{fontFamily:FONT_MONO,fontWeight:700,fontSize:12.5,color:T.text,letterSpacing:1}}>{symbol}</div>
+          <div style={{fontFamily:FONT_CHAT,fontSize:10,color:T.dim,marginTop:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{(name||symbol).slice(0,20)}</div>
+        </div>
       </div>
       <div style={{textAlign:"right"}}>
         <div style={{fontFamily:FONT_MONO,fontSize:12.5,fontWeight:700,color:T.text}}>{quote.price!=null?`$${quote.price.toFixed(2)}`:"—"}</div>
@@ -245,6 +297,75 @@ const WatchlistRow=memo(function WatchlistRow({symbol,quote,name,onClick,T,densi
   );
 });
 
+// ─── V10: GRADIENT IMPACT RATING BAR ──────────────────────────────────────────
+// Red→green bar scoring likely market impact; hover explains the rating.
+function ImpactBar({item,T,compact=false}){
+  const[hov,setHov]=useState(false);
+  const imp=item?.impact;
+  if(!imp)return null;
+  const{score,label,explanation}=imp;
+  return(
+    <div style={{position:"relative",marginTop:compact?4:7}}
+      onMouseEnter={()=>setHov(true)} onMouseLeave={()=>setHov(false)}>
+      <div style={{display:"flex",alignItems:"center",gap:7}}>
+        <div style={{flex:1,height:compact?3:4,borderRadius:2,background:"rgba(127,127,127,0.14)",overflow:"hidden"}}>
+          <div style={{
+            width:`${score}%`,height:"100%",borderRadius:2,
+            background:"linear-gradient(90deg,#ef4444,#f59e0b 45%,#facc15 65%,#22c55e)",
+            backgroundSize:`${Math.max(1,10000/score)}% 100%`,backgroundPosition:"left",
+            transition:"width 0.5s ease",
+          }}/>
+        </div>
+        <span style={{fontFamily:FONT_MONO,fontSize:7.5,fontWeight:800,letterSpacing:1,color:score>=70?"#22c55e":score>=45?"#facc15":"#8896a8",flexShrink:0}}>
+          {score}
+        </span>
+      </div>
+      {hov&&(
+        <div style={{
+          position:"absolute",bottom:"calc(100% + 6px)",left:0,zIndex:50,width:230,
+          background:"rgba(8,14,24,0.97)",border:`1px solid ${score>=70?"rgba(34,197,94,0.4)":T.border}`,
+          borderRadius:8,padding:"9px 11px",boxShadow:"0 8px 22px rgba(0,0,0,0.5)",pointerEvents:"none",
+        }}>
+          <div style={{fontFamily:FONT_MONO,fontSize:8,fontWeight:800,letterSpacing:1.5,marginBottom:4,
+            color:score>=70?"#22c55e":score>=45?"#facc15":"#8896a8"}}>
+            {label} · {score}/100
+          </div>
+          <div style={{fontFamily:FONT_CHAT,fontSize:10,color:"#aebccc",lineHeight:1.5}}>{explanation}</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── V10: BEGINNER INDICATOR GUIDE (watchlist ⓘ) ─────────────────────────────
+function IndicatorInfoModal({onClose,accent,T}){
+  const ROWS=[
+    ["RSI (Relative Strength Index)","A 0–100 speedometer for price. Above 70 = stock may have run up too fast (could pull back). Below 30 = may have dropped too fast (could bounce). Between 30–70 = normal territory."],
+    ["MACD","Momentum tracker. A positive number means upward momentum is building; negative means downward. Watch the sign flip — that's often when trends change."],
+    ["Conviction % (Kronos)","How strongly the bot's agents agree on a setup, 0–100%. Under 60% = no trade. 78%+ = strong agreement. 90%+ = rare, highest-confidence setups (these launch comets 🌠)."],
+    ["Impact bar (news)","Red→green bar under each headline scoring how likely that story is to move the market. Green/high = act fast; gray/low = background noise."],
+    ["VIX","The market's 'fear gauge.' Under 15 = calm. 15–20 = normal. 20–30 = nervous. 30+ = fear — big swings likely. The Kronos galaxy orb changes color with it."],
+  ];
+  return(
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}
+      onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
+      <div style={{width:"100%",maxWidth:480,maxHeight:"84vh",overflowY:"auto",background:T.panel,border:`1px solid ${accent}35`,borderRadius:16,padding:24}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+          <span style={{fontFamily:FONT_MONO,fontSize:11,fontWeight:700,color:accent,letterSpacing:2}}>ⓘ WHAT THE NUMBERS MEAN</span>
+          <button onClick={onClose} style={{color:T.dim,fontSize:17,cursor:"pointer"}}>✕</button>
+        </div>
+        {ROWS.map(([t,d])=>(
+          <div key={t} style={{marginBottom:14,paddingBottom:14,borderBottom:`1px solid ${T.border}`}}>
+            <div style={{fontFamily:FONT_MONO,fontSize:11,fontWeight:700,color:T.text,marginBottom:5}}>{t}</div>
+            <div style={{fontFamily:FONT_CHAT,fontSize:12,color:T.textDim,lineHeight:1.65}}>{d}</div>
+          </div>
+        ))}
+        <div style={{fontFamily:FONT_MONO,fontSize:8,color:T.dim,lineHeight:1.6}}>None of these are guarantees — they're probability tools. Not financial advice.</div>
+      </div>
+    </div>
+  );
+}
+
 const NewsCard=memo(function NewsCard({item,onDiveDeep,T}){
   const isTrump=TRUMP_RE.test((item.headline||"")+(item.summary||""));
   const age=item.datetime?Math.round((Date.now()-item.datetime)/60000):null;
@@ -252,14 +373,19 @@ const NewsCard=memo(function NewsCard({item,onDiveDeep,T}){
   const bc=isTrump?"#ff6b35":"#f7c948";
   return(
     <div onClick={()=>onDiveDeep(item)}
-      style={{background:`${bc}08`,border:`1px solid ${bc}1a`,borderLeft:`3px solid ${bc}`,borderRadius:7,padding:"9px 11px",marginBottom:6,cursor:"pointer",transition:"all 0.13s"}}
+      style={{background:`${bc}08`,border:`1px solid ${bc}1a`,borderLeft:`3px solid ${bc}`,borderRadius:7,padding:"9px 11px",marginBottom:6,cursor:"pointer",transition:"all 0.2s"}}
       onMouseEnter={e=>e.currentTarget.style.background="rgba(127,127,127,0.08)"}
       onMouseLeave={e=>e.currentTarget.style.background=`${bc}08`}>
       <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
-        <span style={{fontFamily:FONT_MONO,fontSize:9,color:bc,letterSpacing:1,fontWeight:700}}>{isTrump?"🦅 ":""}{item.source?.toUpperCase()}</span>
+        <span style={{fontFamily:FONT_MONO,fontSize:9,color:bc,letterSpacing:1,fontWeight:700,display:"flex",alignItems:"center",gap:5}}>
+          {/* V10: Trump/TruthSocial marker is a "T" monogram (was 🦅) */}
+          {isTrump&&<span style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:13,height:13,borderRadius:3,background:"#ff6b3522",border:"1px solid #ff6b3555",fontFamily:FONT_SERIF,fontSize:9.5,fontWeight:800,color:"#ff6b35",lineHeight:1}}>T</span>}
+          {item.source?.toUpperCase()}
+        </span>
         <span style={{fontFamily:FONT_MONO,fontSize:9,color:T.dim}}>{ageLabel}</span>
       </div>
       <p style={{color:T.textDim,fontSize:12,lineHeight:1.45,margin:0,fontFamily:FONT_SERIF,fontWeight:500}}>{item.headline}</p>
+      <ImpactBar item={item} T={T}/>
     </div>
   );
 });
@@ -376,9 +502,20 @@ function WidthControl({label,value,setValue,min,max,presets,T,accent,hint}){
 }
 
 function SettingsPanel(props){
-  const{onClose,mainBg,setMainBg,mainText,setMainText,leftBg,setLeftBg,leftText,setLeftText,rightBg,setRightBg,rightText,setRightText,accentKey,setAccentKey,density,setDensity,leftWidth,setLeftWidth,rightWidth,setRightWidth,chartRightWidth,setChartRightWidth,onResetAll,T,accent,fontSize,setFontSize,chatStyle,setChatStyle,bgImage,setBgImage,user,onSignOut}=props;
-  const[tab,setTab]=useState("colors");
+  const{onClose,mainBg,setMainBg,mainText,setMainText,leftBg,setLeftBg,leftText,setLeftText,rightBg,setRightBg,rightText,setRightText,accentKey,setAccentKey,density,setDensity,leftWidth,setLeftWidth,rightWidth,setRightWidth,chartRightWidth,setChartRightWidth,onResetAll,T,accent,fontSize,setFontSize,chatStyle,setChatStyle,bgImage,setBgImage,user,onSignOut,themeSel,setThemeSel,sidePanels,setSidePanels,chatFont,setChatFont,onStartTour,bgVideo,onPickVideo,onRemoveVideo}=props;
+  const[tab,setTab]=useState("themes");
   const[uploadErr,setUploadErr]=useState("");
+  const[videoErr,setVideoErr]=useState("");
+
+  // Background video: kept as a Blob in IndexedDB (a video data-URL would blow
+  // past localStorage's ~5MB quota). Device-local by design — see the (i) note.
+  const handleVideoUpload=async(e)=>{
+    const file=e.target.files?.[0];e.target.value="";if(!file)return;
+    setVideoErr("");
+    if(!/^video\/(mp4|webm)$/.test(file.type)){setVideoErr("Use an MP4 or WebM video.");return;}
+    if(file.size>60*1024*1024){setVideoErr(`Video too large (${(file.size/1048576).toFixed(0)}MB) — max 60MB.`);return;}
+    try{await onPickVideo(file);}catch(err){setVideoErr("Could not save that video.");}
+  };
 
   const handleBgUpload=(e)=>{
     const file=e.target.files?.[0];if(!file)return;
@@ -411,37 +548,145 @@ function SettingsPanel(props){
           <span style={{fontFamily:FONT_MONO,fontSize:11,fontWeight:700,color:accent,letterSpacing:3}}>⚙ SETTINGS</span>
           <button onClick={onClose} style={{color:T.dim,fontSize:17,cursor:"pointer"}}>✕</button>
         </div>
-        <div style={{display:"flex",gap:5,marginBottom:16}}>
-          {["colors","layout","personal"].map(t=>(
+        <div style={{display:"flex",gap:4,marginBottom:16}}>
+          {["themes","colors","layout","personal"].map(t=>(
             <button key={t} onClick={()=>setTab(t)}
-              style={{flex:1,padding:"7px",fontFamily:FONT_MONO,fontSize:10,fontWeight:700,letterSpacing:1,textTransform:"uppercase",color:tab===t?accent:T.dim,background:tab===t?`${accent}10`:"transparent",border:`1px solid ${tab===t?`${accent}28`:T.border}`,borderRadius:6,cursor:"pointer"}}>{t}</button>
+              style={{flex:1,padding:"7px 2px",fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:0.5,textTransform:"uppercase",color:tab===t?accent:T.dim,background:tab===t?`${accent}10`:"transparent",border:`1px solid ${tab===t?`${accent}28`:T.border}`,borderRadius:6,cursor:"pointer"}}>{t}</button>
           ))}
         </div>
-        {tab==="personal"&&(
+        {tab==="themes"&&(
           <>
+            {/* V10.4: theme picker — lightweight canvas themes vs looping-video themes.
+                A group renders only if it has themes; video themes appear here
+                automatically once their asset lands in public/themes/. */}
             <div style={{marginBottom:18}}>
-              <div style={{fontFamily:FONT_MONO,fontSize:9,color:T.dim,letterSpacing:2,fontWeight:700,marginBottom:9}}>TERMINAL BACKGROUND PHOTO</div>
-              {bgImage?.dataUrl?(
-                <div style={{marginBottom:10}}>
-                  <div style={{width:"100%",height:90,borderRadius:8,border:`1px solid ${T.border}`,backgroundImage:`url(${bgImage.dataUrl})`,backgroundSize:"cover",backgroundPosition:"center",marginBottom:8}}/>
-                  <button onClick={()=>setBgImage(prev=>({...prev,dataUrl:""}))}
-                    style={{width:"100%",padding:"7px",borderRadius:6,background:"rgba(255,77,109,0.08)",border:"1px solid rgba(255,77,109,0.25)",color:"#ff4d6d",fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,cursor:"pointer"}}>REMOVE PHOTO</button>
+              <div style={{fontFamily:FONT_MONO,fontSize:9,color:T.dim,letterSpacing:2,fontWeight:700,marginBottom:9}}>TERMINAL THEME</div>
+              {[["BASIC · LIGHTWEIGHT","basic"],["VIDEO · LOOPING","video"]].map(([groupLabel,groupId])=>{
+                const group=THEME_LIST.filter(t=>t.group===groupId);
+                if(!group.length)return null;
+                return(
+                <div key={groupId} style={{marginBottom:10}}>
+                  <div style={{fontFamily:FONT_MONO,fontSize:7,color:T.dim,letterSpacing:2,marginBottom:5,opacity:0.7}}>{groupLabel}</div>
+                  <div style={{display:"flex",flexDirection:"column",gap:5}}>
+                    {group.map(t=>(
+                      <button key={t.id} onClick={()=>setThemeSel(prev=>({...prev,id:t.id}))} style={{
+                        display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,padding:"7px 11px",borderRadius:8,cursor:"pointer",textAlign:"left",
+                        color:themeSel?.id===t.id?accent:T.dim,
+                        background:themeSel?.id===t.id?`${accent}10`:"transparent",
+                        border:`1px solid ${themeSel?.id===t.id?`${accent}35`:T.border}`,transition:"all 0.2s",
+                      }}>
+                        <span style={{display:"flex",flexDirection:"column",gap:2,minWidth:0}}>
+                          <span style={{fontFamily:FONT_MONO,fontSize:10,fontWeight:700,letterSpacing:1}}>{t.label}{t.group==="video"?" ▶":""}</span>
+                          <span style={{fontFamily:FONT_CHAT,fontSize:8.5,color:T.dim,lineHeight:1.35}}>{t.desc}</span>
+                        </span>
+                        {t.mb!=null&&(
+                          <span title={`${t.mb} MB — downloaded once, then cached by the browser`}
+                            style={{flexShrink:0,fontFamily:FONT_MONO,fontSize:7,color:t.mb>=3?"#f7c948":T.dim,border:`1px solid ${t.mb>=3?"#f7c94840":T.border}`,borderRadius:4,padding:"2px 5px"}}>{t.mb}MB</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              ):(
-                <label style={{display:"block",width:"100%",padding:"16px 0",textAlign:"center",borderRadius:8,border:`1px dashed ${accent}45`,background:`${accent}08`,color:accent,fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,cursor:"pointer",marginBottom:10}}>
-                  + UPLOAD PHOTO (JPG/PNG, AUTO-COMPRESSED)
-                  <input type="file" accept="image/*" onChange={handleBgUpload} style={{display:"none"}}/>
-                </label>
+              );})}
+              {/* Recolor ANY theme (canvas or video) */}
+              {themeSel?.id!=="none"&&(
+                <div style={{padding:"10px 12px",borderRadius:8,background:T.surface,border:`1px solid ${T.border}`,marginBottom:4}}>
+                  {/* TINT — pick any color, blended over the theme. The intuitive lever:
+                      "make this theme teal" is one click, not three sliders. */}
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                    <span style={{fontFamily:FONT_MONO,fontSize:8,color:T.dim,letterSpacing:1,fontWeight:700}}>THEME TINT</span>
+                    {themeSel?.tint&&<button onClick={()=>setThemeSel(prev=>({...prev,tint:""}))} style={{fontFamily:FONT_MONO,fontSize:7,color:T.dim,background:"transparent",border:`1px solid ${T.border}`,borderRadius:5,padding:"2px 7px",cursor:"pointer"}}>NONE</button>}
+                  </div>
+                  <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:10}}>
+                    {/* "none" swatch + curated presets + custom picker */}
+                    <button onClick={()=>setThemeSel(prev=>({...prev,tint:""}))} title="No tint"
+                      style={{width:26,height:26,borderRadius:7,cursor:"pointer",background:"repeating-conic-gradient(#3a4a5a 0% 25%, transparent 0% 50%) 50% / 10px 10px",border:!themeSel?.tint?`2px solid ${accent}`:`2px solid transparent`,boxShadow:!themeSel?.tint?`0 0 8px ${accent}`:"none"}}/>
+                    {["#00d4aa","#7eb8f7","#a78bfa","#ff6b6b","#f7c948","#ff8a5b","#22d3ee","#ec4899","#4ade80","#ffffff"].map(c=>(
+                      <button key={c} onClick={()=>setThemeSel(prev=>({...prev,tint:c}))} title={c}
+                        style={{width:26,height:26,borderRadius:7,background:c,cursor:"pointer",border:themeSel?.tint===c?"2px solid #fff":"2px solid transparent",boxShadow:themeSel?.tint===c?`0 0 10px ${c}`:"none",transition:"all 0.15s"}}/>
+                    ))}
+                    <label title="Custom color" style={{width:26,height:26,borderRadius:7,cursor:"pointer",position:"relative",overflow:"hidden",border:`2px solid ${T.border}`,display:"flex",alignItems:"center",justifyContent:"center",background:"conic-gradient(red,#ff0,lime,cyan,blue,magenta,red)"}}>
+                      <span style={{fontFamily:FONT_MONO,fontSize:12,color:"#fff",textShadow:"0 0 3px #000",fontWeight:800}}>+</span>
+                      <input type="color" value={themeSel?.tint||"#00d4aa"} onChange={e=>setThemeSel(prev=>({...prev,tint:e.target.value}))} style={{position:"absolute",inset:0,opacity:0,cursor:"pointer"}}/>
+                    </label>
+                  </div>
+                  {themeSel?.tint&&(
+                    <div style={{marginBottom:10}}>
+                      <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
+                        <span style={{fontFamily:FONT_MONO,fontSize:8,color:T.dim,letterSpacing:1}}>TINT STRENGTH</span>
+                        <span style={{fontFamily:FONT_MONO,fontSize:9,color:accent,fontWeight:700}}>{Math.round((themeSel?.tintStrength??0.5)*100)}%</span>
+                      </div>
+                      <input type="range" min={5} max={100} value={Math.round((themeSel?.tintStrength??0.5)*100)}
+                        onChange={e=>setThemeSel(prev=>({...prev,tintStrength:Number(e.target.value)/100}))}
+                        style={{width:"100%",accentColor:themeSel?.tint||accent}}/>
+                    </div>
+                  )}
+
+                  {/* Fine adjustment — hue/sat/brightness on top of the tint */}
+                  <div style={{fontFamily:FONT_MONO,fontSize:8,color:T.dim,letterSpacing:1,fontWeight:700,marginBottom:8,paddingTop:8,borderTop:`1px solid ${T.border}`}}>FINE ADJUST</div>
+                  {[["HUE","hue",0,360,1,"°"],["SATURATION","sat",0,250,100,"%"],["BRIGHTNESS","bri",30,180,100,"%"]].map(([label,key,mn,mx,mul,unit])=>{
+                    const val=key==="hue"?(themeSel?.hue||0):Math.round((themeSel?.[key]??1)*100);
+                    return(
+                      <div key={key} style={{marginBottom:8}}>
+                        <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
+                          <span style={{fontFamily:FONT_MONO,fontSize:8,color:T.dim,letterSpacing:1}}>{label}</span>
+                          <span style={{fontFamily:FONT_MONO,fontSize:9,color:accent,fontWeight:700}}>{val}{unit}</span>
+                        </div>
+                        <input type="range" min={mn} max={mx} value={val}
+                          onChange={e=>{const n=Number(e.target.value);setThemeSel(prev=>({...prev,[key]:key==="hue"?n:n/100}));}}
+                          style={{width:"100%",accentColor:accent}}/>
+                      </div>
+                    );
+                  })}
+                  <button onClick={()=>setThemeSel(prev=>({...prev,hue:0,sat:1,bri:1,tint:"",tintStrength:0.5}))}
+                    style={{width:"100%",padding:"5px",borderRadius:6,background:"transparent",border:`1px solid ${T.border}`,color:T.dim,fontFamily:FONT_MONO,fontSize:8,letterSpacing:1,cursor:"pointer"}}>RESET COLOR</button>
+                  {isVideoTheme(themeSel?.id)&&(
+                    <div style={{fontFamily:FONT_MONO,fontSize:7.5,color:T.dim,marginTop:7,lineHeight:1.5,opacity:0.8}}>In the Kronos bot, the orb also tints automatically with the VIX (calm→teal, fear→red).</div>
+                  )}
+                </div>
               )}
-              {uploadErr&&<div style={{fontFamily:FONT_MONO,fontSize:9,color:"#ff4d6d",marginBottom:8}}>⚠ {uploadErr}</div>}
-              <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
-                <span style={{fontFamily:FONT_MONO,fontSize:9,color:T.dim,letterSpacing:2,fontWeight:700}}>PHOTO DIM</span>
-                <span style={{fontFamily:FONT_MONO,fontSize:10,color:accent,fontWeight:700}}>{Math.round((bgImage?.dim??0.6)*100)}%</span>
-              </div>
-              <input type="range" min={0} max={95} value={Math.round((bgImage?.dim??0.6)*100)}
-                onChange={e=>setBgImage(prev=>({...prev,dim:Number(e.target.value)/100}))}
-                style={{width:"100%",accentColor:accent}}/>
+              {(bgImage?.dataUrl||bgVideo?.enabled)&&<div style={{fontFamily:FONT_MONO,fontSize:8,color:"#f7c948",marginTop:8,lineHeight:1.5}}>⚠ Your background {bgVideo?.enabled?"video":"photo"} overrides the theme — remove it in the Personal tab to see the theme.</div>}
             </div>
+
+            {/* V10: side panel transparency */}
+            <div style={{marginBottom:18,paddingTop:14,borderTop:`1px solid ${T.border}`}}>
+              <div style={{fontFamily:FONT_MONO,fontSize:9,color:T.dim,letterSpacing:2,fontWeight:700,marginBottom:9}}>SIDE PANELS (WATCHLIST / NEWS)</div>
+              <div style={{display:"flex",gap:6,marginBottom:10}}>
+                {[["solid","SOLID"],["transparent","TRANSPARENT"]].map(([m,label])=>(
+                  <button key={m} onClick={()=>setSidePanels(prev=>({...prev,mode:m}))}
+                    style={{flex:1,padding:"8px",borderRadius:7,fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,color:sidePanels?.mode===m?accent:T.dim,background:sidePanels?.mode===m?`${accent}10`:"transparent",border:`1px solid ${sidePanels?.mode===m?`${accent}28`:T.border}`,cursor:"pointer"}}>{label}</button>
+                ))}
+              </div>
+              {sidePanels?.mode==="transparent"&&(
+                <>
+                  <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+                    <span style={{fontFamily:FONT_MONO,fontSize:9,color:T.dim,letterSpacing:2,fontWeight:700}}>PANEL OPACITY</span>
+                    <span style={{fontFamily:FONT_MONO,fontSize:10,color:accent,fontWeight:700}}>{Math.round((sidePanels?.opacity??0.6)*100)}%</span>
+                  </div>
+                  <input type="range" min={15} max={95} value={Math.round((sidePanels?.opacity??0.6)*100)}
+                    onChange={e=>setSidePanels(prev=>({...prev,opacity:Number(e.target.value)/100}))}
+                    style={{width:"100%",accentColor:accent}}/>
+                </>
+              )}
+            </div>
+
+            {/* V10: font selector */}
+            <div style={{marginBottom:18,paddingTop:14,borderTop:`1px solid ${T.border}`}}>
+              <div style={{fontFamily:FONT_MONO,fontSize:9,color:T.dim,letterSpacing:2,fontWeight:700,marginBottom:9}}>TERMINAL FONT</div>
+              <div style={{display:"flex",flexDirection:"column",gap:5}}>
+                {FONT_CHOICES.map(f=>(
+                  <button key={f.id} onClick={()=>setChatFont(f.id)} style={{
+                    padding:"8px 12px",borderRadius:7,cursor:"pointer",textAlign:"left",
+                    fontFamily:f.stack,fontSize:12,
+                    color:chatFont===f.id?accent:T.text,
+                    background:chatFont===f.id?`${accent}10`:"transparent",
+                    border:`1px solid ${chatFont===f.id?`${accent}30`:T.border}`,
+                  }}>{f.label} — The quick brown fox, 1234.56</button>
+                ))}
+              </div>
+            </div>
+
+            {/* Chat box background — a look/feel setting, so it lives with Themes */}
             <div style={{marginBottom:18,paddingTop:14,borderTop:`1px solid ${T.border}`}}>
               <div style={{fontFamily:FONT_MONO,fontSize:9,color:T.dim,letterSpacing:2,fontWeight:700,marginBottom:9}}>CHAT BOX BACKGROUND</div>
               <div style={{display:"flex",gap:6,marginBottom:10}}>
@@ -469,15 +714,102 @@ function SettingsPanel(props){
                 </>
               )}
               {chatStyle?.mode==="transparent"&&(
-                <div style={{fontFamily:FONT_MONO,fontSize:8,color:T.dim,lineHeight:1.6}}>Chat floats directly over your background photo with a subtle blur for readability.</div>
+                <div style={{fontFamily:FONT_MONO,fontSize:8,color:T.dim,lineHeight:1.6}}>Chat floats directly over your background with a subtle blur for readability.</div>
               )}
             </div>
+          </>
+        )}
+
+        {tab==="personal"&&(
+          <>
+            {/* ACCOUNT */}
             {user&&(
-              <div style={{marginBottom:16,paddingTop:14,borderTop:`1px solid ${T.border}`}}>
+              <div style={{marginBottom:18}}>
                 <div style={{fontFamily:FONT_MONO,fontSize:9,color:T.dim,letterSpacing:2,fontWeight:700,marginBottom:9}}>ACCOUNT</div>
                 <div style={{fontFamily:FONT_MONO,fontSize:10,color:T.text,marginBottom:10,overflow:"hidden",textOverflow:"ellipsis"}}>{user.email}</div>
                 <button onClick={onSignOut}
                   style={{width:"100%",padding:"9px",borderRadius:7,background:"rgba(255,77,109,0.08)",border:"1px solid rgba(255,77,109,0.25)",color:"#ff4d6d",fontFamily:FONT_MONO,fontSize:10,fontWeight:700,letterSpacing:1,cursor:"pointer"}}>SIGN OUT</button>
+              </div>
+            )}
+
+            {/* BACKGROUND VIDEO (loops automatically) */}
+            <div style={{marginBottom:18,paddingTop:user?14:0,borderTop:user?`1px solid ${T.border}`:"none"}}>
+              <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:9}}>
+                <span style={{fontFamily:FONT_MONO,fontSize:9,color:T.dim,letterSpacing:2,fontWeight:700}}>BACKGROUND VIDEO</span>
+                <span title={"Videos loop forever, on their own — muted and seamless, no controls.\n\nPicked for you: the video is stored on THIS device (it's far too large to sync to your account like other settings), so it won't follow you to another computer.\n\nMP4 or WebM, max 60MB. Use the dim slider below to keep the terminal readable."}
+                  style={{width:14,height:14,borderRadius:"50%",display:"inline-flex",alignItems:"center",justifyContent:"center",fontFamily:FONT_MONO,fontSize:8,fontWeight:800,color:accent,border:`1px solid ${accent}55`,background:`${accent}12`,cursor:"help"}}>i</span>
+              </div>
+              {bgVideo?.enabled?(
+                <div style={{marginBottom:10}}>
+                  <div style={{display:"flex",alignItems:"center",gap:7,padding:"8px 10px",borderRadius:8,border:`1px solid ${accent}30`,background:`${accent}08`,marginBottom:8}}>
+                    <span style={{fontSize:13}}>🎞</span>
+                    <span style={{flex:1,fontFamily:FONT_MONO,fontSize:9,color:T.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{bgVideo?.name||"background.mp4"}</span>
+                    <span style={{fontFamily:FONT_MONO,fontSize:7,color:accent,letterSpacing:1}}>↻ LOOPING</span>
+                  </div>
+                  <button onClick={onRemoveVideo}
+                    style={{width:"100%",padding:"7px",borderRadius:6,background:"rgba(255,77,109,0.08)",border:"1px solid rgba(255,77,109,0.25)",color:"#ff4d6d",fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,cursor:"pointer"}}>REMOVE VIDEO</button>
+                </div>
+              ):(
+                <label style={{display:"block",width:"100%",padding:"16px 0",textAlign:"center",borderRadius:8,border:`1px dashed ${accent}45`,background:`${accent}08`,color:accent,fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,cursor:"pointer",marginBottom:10}}>
+                  + UPLOAD VIDEO (MP4/WEBM · AUTO-LOOPS)
+                  <input type="file" accept="video/mp4,video/webm" onChange={handleVideoUpload} style={{display:"none"}}/>
+                </label>
+              )}
+              {videoErr&&<div style={{fontFamily:FONT_MONO,fontSize:9,color:"#ff4d6d",marginBottom:8}}>⚠ {videoErr}</div>}
+            </div>
+
+            {/* BACKGROUND PHOTO */}
+            <div style={{marginBottom:18,paddingTop:14,borderTop:`1px solid ${T.border}`}}>
+              <div style={{fontFamily:FONT_MONO,fontSize:9,color:T.dim,letterSpacing:2,fontWeight:700,marginBottom:9}}>BACKGROUND PHOTO</div>
+              {bgVideo?.enabled&&<div style={{fontFamily:FONT_MONO,fontSize:8,color:"#f7c948",marginBottom:8,lineHeight:1.5}}>⚠ Your video is active and takes priority over a photo.</div>}
+              {bgImage?.dataUrl?(
+                <div style={{marginBottom:10}}>
+                  <div style={{width:"100%",height:90,borderRadius:8,border:`1px solid ${T.border}`,backgroundImage:`url(${bgImage.dataUrl})`,backgroundSize:"cover",backgroundPosition:"center",marginBottom:8}}/>
+                  <button onClick={()=>setBgImage(prev=>({...prev,dataUrl:""}))}
+                    style={{width:"100%",padding:"7px",borderRadius:6,background:"rgba(255,77,109,0.08)",border:"1px solid rgba(255,77,109,0.25)",color:"#ff4d6d",fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,cursor:"pointer"}}>REMOVE PHOTO</button>
+                </div>
+              ):(
+                <label style={{display:"block",width:"100%",padding:"16px 0",textAlign:"center",borderRadius:8,border:`1px dashed ${accent}45`,background:`${accent}08`,color:accent,fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,cursor:"pointer",marginBottom:10}}>
+                  + UPLOAD PHOTO (JPG/PNG, AUTO-COMPRESSED)
+                  <input type="file" accept="image/*" onChange={handleBgUpload} style={{display:"none"}}/>
+                </label>
+              )}
+              {uploadErr&&<div style={{fontFamily:FONT_MONO,fontSize:9,color:"#ff4d6d",marginBottom:8}}>⚠ {uploadErr}</div>}
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+                <span style={{fontFamily:FONT_MONO,fontSize:9,color:T.dim,letterSpacing:2,fontWeight:700}}>PHOTO DIM</span>
+                <span style={{fontFamily:FONT_MONO,fontSize:10,color:accent,fontWeight:700}}>{Math.round((bgImage?.dim??0.6)*100)}%</span>
+              </div>
+              <input type="range" min={0} max={95} value={Math.round((bgImage?.dim??0.6)*100)}
+                onChange={e=>setBgImage(prev=>({...prev,dim:Number(e.target.value)/100}))}
+                style={{width:"100%",accentColor:accent}}/>
+              {bgImage?.dataUrl&&(
+                <>
+                  {/* V10 item 3: user-controlled photo position */}
+                  <div style={{display:"flex",justifyContent:"space-between",margin:"10px 0 6px"}}>
+                    <span style={{fontFamily:FONT_MONO,fontSize:9,color:T.dim,letterSpacing:2,fontWeight:700}}>POSITION ←→</span>
+                    <span style={{fontFamily:FONT_MONO,fontSize:10,color:accent,fontWeight:700}}>{bgImage?.posX??50}%</span>
+                  </div>
+                  <input type="range" min={0} max={100} value={bgImage?.posX??50}
+                    onChange={e=>setBgImage(prev=>({...prev,posX:Number(e.target.value)}))}
+                    style={{width:"100%",accentColor:accent}}/>
+                  <div style={{display:"flex",justifyContent:"space-between",margin:"8px 0 6px"}}>
+                    <span style={{fontFamily:FONT_MONO,fontSize:9,color:T.dim,letterSpacing:2,fontWeight:700}}>POSITION ↑↓</span>
+                    <span style={{fontFamily:FONT_MONO,fontSize:10,color:accent,fontWeight:700}}>{bgImage?.posY??50}%</span>
+                  </div>
+                  <input type="range" min={0} max={100} value={bgImage?.posY??50}
+                    onChange={e=>setBgImage(prev=>({...prev,posY:Number(e.target.value)}))}
+                    style={{width:"100%",accentColor:accent}}/>
+                  <button onClick={()=>setBgImage(prev=>({...prev,posX:50,posY:50}))}
+                    style={{marginTop:8,width:"100%",padding:"6px",borderRadius:6,background:"transparent",border:`1px solid ${T.border}`,color:T.dim,fontFamily:FONT_MONO,fontSize:9,letterSpacing:1,cursor:"pointer"}}>RE-CENTER</button>
+                </>
+              )}
+            </div>
+            {/* Relaunch tour */}
+            {onStartTour&&(
+              <div style={{marginBottom:18,paddingTop:14,borderTop:`1px solid ${T.border}`}}>
+                <button onClick={()=>{onClose();onStartTour();}} style={{width:"100%",padding:"10px",borderRadius:8,background:`${accent}10`,border:`1px solid ${accent}30`,color:accent,fontFamily:FONT_MONO,fontSize:10,fontWeight:700,letterSpacing:2,cursor:"pointer"}}>
+                  🧭 TAKE THE TOUR AGAIN
+                </button>
               </div>
             )}
           </>
@@ -538,13 +870,31 @@ function SettingsPanel(props){
 }
 
 // ─── RIGHT NEWS PANEL ─────────────────────────────────────────────────────────
+// V10.5: any BREAKING item or LIVE speech makes the header pulse, so the user
+// looks up from the chart. Kept narrow on purpose (see lib/newsImpact.detectBreaking)
+// — if everything pulses, nothing does.
+export function breakingItems(news){
+  return (news||[]).filter(n=>n?.impact?.breaking);
+}
 function NewsPanel({news,onDiveDeep,onRefresh,refreshing,lastUpd,accent,T,density}){
+  const alerts=breakingItems(news);
+  const live=alerts.some(a=>a.impact?.live);
+  const alertColor=live?"#ff3d57":"#f7c948";
   return(
     <div style={{width:"100%",display:"flex",flexDirection:"column",background:T.panel,height:"100%"}}>
-      <div style={{padding:"11px 14px",borderBottom:`1px solid ${T.border}`,display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0}}>
+      <div style={{padding:"11px 14px",borderBottom:`1px solid ${alerts.length?`${alertColor}45`:T.border}`,display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0,background:alerts.length?`${alertColor}0c`:"transparent",transition:"background 0.4s"}}>
         <div style={{display:"flex",alignItems:"center",gap:8}}>
-          <div style={{width:7,height:7,borderRadius:"50%",background:accent,boxShadow:`0 0 8px ${accent}`}}/>
+          <div style={{width:7,height:7,borderRadius:"50%",background:alerts.length?alertColor:accent,boxShadow:`0 0 8px ${alerts.length?alertColor:accent}`,animation:alerts.length?"news-pulse 1.1s ease-in-out infinite":"none"}}/>
           <span style={{fontFamily:FONT_SERIF,fontSize:15,fontWeight:700,color:T.text,letterSpacing:0.3}}>News</span>
+          {alerts.length>0&&(
+            <span style={{
+              fontFamily:FONT_MONO,fontSize:7.5,fontWeight:800,letterSpacing:1.5,color:alertColor,
+              background:`${alertColor}18`,border:`1px solid ${alertColor}55`,borderRadius:4,padding:"2px 6px",
+              animation:"news-pulse 1.1s ease-in-out infinite",
+            }}>
+              {live?"● LIVE":"● BREAKING"}{alerts.length>1?` ${alerts.length}`:""}
+            </span>
+          )}
         </div>
         <div style={{display:"flex",alignItems:"center",gap:8}}>
           <span style={{fontFamily:FONT_MONO,fontSize:8,color:T.dim}}>{lastUpd?new Date(lastUpd).toLocaleTimeString():""}</span>
@@ -552,8 +902,19 @@ function NewsPanel({news,onDiveDeep,onRefresh,refreshing,lastUpd,accent,T,densit
             style={{width:24,height:24,borderRadius:6,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,color:accent,background:`${accent}10`,border:`1px solid ${accent}22`,cursor:"pointer",animation:refreshing?"spin 0.7s linear infinite":"none"}}>↻</button>
         </div>
       </div>
+      {alerts.length>0&&(
+        <div onClick={()=>onDiveDeep?.(alerts[0])} title="Analyze this"
+          style={{padding:"7px 14px",borderBottom:`1px solid ${alertColor}30`,background:`${alertColor}12`,flexShrink:0,cursor:"pointer"}}>
+          <div style={{fontFamily:FONT_MONO,fontSize:7,color:alertColor,letterSpacing:2,fontWeight:800,marginBottom:2}}>
+            {live?"LIVE NOW":"BREAKING"}
+          </div>
+          <div style={{fontFamily:FONT_CHAT,fontSize:11,color:T.text,lineHeight:1.4,overflow:"hidden",textOverflow:"ellipsis",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical"}}>
+            {alerts[0].headline}
+          </div>
+        </div>
+      )}
       <div style={{padding:"4px 14px",borderBottom:`1px solid ${T.border}`,background:"rgba(255,107,53,0.025)",flexShrink:0}}>
-        <span style={{fontFamily:FONT_MONO,fontSize:8,color:T.dim,letterSpacing:1}}>🦅 TRUMP FLAGGED INLINE · CLICK TO ANALYZE</span>
+        <span style={{fontFamily:FONT_MONO,fontSize:8,color:T.dim,letterSpacing:1}}>Ⓣ TRUMP FLAGGED INLINE · CLICK TO ANALYZE</span>
       </div>
       <div style={{flex:1,overflowY:"auto",padding:"8px 10px"}}>
         {news.length===0&&<div style={{padding:18,textAlign:"center",fontFamily:FONT_MONO,fontSize:10,color:T.dim}}>LOADING NEWS...</div>}
@@ -583,14 +944,7 @@ function ChartPage({symbol,onSymbolChange,messages,input,setInput,fontSize=14,se
             <button onClick={()=>{if(symInput.trim())onSymbolChange(symInput.trim().toUpperCase());}}
               style={{fontFamily:FONT_MONO,fontSize:10,color:accent,background:`${accent}12`,border:`1px solid ${accent}25`,borderRadius:5,padding:"2px 8px",fontWeight:700,cursor:"pointer"}}>LOAD</button>
           </div>
-          <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
-            {QUICK_CHART_SYMS.map(s=>(
-              <button key={s} onClick={()=>{setSymInput(s);onSymbolChange(s);}}
-                style={{fontFamily:FONT_MONO,fontSize:10,fontWeight:700,color:symbol===s?accent:T.dim,background:symbol===s?`${accent}12`:"transparent",border:`1px solid ${symbol===s?`${accent}28`:T.border}`,padding:"4px 9px",borderRadius:5,cursor:"pointer"}}>
-                {s}
-              </button>
-            ))}
-          </div>
+          {/* V10 item 4: ticker quick-list removed — search bar only */}
         </div>
         <div style={{flex:1,minHeight:0}}>
           <TradingViewChart symbol={symbol} colorTheme={isDark?"dark":"light"}/>
@@ -630,12 +984,142 @@ function ChartPage({symbol,onSymbolChange,messages,input,setInput,fontSize=14,se
 }
 
 // ─── DATA PAGE ────────────────────────────────────────────────────────────────
-function DataPage({news,secData,secLoading,onRefreshAll,onDiveNews,onDiveFiling,onDiveInsider,messages,input,setInput,send,loading,onOpenChat,accent,T,watchlist}){
+// V10.5: filings/insiders carry a real rating. It arrives in two stages — a
+// deterministic baseline from the API, then an AI-reasoned refinement that only
+// lands after the model has actually interrogated the filing (/api/filing-intel).
+// The ⓘ tooltip shows the reasoning, so the number is never a black box.
+function ImpactChip({impact,T}){
+  if(!impact)return null;
+  const s=impact.score??0;
+  const c=s>=70?"#22c55e":s>=45?"#facc15":"#8896a8";
+  const reasoned=impact.source==="ai";
+  const tip=[impact.reasoning||impact.explanation,impact.takeaway?`→ ${impact.takeaway}`:null,reasoned?"(AI-reasoned)":"(baseline — awaiting AI pass)"].filter(Boolean).join("\n\n");
+  return(
+    <div style={{marginTop:5,display:"flex",alignItems:"center",gap:6}} title={tip}>
+      <div style={{flex:1,height:3,borderRadius:2,background:"rgba(127,127,127,0.14)",overflow:"hidden"}}>
+        <div style={{width:`${s}%`,height:"100%",borderRadius:2,background:"linear-gradient(90deg,#ef4444,#f59e0b 45%,#facc15 65%,#22c55e)",transition:"width 0.5s"}}/>
+      </div>
+      <span style={{fontFamily:FONT_MONO,fontSize:7,fontWeight:800,letterSpacing:1,color:c,whiteSpace:"nowrap"}}>
+        {impact.label}{reasoned?" ✦":""}
+      </span>
+    </div>
+  );
+}
+
+// V10 items 2+6: every card is drag-and-drop + resizable via GridDock when the
+// user customizes; classic auto-fit grid otherwise.
+// V10.5: the "options" (Options Intelligence) panel was REMOVED — it never worked
+// reliably. Saved user layouts may still contain an {i:"options"} entry; GridDock
+// renders only the keys present in `items`, so a stale entry is ignored rather
+// than crashing. It's filtered out on load anyway (see migrateDataLayout).
+const DEFAULT_DATA_LAYOUT=[
+  {i:"news",x:0,y:0,w:4,h:6,minW:2,minH:3},
+  {i:"filings",x:4,y:0,w:4,h:6,minW:2,minH:3},
+  {i:"insiders",x:8,y:0,w:4,h:6,minW:2,minH:3},
+  {i:"desk",x:0,y:6,w:12,h:6,minW:3,minH:3},
+];
+// Strip panels that no longer exist from a persisted layout.
+const LIVE_DATA_PANELS=new Set(["news","filings","insiders","desk"]);
+export function migrateDataLayout(l){
+  return Array.isArray(l) ? l.filter((p)=>LIVE_DATA_PANELS.has(p.i)) : l;
+}
+function DataPage({news,secData,secLoading,onRefreshAll,onDiveNews,onDiveFiling,onDiveInsider,messages,input,setInput,send,loading,onOpenChat,accent,T,watchlist,gridLayout,onGridChange,editMode,collapsed,onToggleCollapse}){
   const lastMsg=[...messages].reverse().find(m=>m.role==="assistant");
   const handleKey=(e)=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send();}};
+
+  const newsCard=(
+    <div style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:10,padding:14,height:"100%",display:"flex",flexDirection:"column",minHeight:0}}>
+      <div style={{fontFamily:FONT_MONO,fontSize:9,color:"#f7c948",letterSpacing:2,fontWeight:700,marginBottom:10,flexShrink:0}}>📰 BREAKING / LIVE NEWS</div>
+      <div style={{overflowY:"auto",flex:1,minHeight:0}}>
+        {news.slice(0,12).map((item,i)=><NewsCard key={item.id||i} item={item} onDiveDeep={onDiveNews} T={T}/>)}
+      </div>
+    </div>
+  );
+  const filingsCard=(
+    <div style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:10,padding:14,height:"100%",display:"flex",flexDirection:"column",minHeight:0}}>
+      <div style={{fontFamily:FONT_MONO,fontSize:9,color:"#7eb8f7",letterSpacing:2,fontWeight:700,marginBottom:10,flexShrink:0}}>📋 SEC FILINGS</div>
+      <div style={{overflowY:"auto",flex:1,minHeight:0}}>
+        {secLoading&&<div style={{fontFamily:FONT_MONO,fontSize:10,color:T.dim,padding:8}}>Loading from SEC EDGAR...</div>}
+        {!secLoading&&(secData?.filings||[]).length===0&&<div style={{fontFamily:FONT_MONO,fontSize:10,color:T.dim,padding:8}}>No recent filings for your watchlist.</div>}
+        {(secData?.filings||[]).map((f,i)=>(
+          <div key={i} onClick={()=>onDiveFiling(f)}
+            style={{background:"rgba(126,184,247,0.06)",border:"1px solid rgba(126,184,247,0.18)",borderLeft:"3px solid #7eb8f7",borderRadius:7,padding:"8px 10px",marginBottom:6,cursor:"pointer"}}
+            onMouseEnter={e=>e.currentTarget.style.background="rgba(126,184,247,0.12)"}
+            onMouseLeave={e=>e.currentTarget.style.background="rgba(126,184,247,0.06)"}>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
+              <span style={{fontFamily:FONT_MONO,fontSize:11,fontWeight:700,color:"#7eb8f7"}}>{f.symbol} · {f.form}</span>
+              <span style={{fontFamily:FONT_MONO,fontSize:9,color:T.dim}}>{f.date}</span>
+            </div>
+            <span style={{fontFamily:FONT_CHAT,fontSize:10.5,color:T.textDim}}>{f.formName||f.form}</span>
+            <ImpactChip impact={f.impact} T={T}/>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+  const insidersCard=(
+    <div style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:10,padding:14,height:"100%",display:"flex",flexDirection:"column",minHeight:0}}>
+      <div style={{fontFamily:FONT_MONO,fontSize:9,color:"#a78bfa",letterSpacing:2,fontWeight:700,marginBottom:10,flexShrink:0}}>👤 INSIDER TRADES (FORM 4)</div>
+      <div style={{overflowY:"auto",flex:1,minHeight:0}}>
+        {secLoading&&<div style={{fontFamily:FONT_MONO,fontSize:10,color:T.dim,padding:8}}>Loading from SEC EDGAR...</div>}
+        {!secLoading&&(secData?.insiderTrades||[]).length===0&&<div style={{fontFamily:FONT_MONO,fontSize:10,color:T.dim,padding:8}}>No recent Form 4s for your watchlist.</div>}
+        {(secData?.insiderTrades||[]).map((t,i)=>(
+          <div key={i} onClick={()=>onDiveInsider(t)}
+            style={{background:"rgba(167,139,250,0.06)",border:"1px solid rgba(167,139,250,0.18)",borderLeft:"3px solid #a78bfa",borderRadius:7,padding:"8px 10px",marginBottom:6,cursor:"pointer"}}
+            onMouseEnter={e=>e.currentTarget.style.background="rgba(167,139,250,0.12)"}
+            onMouseLeave={e=>e.currentTarget.style.background="rgba(167,139,250,0.06)"}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <span style={{display:"flex",alignItems:"center",gap:6}}>
+                <span style={{fontFamily:FONT_MONO,fontSize:11,fontWeight:700,color:"#a78bfa"}}>{t.symbol}</span>
+                {/* The transaction TYPE is the whole signal — a BUY and a tax
+                    withholding are not the same event. Show it, don't hide it. */}
+                {t.txnCode&&(()=>{const buy=t.txnCode==="P";const sell=t.txnCode==="S";
+                  const c=buy?"#00e676":sell?"#ff8a5b":"#8896a8";
+                  const lbl=({P:"BUY",S:"SELL",A:"GRANT",M:"EXERCISE",F:"TAX",G:"GIFT",C:"CONVERT"})[t.txnCode]||t.txnCode;
+                  return <span style={{fontFamily:FONT_MONO,fontSize:7,fontWeight:800,letterSpacing:1,color:c,border:`1px solid ${c}55`,background:`${c}14`,borderRadius:3,padding:"1px 5px"}}>{lbl}</span>;})()}
+              </span>
+              <span style={{fontFamily:FONT_MONO,fontSize:9,color:T.dim}}>{t.date}</span>
+            </div>
+            {(t.insiderName||t.txnValue)&&(
+              <div style={{fontFamily:FONT_CHAT,fontSize:9.5,color:T.dim,marginTop:3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                {t.insiderName||"Insider"}{t.officerTitle?` · ${t.officerTitle}`:t.isDirector?" · Director":""}
+                {t.txnValue?` · $${Number(t.txnValue).toLocaleString()}`:""}
+              </div>
+            )}
+            <ImpactChip impact={t.impact} T={T}/>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+  const deskCard=(
+    <div style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:10,padding:14,height:"100%",display:"flex",flexDirection:"column",minHeight:0}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:9,flexShrink:0}}>
+        <span style={{fontFamily:FONT_MONO,fontSize:9,color:accent,letterSpacing:2,fontWeight:700}}>◈ ASK THE DESK</span>
+        <button onClick={onOpenChat} style={{fontFamily:FONT_MONO,fontSize:9,color:T.dim,cursor:"pointer",textDecoration:"underline"}}>Open full chat →</button>
+      </div>
+      {lastMsg&&(
+        <div style={{background:T.bg,border:`1px solid ${T.border}`,borderRadius:8,padding:"9px 12px",marginBottom:9,flex:1,overflowY:"auto",minHeight:0}}>
+          <p style={{fontFamily:FONT_CHAT,fontSize:12.5,color:T.textDim,lineHeight:1.5,margin:0,whiteSpace:"pre-wrap"}}>{lastMsg.content.slice(0,600)}{lastMsg.content.length>600?"...":""}</p>
+        </div>
+      )}
+      <div style={{display:"flex",gap:8,flexShrink:0}}>
+        <textarea value={input} onChange={e=>setInput(e.target.value)} onKeyDown={handleKey}
+          placeholder="Quick question for the desk..." rows={1}
+          style={{flex:1,background:T.bg,border:`1px solid ${T.border}`,borderRadius:8,padding:"8px 12px",color:T.text,fontFamily:FONT_CHAT,fontSize:13,resize:"none"}}/>
+        <button onClick={send} disabled={!input.trim()||loading}
+          style={{padding:"0 16px",borderRadius:8,background:input.trim()&&!loading?`${accent}15`:"transparent",border:`1px solid ${input.trim()&&!loading?`${accent}30`:T.border}`,color:input.trim()&&!loading?accent:T.dim,fontFamily:FONT_MONO,fontSize:12,fontWeight:700,cursor:"pointer"}}>
+          {loading?"...":"ASK"}
+        </button>
+      </div>
+    </div>
+  );
+
+  const useGrid=editMode||Boolean(gridLayout);
+
   return(
-    <div style={{flex:1,overflowY:"auto",background:T.bg,padding:"20px 22px"}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:18}}>
+    <div style={{flex:1,display:"flex",flexDirection:"column",background:T.bg,overflow:"hidden",minHeight:0}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",padding:"20px 22px 12px",flexShrink:0}}>
         <div>
           <div style={{fontFamily:FONT_DISPLAY,fontSize:24,fontWeight:700,color:T.text,letterSpacing:0.2}}>Data</div>
           <div style={{fontFamily:FONT_CHAT,fontSize:11.5,color:T.dim,marginTop:2}}>Live market intelligence — news, filings, insider activity</div>
@@ -645,73 +1129,26 @@ function DataPage({news,secData,secLoading,onRefreshAll,onDiveNews,onDiveFiling,
           <span style={{animation:secLoading?"spin 0.7s linear infinite":"none"}}>↻</span> REFRESH ALL
         </button>
       </div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:14,marginBottom:18}}>
-        <div style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:10,padding:14,maxHeight:360,display:"flex",flexDirection:"column"}}>
-          <div style={{fontFamily:FONT_MONO,fontSize:9,color:"#f7c948",letterSpacing:2,fontWeight:700,marginBottom:10}}>📰 BREAKING / LIVE NEWS</div>
-          <div style={{overflowY:"auto",flex:1}}>
-            {news.slice(0,8).map((item,i)=><NewsCard key={item.id||i} item={item} onDiveDeep={onDiveNews} T={T}/>)}
+
+      {useGrid?(
+        <GridDock
+          layout={gridLayout||DEFAULT_DATA_LAYOUT}
+          onLayoutChange={(l)=>{if(editMode)onGridChange(l);}}
+          editMode={editMode}
+          accent={accent} T={T}
+          collapsed={collapsed} onToggleCollapse={onToggleCollapse}
+          items={{news:newsCard,filings:filingsCard,insiders:insidersCard,desk:deskCard}}
+        />
+      ):(
+        <div style={{flex:1,overflowY:"auto",padding:"0 22px 20px",minHeight:0}}>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:14,marginBottom:18}}>
+            <div style={{maxHeight:360,display:"flex"}}>{newsCard}</div>
+            <div style={{maxHeight:360,display:"flex"}}>{filingsCard}</div>
+            <div style={{maxHeight:360,display:"flex"}}>{insidersCard}</div>
           </div>
+          <div style={{height:260,display:"flex"}}>{deskCard}</div>
         </div>
-        <div style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:10,padding:14,maxHeight:360,display:"flex",flexDirection:"column"}}>
-          <div style={{fontFamily:FONT_MONO,fontSize:9,color:"#7eb8f7",letterSpacing:2,fontWeight:700,marginBottom:10}}>📋 SEC FILINGS</div>
-          <div style={{overflowY:"auto",flex:1}}>
-            {secLoading&&<div style={{fontFamily:FONT_MONO,fontSize:10,color:T.dim,padding:8}}>Loading from SEC EDGAR...</div>}
-            {!secLoading&&(secData?.filings||[]).length===0&&<div style={{fontFamily:FONT_MONO,fontSize:10,color:T.dim,padding:8}}>No recent filings for your watchlist.</div>}
-            {(secData?.filings||[]).map((f,i)=>(
-              <div key={i} onClick={()=>onDiveFiling(f)}
-                style={{background:"rgba(126,184,247,0.06)",border:"1px solid rgba(126,184,247,0.18)",borderLeft:"3px solid #7eb8f7",borderRadius:7,padding:"8px 10px",marginBottom:6,cursor:"pointer"}}
-                onMouseEnter={e=>e.currentTarget.style.background="rgba(126,184,247,0.12)"}
-                onMouseLeave={e=>e.currentTarget.style.background="rgba(126,184,247,0.06)"}>
-                <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
-                  <span style={{fontFamily:FONT_MONO,fontSize:11,fontWeight:700,color:"#7eb8f7"}}>{f.symbol} · {f.form}</span>
-                  <span style={{fontFamily:FONT_MONO,fontSize:9,color:T.dim}}>{f.date}</span>
-                </div>
-                <span style={{fontFamily:FONT_CHAT,fontSize:10.5,color:T.textDim}}>{f.formName||f.form}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:10,padding:14,maxHeight:360,display:"flex",flexDirection:"column"}}>
-          <div style={{fontFamily:FONT_MONO,fontSize:9,color:"#a78bfa",letterSpacing:2,fontWeight:700,marginBottom:10}}>👤 INSIDER TRADES (FORM 4)</div>
-          <div style={{overflowY:"auto",flex:1}}>
-            {secLoading&&<div style={{fontFamily:FONT_MONO,fontSize:10,color:T.dim,padding:8}}>Loading from SEC EDGAR...</div>}
-            {!secLoading&&(secData?.insiderTrades||[]).length===0&&<div style={{fontFamily:FONT_MONO,fontSize:10,color:T.dim,padding:8}}>No recent Form 4s for your watchlist.</div>}
-            {(secData?.insiderTrades||[]).map((t,i)=>(
-              <div key={i} onClick={()=>onDiveInsider(t)}
-                style={{background:"rgba(167,139,250,0.06)",border:"1px solid rgba(167,139,250,0.18)",borderLeft:"3px solid #a78bfa",borderRadius:7,padding:"8px 10px",marginBottom:6,cursor:"pointer"}}
-                onMouseEnter={e=>e.currentTarget.style.background="rgba(167,139,250,0.12)"}
-                onMouseLeave={e=>e.currentTarget.style.background="rgba(167,139,250,0.06)"}>
-                <div style={{display:"flex",justifyContent:"space-between"}}>
-                  <span style={{fontFamily:FONT_MONO,fontSize:11,fontWeight:700,color:"#a78bfa"}}>{t.symbol} · Form 4</span>
-                  <span style={{fontFamily:FONT_MONO,fontSize:9,color:T.dim}}>{t.date}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-        {/* OPTIONS INTELLIGENCE */}
-        <OptionsIntelligence accent={accent} T={T} watchlist={watchlist}/>
-      </div>
-      <div style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:10,padding:14}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:9}}>
-          <span style={{fontFamily:FONT_MONO,fontSize:9,color:accent,letterSpacing:2,fontWeight:700}}>◈ ASK THE DESK</span>
-          <button onClick={onOpenChat} style={{fontFamily:FONT_MONO,fontSize:9,color:T.dim,cursor:"pointer",textDecoration:"underline"}}>Open full chat →</button>
-        </div>
-        {lastMsg&&(
-          <div style={{background:T.bg,border:`1px solid ${T.border}`,borderRadius:8,padding:"9px 12px",marginBottom:9,maxHeight:90,overflowY:"auto"}}>
-            <p style={{fontFamily:FONT_CHAT,fontSize:12.5,color:T.textDim,lineHeight:1.5,margin:0,whiteSpace:"pre-wrap"}}>{lastMsg.content.slice(0,300)}{lastMsg.content.length>300?"...":""}</p>
-          </div>
-        )}
-        <div style={{display:"flex",gap:8}}>
-          <textarea value={input} onChange={e=>setInput(e.target.value)} onKeyDown={handleKey}
-            placeholder="Quick question for the desk..." rows={1}
-            style={{flex:1,background:T.bg,border:`1px solid ${T.border}`,borderRadius:8,padding:"8px 12px",color:T.text,fontFamily:FONT_CHAT,fontSize:13,resize:"none"}}/>
-          <button onClick={send} disabled={!input.trim()||loading}
-            style={{padding:"0 16px",borderRadius:8,background:input.trim()&&!loading?`${accent}15`:"transparent",border:`1px solid ${input.trim()&&!loading?`${accent}30`:T.border}`,color:input.trim()&&!loading?accent:T.dim,fontFamily:FONT_MONO,fontSize:12,fontWeight:700,cursor:"pointer"}}>
-            {loading?"...":"ASK"}
-          </button>
-        </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -764,7 +1201,10 @@ export default function MarketTerminal(){
 
   const[view,setView]=useState("terminal");
   const[showWelcome,setShowWelcome]=useState(true);
-  const[chartSymbol,setChartSymbol]=useState("AAPL");
+  const[showTour,setShowTour]=useState(false);
+  // V10: chart page state survives refresh (bug fix)
+  const[chartSymbol,setChartSymbolRaw]=useState(()=>{try{return JSON.parse(localStorage.getItem("kronos_chart_state")||"{}").symbol||"AAPL";}catch{return "AAPL";}});
+  const setChartSymbol=useCallback((s)=>{setChartSymbolRaw(s);try{localStorage.setItem("kronos_chart_state",JSON.stringify({symbol:s}));}catch{}},[]);
   const[mainBg,setMainBg]=useState(THEME_DEFAULTS.mainBg);
   const[mainText,setMainText]=useState(THEME_DEFAULTS.mainText);
   const[leftBg,setLeftBg]=useState(THEME_DEFAULTS.leftBg);
@@ -778,8 +1218,21 @@ export default function MarketTerminal(){
   const[chartRightWidth,setChartRightWidth]=useState(THEME_DEFAULTS.chartRightWidth);
   // V9 personalization + layouts (per-account when Supabase is configured)
   const[chatStyle,setChatStyle]=useState({mode:"solid",color:"",opacity:0.85});
-  const[bgImage,setBgImage]=useState({dataUrl:"",dim:0.6});
+  const[bgImage,setBgImage]=useState({dataUrl:"",dim:0.6,posX:50,posY:50});
+  // Background video: metadata in settings (syncs), blob in IndexedDB (device-local).
+  const[bgVideo,setBgVideo]=useState({enabled:false,name:""});
+  const[bgVideoUrl,setBgVideoUrl]=useState("");
+  // V10.4 personalization. `hue` (deg) + `sat`/`bri` recolor any theme via CSS filter.
+  // Single source of truth for valid ids = THEME_LIST (ThemeBackdrop + lib/videoThemes).
+  const VALID_THEMES=THEME_LIST.map(t=>t.id);
+  // Default to a canvas theme: video themes only exist once their asset is installed,
+  // so defaulting to one would give a fresh user a black backdrop.
+  const[themeSel,setThemeSel]=useState({id:FALLBACK_THEME,hue:0,sat:1,bri:1,tint:"",tintStrength:0.5});
+  const[sidePanels,setSidePanels]=useState({mode:"solid",opacity:0.85});
+  const[chatFont,setChatFont]=useState("inter");
   const[layouts,setLayouts]=useState({});          // {terminal:[{i,x,y,w,h},...]}
+  const[collapsed,setCollapsed]=useState({});      // V10.2: {panelKey:true} collapsed panels
+  const toggleCollapse=useCallback((key)=>setCollapsed(prev=>({...prev,[key]:!prev[key]})),[]);
   const[layoutEdit,setLayoutEdit]=useState(false);
   const[notes,setNotes]=useState([]);              // [{id,text}] free note panels
   const settingsLoadedRef=useRef(false);
@@ -787,8 +1240,13 @@ export default function MarketTerminal(){
   const[watchlistMeta,setWatchlistMeta]=useState(buildDefaultMeta());
   const[showWL,setShowWL]=useState(false);
   const[showSettings,setShowSettings]=useState(false);
+  const[showIndicatorInfo,setShowIndicatorInfo]=useState(false);
+  const[showMentor,setShowMentor]=useState(false);
   const[quotes,setQuotes]=useState({});
   const[news,setNews]=useState([]);
+  // Breaking / live-speech alerts — drives the pulsing dot on the Data nav tab and
+  // the News panel header. Recomputed whenever news refreshes.
+  const newsAlerts=useMemo(()=>breakingItems(news),[news]);
   const[newsRefreshing,setNewsRefreshing]=useState(false);
   const[newsLastUpd,setNewsLastUpd]=useState(null);
   const[secData,setSecData]=useState(null);
@@ -802,8 +1260,21 @@ export default function MarketTerminal(){
   const resizeState=useRef({active:false,type:null,startX:0,startWidth:0});
 
   const T=useMemo(()=>deriveTheme(mainBg,mainText),[mainBg,mainText]);
-  const TL=useMemo(()=>deriveTheme(leftBg,leftText),[leftBg,leftText]);
-  const TR=useMemo(()=>deriveTheme(rightBg,rightText),[rightBg,rightText]);
+  const TLbase=useMemo(()=>deriveTheme(leftBg,leftText),[leftBg,leftText]);
+  const TRbase=useMemo(()=>deriveTheme(rightBg,rightText),[rightBg,rightText]);
+  // V10 item 3: side panels can go transparent so the theme backdrop shows through.
+  const TL=useMemo(()=>{
+    if(sidePanels?.mode!=="transparent")return TLbase;
+    const al=sidePanels.opacity??0.6;
+    const a=(hex)=>{const c=hexToRgb(hex);return `rgba(${c.r},${c.g},${c.b},${al})`;};
+    return {...TLbase,panel:a(TLbase.panel),surface:a(TLbase.surface)};
+  },[TLbase,sidePanels]);
+  const TR=useMemo(()=>{
+    if(sidePanels?.mode!=="transparent")return TRbase;
+    const al=sidePanels.opacity??0.6;
+    const a=(hex)=>{const c=hexToRgb(hex);return `rgba(${c.r},${c.g},${c.b},${al})`;};
+    return {...TRbase,panel:a(TRbase.panel),surface:a(TRbase.surface)};
+  },[TRbase,sidePanels]);
   const accent=ACCENTS[accentKey]||ACCENTS.teal;
 
   // Global drag-resize handlers
@@ -838,12 +1309,40 @@ export default function MarketTerminal(){
   useEffect(()=>{try{localStorage.setItem("mktintel_theme_v5",JSON.stringify({mainBg,mainText,leftBg,leftText,rightBg,rightText,accent:accentKey,density,leftWidth,rightWidth,chartRightWidth}));}catch{}},[mainBg,mainText,leftBg,leftText,rightBg,rightText,accentKey,density,leftWidth,rightWidth,chartRightWidth]);
   useEffect(()=>{try{localStorage.setItem("mktintel_w",JSON.stringify(watchlist));}catch{}},[watchlist]);
   useEffect(()=>{try{localStorage.setItem("mktintel_wm",JSON.stringify(watchlistMeta));}catch{}},[watchlistMeta]);
-  // V9: local persistence for personalization/layouts (works with or without accounts)
-  useEffect(()=>{try{const s=localStorage.getItem("kronos_personal");if(s){const p=JSON.parse(s);if(p.chatStyle)setChatStyle(p.chatStyle);if(p.bgImage)setBgImage(p.bgImage);if(p.layouts)setLayouts(p.layouts);if(p.notes)setNotes(p.notes);}}catch{}},[]);
-  useEffect(()=>{try{localStorage.setItem("kronos_personal",JSON.stringify({chatStyle,bgImage,layouts,notes}));}catch{}},[chatStyle,bgImage,layouts,notes]);
+  // V9/V10: local persistence for personalization/layouts (works with or without accounts)
+  useEffect(()=>{try{const s=localStorage.getItem("kronos_personal");if(s){const p=JSON.parse(s);if(p.chatStyle)setChatStyle(p.chatStyle);if(p.bgImage)setBgImage(prev=>({...prev,...p.bgImage}));if(p.bgVideo)setBgVideo(prev=>({...prev,...p.bgVideo}));if(p.layouts)setLayouts(p.layouts);if(p.collapsed)setCollapsed(p.collapsed);if(p.notes)setNotes(p.notes);if(p.themeSel)setThemeSel(migrateTheme(p.themeSel));if(p.sidePanels)setSidePanels(p.sidePanels);if(p.chatFont)setChatFont(p.chatFont);}}catch{}},[]);
+  useEffect(()=>{try{localStorage.setItem("kronos_personal",JSON.stringify({chatStyle,bgImage,bgVideo,layouts,collapsed,notes,themeSel,sidePanels,chatFont}));}catch{}},[chatStyle,bgImage,bgVideo,layouts,collapsed,notes,themeSel,sidePanels,chatFont]);
+
+  // Rehydrate the background video blob from IndexedDB into an object URL.
+  // (The blob is device-local; only the {enabled,name} metadata is persisted.)
+  useEffect(()=>{
+    let url="";
+    if(!bgVideo?.enabled){setBgVideoUrl("");return;}
+    let cancelled=false;
+    loadBgVideo().then(blob=>{
+      if(cancelled||!blob){if(!blob)setBgVideo(prev=>({...prev,enabled:false}));return;}
+      url=URL.createObjectURL(blob);
+      setBgVideoUrl(url);
+    });
+    return()=>{cancelled=true;if(url)URL.revokeObjectURL(url);};
+  },[bgVideo?.enabled,bgVideo?.name]);
+
+  const handlePickVideo=useCallback(async(file)=>{
+    await saveBgVideo(file);
+    setBgVideo({enabled:true,name:file.name});
+  },[]);
+  const handleRemoveVideo=useCallback(async()=>{
+    await clearBgVideo();
+    setBgVideo({enabled:false,name:""});
+    setBgVideoUrl("");
+  },[]);
 
   // ── V9 SERVER SETTINGS SYNC (per-account, only when signed in via Supabase) ──
-  const KRONOS_LS_KEYS=["kronos_botmode","kronos_flow_done","kronos_broker_url","kronos_papermode","kronos_profile","kronos_propfirm","kronos_font_size","kronos_tape","kronos_strategies","kronos_studio_config"];
+  // NOTE: kronos_broker_creds is deliberately EXCLUDED — it holds a live broker API
+  // token/account ID (see BrokerConnect.jsx). Syncing it would copy a plaintext
+  // secret into the settings JSON server-side, compounding an existing local risk
+  // rather than fixing it. Flagged separately; not a V10-scoped fix.
+  const KRONOS_LS_KEYS=["kronos_botmode","kronos_flow_done","kronos_broker_url","kronos_broker_preset","kronos_broker","kronos_papermode","kronos_profile","kronos_propfirm","kronos_font_size","kronos_tape","kronos_studio_config","kronos_tour_seen","kronos_cadence","kronos_min_conviction","kronos_chart_state","kronos_shadow","kronos_paper_futures","kronos_paper_options"];
   useEffect(()=>{
     if(!user||!supabaseConfigured())return;
     (async()=>{
@@ -858,9 +1357,15 @@ export default function MarketTerminal(){
           if(s.watchlist?.length)setWatchlist(s.watchlist);
           if(s.watchlistMeta)setWatchlistMeta(s.watchlistMeta);
           if(s.chatStyle)setChatStyle(s.chatStyle);
-          if(s.bgImage)setBgImage(s.bgImage);
+          if(s.bgImage)setBgImage(prev=>({...prev,...s.bgImage}));
           if(s.layouts)setLayouts(s.layouts);
           if(s.notes)setNotes(s.notes);
+          if(s.themeSel)setThemeSel(migrateTheme(s.themeSel));
+          if(s.sidePanels)setSidePanels(s.sidePanels);
+          if(s.chatFont)setChatFont(s.chatFont);
+          if(s.collapsed)setCollapsed(s.collapsed);
+          // V10: per-account AI chat history — your desk conversation follows you.
+          if(Array.isArray(s.chatHistory)&&s.chatHistory.length)setMessages(s.chatHistory);
           if(s.kronosLocal)try{Object.entries(s.kronosLocal).forEach(([k,v])=>{if(KRONOS_LS_KEYS.includes(k)&&v!=null)localStorage.setItem(k,v);});}catch{}
         }
       }catch{}
@@ -877,16 +1382,22 @@ export default function MarketTerminal(){
         const token=await getAccessToken();if(!token)return;
         const kronosLocal={};
         KRONOS_LS_KEYS.forEach(k=>{try{const v=localStorage.getItem(k);if(v!=null)kronosLocal[k]=v;}catch{}});
-        await fetch("/api/settings",{method:"PUT",headers:{"Content-Type":"application/json",Authorization:`Bearer ${token}`},
-          body:JSON.stringify({settings:{
-            theme:{mainBg,mainText,leftBg,leftText,rightBg,rightText,accent:accentKey,density,leftWidth,rightWidth,chartRightWidth},
-            fontSize,watchlist,watchlistMeta,chatStyle,bgImage,layouts,notes,kronosLocal,
-          }})});
+        const base={
+          theme:{mainBg,mainText,leftBg,leftText,rightBg,rightText,accent:accentKey,density,leftWidth,rightWidth,chartRightWidth},
+          fontSize,watchlist,watchlistMeta,chatStyle,bgImage,layouts,collapsed,notes,themeSel,sidePanels,chatFont,kronosLocal,
+        };
+        const putSettings=(settings)=>fetch("/api/settings",{method:"PUT",headers:{"Content-Type":"application/json",Authorization:`Bearer ${token}`},body:JSON.stringify({settings})});
+        let r=await putSettings({...base,chatHistory:messages.slice(-80)});
+        if(r.status===413){
+          // Payload still too big (huge chat history) — retry once without it
+          // rather than silently losing the rest of the save (theme/layouts/etc).
+          r=await putSettings(base);
+        }
       }catch{}
     },2000);
     return()=>clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  },[user,mainBg,mainText,leftBg,leftText,rightBg,rightText,accentKey,density,leftWidth,rightWidth,chartRightWidth,fontSize,watchlist,watchlistMeta,chatStyle,bgImage,layouts,notes]);
+  },[user,mainBg,mainText,leftBg,leftText,rightBg,rightText,accentKey,density,leftWidth,rightWidth,chartRightWidth,fontSize,watchlist,watchlistMeta,chatStyle,bgImage,layouts,notes,themeSel,sidePanels,chatFont,messages]);
   useEffect(()=>{chatEndRef.current?.scrollIntoView({behavior:"smooth"});},[messages,loading]);
 
   const fetchQuotes=useCallback(async()=>{
@@ -911,8 +1422,32 @@ export default function MarketTerminal(){
 
   const loadSecData=useCallback(async()=>{
     setSecLoading(true);
-    try{const r=await fetch(`/api/sec-filings?symbols=${watchlist.slice(0,12).join(",")}`);const d=await r.json();setSecData({filings:d.filings||[],insiderTrades:d.insiderTrades||[]});}
-    catch{setSecData({filings:[],insiderTrades:[]});}finally{setSecLoading(false);}
+    let loaded={filings:[],insiderTrades:[]};
+    try{
+      const r=await fetch(`/api/sec-filings?symbols=${watchlist.slice(0,12).join(",")}`);
+      const d=await r.json();
+      loaded={filings:d.filings||[],insiderTrades:d.insiderTrades||[]};
+      setSecData(loaded);
+    }catch{setSecData(loaded);}
+    finally{setSecLoading(false);}
+
+    // V10.5: AI reasoning pass, in the BACKGROUND. The cards are already on screen
+    // with their deterministic baseline rating; this refines them once the model has
+    // actually interrogated each filing. It never blocks the render, and if it fails
+    // the baseline simply stands.
+    const items=[...loaded.filings,...loaded.insiderTrades];
+    if(!items.length)return;
+    try{
+      const r=await fetch("/api/filing-intel",{
+        method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({items}),
+      });
+      const {ratings}=await r.json();
+      if(!ratings?.length)return;
+      const byId=new Map(ratings.map(x=>[x.id,x]));
+      const merge=(arr)=>arr.map(it=>byId.has(it.url)?{...it,impact:{...it.impact,...byId.get(it.url)}}:it);
+      setSecData(prev=>prev?{filings:merge(prev.filings),insiderTrades:merge(prev.insiderTrades)}:prev);
+    }catch{/* baseline rating stands */}
   },[watchlist]);
 
   useEffect(()=>{if(view==="data"&&!secData)loadSecData();},[view,secData,loadSecData]);
@@ -923,13 +1458,38 @@ export default function MarketTerminal(){
     fetchedAt:lastUpd,
   }),[watchlist,watchlistMeta,quotes,news,lastUpd]);
 
+  // V10: the desk AI can operate the terminal — registry of client-executable actions.
+  const aiActionsRef=useRef({});
+  aiActionsRef.current={
+    set_view:({view})=>{if(["terminal","data","chart","bot"].includes(view))setView(view);},
+    set_bot_mode:({mode})=>{try{localStorage.setItem("kronos_botmode",mode==="options"?"options":"futures");}catch{};setView("bot");},
+    set_theme:({themeId})=>setThemeSel(prev=>({...prev,id:themeId||"none"})),
+    set_accent:({color})=>{if(ACCENTS[color])setAccentKey(color);},
+    set_font:({font})=>{if(FONT_CHOICES.some(f=>f.id===font))setChatFont(font);},
+    set_font_size:({size})=>{const s=Number(size);if([12,14,16,18].includes(s)){setFontSize(s);try{localStorage.setItem("kronos_font_size",String(s));}catch{}}},
+    add_watchlist_symbol:({symbol})=>{const s=String(symbol||"").toUpperCase().trim();if(/^[A-Z.^-]{1,8}$/.test(s))addWL(s,COMPANY_NAMES[s]);},
+    remove_watchlist_symbol:({symbol})=>rmWL(String(symbol||"").toUpperCase().trim()),
+    set_chart_symbol:({symbol})=>{const s=String(symbol||"").toUpperCase().trim();if(s){setChartSymbol(s);setView("chart");}},
+    open_settings:()=>setShowSettings(true),
+    start_tour:()=>setShowTour(true),
+  };
+
   const callAPI=useCallback(async(prompt,isAlert,curMsgs)=>{
     setLoading(true);
     try{
       const history=(curMsgs||messages).map(m=>({role:m.role,content:m.content}));
       const r=await fetch("/api/scan",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({messages:history,prompt,marketContext:ctx()})});
       const d=await r.json();
-      setMessages(p=>[...p,{role:"assistant",content:d.text||d.error||"Analysis complete.",isAlertDive:isAlert}]);
+      // Execute any terminal actions the AI requested, then show its reply.
+      let actionNote="";
+      if(Array.isArray(d.actions)&&d.actions.length){
+        const done=[];
+        for(const a of d.actions){
+          try{const fn=aiActionsRef.current[a.name];if(fn){fn(a.input||{});done.push(a.name.replace(/_/g," "));}}catch{}
+        }
+        if(done.length)actionNote=`\n\n⚙ Executed: ${done.join(", ")}`;
+      }
+      setMessages(p=>[...p,{role:"assistant",content:(d.text||d.error||"Analysis complete.")+actionNote,isAlertDive:isAlert}]);
     }catch{setMessages(p=>[...p,{role:"assistant",content:"⚠️ Connection error. Please retry."}]);}
     finally{setLoading(false);}
   },[messages,ctx]);
@@ -961,7 +1521,7 @@ export default function MarketTerminal(){
     const prompt=isTrumpSearch
       ?`Search Trump's latest Truth Social posts and statements RIGHT NOW — last 24 hours. Which sectors and tickers impacted? For each: exact tickers, direction, options play with exact strike/expiry, IV rank, entry/target/stop. 🔥/⚡/👀.`
       :`Analyze this news:\n"${item.headline}"\nSource: ${item.source}\n\nDirectly affected tickers? Sympathy plays? Priced in or still edge? Exact options plays with strike/expiry, IV rank, entry/target/stop.`;
-    const label=isTrumpSearch?"🦅 AI: Search Trump Truth Social now":`📰 ${item.headline?.slice(0,65)}...`;
+    const label=isTrumpSearch?"Ⓣ AI: Search Trump Truth Social now":`📰 ${item.headline?.slice(0,65)}...`;
     const nm=[...messages,{role:"user",content:label}];
     setMessages(nm);await callAPI(prompt,true,nm);
   },[loading,callAPI,messages]);
@@ -1004,7 +1564,11 @@ export default function MarketTerminal(){
         {dataErr&&<div style={{fontFamily:FONT_MONO,fontSize:9,color:"#ff4d6d",background:"rgba(255,77,109,0.07)",border:"1px solid rgba(255,77,109,0.18)",borderRadius:5,padding:"4px 8px",marginBottom:7}}>⚠ {dataErr}</div>}
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <span style={{fontFamily:FONT_MONO,fontSize:8,color:TL.dim,letterSpacing:2,fontWeight:700}}>{watchlist.length} TICKERS</span>
-          <button onClick={()=>setShowWL(true)} style={{fontFamily:FONT_MONO,fontSize:9,color:accent,background:`${accent}0e`,border:`1px solid ${accent}22`,borderRadius:5,padding:"3px 9px",fontWeight:700,cursor:"pointer"}}>★ EDIT</button>
+          <div style={{display:"flex",gap:5}}>
+            {/* V10: beginner indicator guide */}
+            <button onClick={()=>setShowIndicatorInfo(true)} title="What do these numbers mean?" style={{fontFamily:FONT_MONO,fontSize:9,color:TL.dim,background:"transparent",border:`1px solid ${TL.border}`,borderRadius:5,padding:"3px 8px",fontWeight:700,cursor:"pointer"}}>ⓘ</button>
+            <button onClick={()=>setShowWL(true)} style={{fontFamily:FONT_MONO,fontSize:9,color:accent,background:`${accent}0e`,border:`1px solid ${accent}22`,borderRadius:5,padding:"3px 9px",fontWeight:700,cursor:"pointer"}}>★ EDIT</button>
+          </div>
         </div>
       </div>
       <div style={{flex:1,overflowY:"auto",padding:"7px 9px",minHeight:0}}>
@@ -1018,9 +1582,10 @@ export default function MarketTerminal(){
   );
 
   const consoleInner=(
-    <div style={{height:"100%",display:"flex",flexDirection:"column",overflow:"hidden",minWidth:0,minHeight:0}}>
+    // V10 item 5: the console column scrolls — chat on top, big chart below the fold.
+    <div style={{height:"100%",display:"flex",flexDirection:"column",overflowY:"auto",overflowX:"hidden",minWidth:0,minHeight:0}}>
       <TickerTape accent={accent} T={T} speed={55}/>
-      <div style={{flex:1,overflowY:"auto",padding:"14px 18px",minHeight:0,...chatBgStyle}}>
+      <div style={{minHeight:"44vh",maxHeight:"60vh",overflowY:"auto",padding:"14px 18px",flexShrink:0,...chatBgStyle}}>
         {messages.map((msg,i)=><ChatMessage key={i} msg={msg} accent={accent} T={T} fontSize={fontSize}/>)}
         {loading&&<TypingIndicator accent={accent}/>}
         <div ref={chatEndRef}/>
@@ -1078,6 +1643,8 @@ export default function MarketTerminal(){
         <AuthGate onAccess={(u) => { setUser(u || null); setAccessState("granted"); }} />
       )}
 
+      <DevBypassBadge />
+
       {accessState === "granted" && (
         <>
           <FOMCOverlay />
@@ -1114,6 +1681,9 @@ export default function MarketTerminal(){
             @keyframes pulse{0%,100%{opacity:0.3;transform:scale(0.85);}50%{opacity:1;transform:scale(1.1);}}
             @keyframes blink{0%,100%{opacity:1;}50%{opacity:0;}}
             @keyframes spin{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
+            /* V10.5: breaking-news / live-speech alert pulse */
+            @keyframes news-pulse{0%,100%{opacity:1;}50%{opacity:0.35;}}
+            @keyframes tab-alert{0%,100%{box-shadow:0 0 0 0 rgba(255,61,87,0.5);}50%{box-shadow:0 0 0 5px rgba(255,61,87,0);}}
             @keyframes scanLine{0%,100%{opacity:0.3;}50%{opacity:1;}}
             @keyframes shimmer{0%{opacity:0.4;}50%{opacity:0.9;}100%{opacity:0.4;}}
             @keyframes slideIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
@@ -1133,20 +1703,43 @@ export default function MarketTerminal(){
           `}</style>
           <div style={{
             display:"flex",flexDirection:"column",height:"100vh",
-            backgroundColor:T.bg,fontFamily:FONT_CHAT,overflow:"hidden",
-            backgroundImage: bgImage?.dataUrl
+            backgroundColor:T.bg,
+            fontFamily:FONT_CHOICES.find(f=>f.id===chatFont)?.stack||FONT_CHAT,
+            overflow:"hidden",position:"relative",
+            backgroundImage: (bgImage?.dataUrl&&!bgVideoUrl)
               ? `linear-gradient(rgba(0,0,0,${bgImage.dim??0.6}),rgba(0,0,0,${bgImage.dim??0.6})),url(${bgImage.dataUrl})`
-              : `radial-gradient(circle, ${T.border}55 1px, transparent 1px)`,
+              : (bgVideoUrl||(themeSel?.id&&themeSel.id!=="none"))?"none":`radial-gradient(circle, ${T.border}55 1px, transparent 1px)`,
             backgroundSize: bgImage?.dataUrl ? "cover" : "22px 22px",
-            backgroundPosition: bgImage?.dataUrl ? "center" : "0 0",
+            backgroundPosition: bgImage?.dataUrl ? `${bgImage.posX??50}% ${bgImage.posY??50}%` : "0 0",
             backgroundAttachment: bgImage?.dataUrl ? "fixed" : undefined,
           }}>
-            {showWelcome&&<WelcomePopup onClose={()=>setShowWelcome(false)} accent={accent} T={T}/>}
+            {/* V10.3: looping background video — highest priority backdrop.
+                muted+playsInline are REQUIRED for browsers to autoplay at all. */}
+            {bgVideoUrl&&(
+              <div style={{position:"absolute",inset:0,overflow:"hidden",pointerEvents:"none",zIndex:0}} aria-hidden="true">
+                <video src={bgVideoUrl} autoPlay loop muted playsInline
+                  style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/>
+                <div style={{position:"absolute",inset:0,background:`rgba(0,0,0,${bgImage?.dim??0.6})`}}/>
+              </div>
+            )}
+            {/* Animated theme backdrop (a photo or video takes precedence when set) */}
+            {!bgImage?.dataUrl&&!bgVideoUrl&&<ThemeBackdrop theme={themeSel?.id||"none"} accent={accent} filter={`hue-rotate(${themeSel?.hue||0}deg) saturate(${themeSel?.sat??1}) brightness(${themeSel?.bri??1})`} tint={themeSel?.tint||""} tintStrength={themeSel?.tintStrength??0.5}/>}
+            {showWelcome&&<WelcomePopup
+              onClose={()=>{setShowWelcome(false);try{if(localStorage.getItem("kronos_tour_seen")!=="1")setShowTour(true);}catch{}}}
+              onTour={()=>{setShowWelcome(false);setShowTour(true);}}
+              accent={accent} T={T}/>}
+            {showTour&&<TourGuide accent={accent} T={T} onClose={()=>setShowTour(false)} onSwitchView={(v)=>setView(v)}/>}
         {showWL&&<WatchlistModal onClose={()=>setShowWL(false)} watchlist={watchlist} onAdd={addWL} onRemove={rmWL} onReset={resetWL} accent={accent} T={TL}/>}
-        {showSettings&&<SettingsPanel onClose={()=>setShowSettings(false)} mainBg={mainBg} setMainBg={setMainBg} mainText={mainText} setMainText={setMainText} leftBg={leftBg} setLeftBg={setLeftBg} leftText={leftText} setLeftText={setLeftText} rightBg={rightBg} setRightBg={setRightBg} rightText={rightText} setRightText={setRightText} accentKey={accentKey} setAccentKey={setAccentKey} density={density} setDensity={setDensity} leftWidth={leftWidth} setLeftWidth={setLeftWidth} rightWidth={rightWidth} setRightWidth={setRightWidth} chartRightWidth={chartRightWidth} setChartRightWidth={setChartRightWidth} onResetAll={resetAll} T={T} accent={accent} fontSize={fontSize} setFontSize={setFontSize} chatStyle={chatStyle} setChatStyle={setChatStyle} bgImage={bgImage} setBgImage={setBgImage} user={user} onSignOut={async()=>{try{await getSupabase()?.auth.signOut();}catch{}window.location.reload();}}/>}
+        {showIndicatorInfo&&<IndicatorInfoModal onClose={()=>setShowIndicatorInfo(false)} accent={accent} T={T}/>}
+        {showMentor&&<KronosMentor onClose={()=>setShowMentor(false)} accent={accent} T={T}/>}
+        {/* V10.5: the gear is SCOPE-AWARE. On the bot page it opens the bot's own
+            appearance settings — showing watchlist widths and terminal themes there
+            was noise, since none of it is visible from the bot. */}
+        {showSettings&&view==="bot"&&<BotSettings onClose={()=>setShowSettings(false)} T={T} accent={accent}/>}
+        {showSettings&&view!=="bot"&&<SettingsPanel onClose={()=>setShowSettings(false)} mainBg={mainBg} setMainBg={setMainBg} mainText={mainText} setMainText={setMainText} leftBg={leftBg} setLeftBg={setLeftBg} leftText={leftText} setLeftText={setLeftText} rightBg={rightBg} setRightBg={setRightBg} rightText={rightText} setRightText={setRightText} accentKey={accentKey} setAccentKey={setAccentKey} density={density} setDensity={setDensity} leftWidth={leftWidth} setLeftWidth={setLeftWidth} rightWidth={rightWidth} setRightWidth={setRightWidth} chartRightWidth={chartRightWidth} setChartRightWidth={setChartRightWidth} onResetAll={resetAll} T={T} accent={accent} fontSize={fontSize} setFontSize={setFontSize} chatStyle={chatStyle} setChatStyle={setChatStyle} bgImage={bgImage} setBgImage={setBgImage} bgVideo={bgVideo} onPickVideo={handlePickVideo} onRemoveVideo={handleRemoveVideo} themeSel={themeSel} setThemeSel={setThemeSel} sidePanels={sidePanels} setSidePanels={setSidePanels} chatFont={chatFont} setChatFont={setChatFont} onStartTour={()=>setShowTour(true)} user={user} onSignOut={async()=>{try{await getSupabase()?.auth.signOut();}catch{}window.location.reload();}}/>}
 
         {/* HEADER */}
-        <div style={{padding:"10px 18px",borderBottom:`1px solid ${T.border}`,display:"flex",alignItems:"center",justifyContent:"space-between",background:T.panel,flexShrink:0}}>
+        <div style={{padding:"10px 18px",borderBottom:`1px solid ${T.border}`,display:"flex",alignItems:"center",justifyContent:"space-between",background:T.panel,flexShrink:0,position:"relative",zIndex:2}}>
           <div style={{display:"flex",alignItems:"baseline",gap:18}}>
             {/* BOT FLIP BUTTON */}
 <button onClick={()=>setView(v=>v==="bot"?"terminal":"bot")} title="Toggle Bot Dashboard" style={{
@@ -1159,24 +1752,34 @@ export default function MarketTerminal(){
 }}>⇄</button>
 
 {["terminal","data","chart"].map(v=>(
-              <button key={v} onClick={()=>setView(v)} style={{cursor:"pointer"}}>
+              <button key={v} onClick={()=>setView(v)} style={{cursor:"pointer",position:"relative"}}>
                 <span style={{fontFamily:FONT_DISPLAY,fontSize:18,fontWeight:700,letterSpacing:0.3,color:view===v?T.text:T.dim,transition:"color 0.15s",textTransform:"capitalize"}}>
                   {v==="terminal"?"Trading Terminal":v.charAt(0).toUpperCase()+v.slice(1)}
                 </span>
+                {/* Breaking/live alert dot — visible from ANY page, so a live Fed
+                    speech reaches you even while you're on the chart. */}
+                {v==="data"&&newsAlerts.length>0&&(
+                  <span title={`${newsAlerts.length} breaking/live item${newsAlerts.length>1?"s":""}`}
+                    style={{
+                      position:"absolute",top:-2,right:-9,width:7,height:7,borderRadius:"50%",
+                      background:newsAlerts.some(a=>a.impact?.live)?"#ff3d57":"#f7c948",
+                      animation:"news-pulse 1.1s ease-in-out infinite",
+                    }}/>
+                )}
               </button>
             ))}
             <span style={{fontFamily:FONT_MONO,fontSize:8,color:accent,background:`${accent}10`,border:`1px solid ${accent}22`,padding:"2px 6px",borderRadius:4,letterSpacing:2,fontWeight:700}}>LIVE</span>
           </div>
           <div style={{display:"flex",alignItems:"center",gap:10}}>
-            {/* V9: drag-and-drop layout controls (terminal view) */}
-            {view==="terminal"&&(
+            {/* V10: drag-and-drop layout controls (terminal + data views) */}
+            {(view==="terminal"||view==="data")&&(
               layoutEdit?(
                 <div style={{display:"flex",gap:6}}>
-                  <button onClick={()=>setNotes(prev=>[...prev,{id:Date.now(),text:""}])}
-                    style={{padding:"5px 10px",borderRadius:7,fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,color:"#f7c948",background:"rgba(247,201,72,0.08)",border:"1px solid rgba(247,201,72,0.3)",cursor:"pointer"}}>+ NOTE</button>
-                  <button onClick={()=>{setLayouts(prev=>{const p={...prev};delete p.terminal;return p;});setLayoutEdit(false);}}
+                  {view==="terminal"&&<button onClick={()=>setNotes(prev=>[...prev,{id:Date.now(),text:""}])}
+                    style={{padding:"5px 10px",borderRadius:7,fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,color:"#f7c948",background:"rgba(247,201,72,0.08)",border:"1px solid rgba(247,201,72,0.3)",cursor:"pointer"}}>+ NOTE</button>}
+                  <button onClick={()=>{const k=view==="data"?"data":"terminal";setLayouts(prev=>{const p={...prev};delete p[k];return p;});setLayoutEdit(false);}}
                     style={{padding:"5px 10px",borderRadius:7,fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,color:"#ff4d6d",background:"rgba(255,77,109,0.08)",border:"1px solid rgba(255,77,109,0.3)",cursor:"pointer"}}>RESET</button>
-                  <button onClick={()=>{if(!layouts?.terminal)setLayouts(prev=>({...prev,terminal:DEFAULT_TERMINAL_LAYOUT}));setLayoutEdit(false);}}
+                  <button onClick={()=>{const k=view==="data"?"data":"terminal";const def=k==="data"?DEFAULT_DATA_LAYOUT:DEFAULT_TERMINAL_LAYOUT;if(!layouts?.[k])setLayouts(prev=>({...prev,[k]:def}));setLayoutEdit(false);}}
                     style={{padding:"5px 10px",borderRadius:7,fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,color:accent,background:`${accent}12`,border:`1px solid ${accent}40`,cursor:"pointer"}}>🔒 SAVE LAYOUT</button>
                 </div>
               ):(
@@ -1185,19 +1788,26 @@ export default function MarketTerminal(){
               )
             )}
             <MarketStatusBadge accent={accent} T={T}/>
+            {/* V10.2: Kronos Mentor (coming soon) */}
+            <button onClick={()=>setShowMentor(true)} title="Kronos Mentor" style={{width:32,height:32,borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,color:accent,background:`${accent}0e`,border:`1px solid ${accent}30`,cursor:"pointer"}}>🤖</button>
             <button onClick={()=>setShowSettings(true)} style={{width:32,height:32,borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,color:T.dim,background:T.surface,border:`1px solid ${T.border}`,cursor:"pointer"}}>⚙</button>
           </div>
         </div>
 
-        <div style={{display:"flex",flex:1,overflow:"hidden"}}>
+        <div style={{display:"flex",flex:1,overflow:"hidden",position:"relative",zIndex:1}}>
           {/* LEFT PANEL — data page (terminal renders its own copy, grid-aware) */}
           {(view==="data"||(view==="terminal"&&!terminalGrid))&&(
+            collapsed.term_watchlist?(
+              <CollapsedRail label="Watchlist" side="left" onExpand={()=>toggleCollapse("term_watchlist")} accent={accent} T={TL}/>
+            ):(
             <>
-              <div style={{width:leftWidth,minWidth:leftWidth,borderRight:`1px solid ${TL.border}`,display:"flex",flexDirection:"column",background:TL.panel}}>
+              <div style={{width:leftWidth,minWidth:leftWidth,borderRight:`1px solid ${TL.border}`,display:"flex",flexDirection:"column",background:TL.panel,position:"relative"}}>
+                <button onClick={()=>toggleCollapse("term_watchlist")} title="Collapse watchlist" style={{position:"absolute",top:8,right:8,zIndex:10,width:18,height:18,borderRadius:4,background:`${TL.panel}cc`,border:`1px solid ${TL.border}`,color:TL.dim,cursor:"pointer",fontFamily:FONT_MONO,fontSize:9,display:"flex",alignItems:"center",justifyContent:"center"}}>◂</button>
                 {watchlistInner}
               </div>
               <ResizeDivider onMouseDown={startResize("left",leftWidth)} accent={accent}/>
             </>
+            )
           )}
 
           <div style={{display:view==="chart"?"flex":"none",flex:1,overflow:"hidden"}}>
@@ -1210,10 +1820,17 @@ export default function MarketTerminal(){
               <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",minWidth:0}}>
                 {consoleInner}
               </div>
-              <ResizeDivider onMouseDown={startResize("right",rightWidth)} accent={accent}/>
-              <div style={{width:rightWidth,minWidth:rightWidth,borderLeft:`1px solid ${TR.border}`}}>
-                {newsInner}
-              </div>
+              {collapsed.term_news?(
+                <CollapsedRail label="News" side="right" onExpand={()=>toggleCollapse("term_news")} accent={accent} T={TR}/>
+              ):(
+                <>
+                  <ResizeDivider onMouseDown={startResize("right",rightWidth)} accent={accent}/>
+                  <div style={{width:rightWidth,minWidth:rightWidth,borderLeft:`1px solid ${TR.border}`,position:"relative"}}>
+                    <button onClick={()=>toggleCollapse("term_news")} title="Collapse news" style={{position:"absolute",top:8,left:8,zIndex:10,width:18,height:18,borderRadius:4,background:`${TR.panel}cc`,border:`1px solid ${TR.border}`,color:TR.dim,cursor:"pointer",fontFamily:FONT_MONO,fontSize:9,display:"flex",alignItems:"center",justifyContent:"center"}}>▸</button>
+                    {newsInner}
+                  </div>
+                </>
+              )}
             </>
           )}
 
@@ -1224,13 +1841,15 @@ export default function MarketTerminal(){
               onLayoutChange={(l)=>{if(layoutEdit)setLayouts(prev=>({...prev,terminal:l}));}}
               editMode={layoutEdit}
               accent={accent} T={T}
+              collapsed={collapsed} onToggleCollapse={toggleCollapse}
               items={{watchlist:watchlistInner,console:consoleInner,news:newsInner,...noteItems}}
             />
           )}
 
           {/* DATA VIEW */}
           {view==="data"&&(
-            <DataPage news={news} secData={secData} secLoading={secLoading} onRefreshAll={()=>{fetchNews();loadSecData();}} onDiveNews={handleNews} onDiveFiling={handleFiling} onDiveInsider={handleInsider} messages={messages} input={input} setInput={setInput} send={send} loading={loading} onOpenChat={()=>setView("terminal")} accent={accent} T={T} watchlist={watchlist}/>
+            <DataPage news={news} secData={secData} secLoading={secLoading} onRefreshAll={()=>{fetchNews();loadSecData();}} onDiveNews={handleNews} onDiveFiling={handleFiling} onDiveInsider={handleInsider} messages={messages} input={input} setInput={setInput} send={send} loading={loading} onOpenChat={()=>setView("terminal")} accent={accent} T={T} watchlist={watchlist}
+              gridLayout={migrateDataLayout(layouts?.data)} onGridChange={(l)=>setLayouts(prev=>({...prev,data:l}))} editMode={layoutEdit} collapsed={collapsed} onToggleCollapse={toggleCollapse}/>
           )}
 
           {/* BOT DASHBOARD VIEW */}
