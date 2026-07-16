@@ -14,19 +14,33 @@ import SignalFeed from "./SignalFeed";
 import GalaxyOrb, { CometLayer, Starfield, activeSessions, vixLabel } from "./GalaxyOrb";
 import { CollapsedRail } from "./CollapseRail";
 import TickerLogo from "./TickerLogo";
-import { useBotUI, botPanelStyle } from "./BotSettings";
+import { useBotUI, botPanelStyle, botTabStyle, isFloatingStyle } from "./BotSettings";
 
 const FM = "'JetBrains Mono',monospace";
 const FD = "'Fraunces',serif";
 const FC = "'Inter',sans-serif";
 
-// Per-mode instrument lists + interval defaults (mode-aware engine)
+// Per-mode instrument lists + interval defaults (mode-aware engine).
+//
+// V10.5b: FUTURES now carries the full ladder too. It was capped at 1h, so the
+// daily/weekly/monthly/yearly horizons were literally unreachable in futures mode
+// — the cadence picker offered them and nothing could ever produce them.
+const FULL_LADDER = ["1min", "5min", "15min", "1h", "4h", "1d", "1w", "1mo"];
 const MODE_CONFIG = {
-  futures: { symbols: ["NQ", "MNQ", "ES", "MES", "CL", "GC"], intervals: ["1min", "5min", "15min", "1h"], defaultSymbol: "NQ", defaultInterval: "15min", color: "#7eb8f7" },
+  futures: { symbols: ["NQ", "MNQ", "ES", "MES", "CL", "GC"], intervals: FULL_LADDER, defaultSymbol: "NQ", defaultInterval: "15min", color: "#7eb8f7" },
   // V10.3: options quick-picks are MAJOR INDICES only — any other ticker is
   // reached through the search box, so the row stays clean instead of a wall of
   // arbitrary large caps.
-  options: { symbols: ["SPY", "QQQ"], intervals: ["15min", "1h", "4h", "1d"], defaultSymbol: "SPY", defaultInterval: "1h", color: "#a78bfa" },
+  options: { symbols: ["SPY", "QQQ"], intervals: FULL_LADDER, defaultSymbol: "SPY", defaultInterval: "1h", color: "#a78bfa" },
+};
+
+// The interval buttons used to be raw codes ("1w", "1mo"), which don't tell you
+// what horizon they actually feed — you couldn't see that 1mo IS the yearly
+// bucket. Each button now shows the horizon it maps to (matching SignalFeed's
+// INTERVAL_BUCKET), so the full scalp→yearly range is visible rather than implied.
+const INTERVAL_HORIZON = {
+  "1min": "SCALP", "5min": "SCALP", "15min": "INTRADAY", "1h": "HOURLY",
+  "4h": "SWING", "1d": "DAILY", "1w": "MONTHLY", "1mo": "YEARLY",
 };
 
 const vixColor = (v) => (v == null ? "#7A9AB5" : v < 15 ? "#22d3ee" : v < 20 ? "#a78bfa" : v < 30 ? "#f59e0b" : "#ef4444");
@@ -144,8 +158,14 @@ function StudioTab({ accent, T, profile, onEditProfile, onOpenBroker, brokerData
         <div style={{ background: surface, border: `1px solid ${border}`, borderRadius: 12, padding: "14px 16px" }}>
           <div style={{ fontFamily: FM, fontSize: 9, color: dim, letterSpacing: 2, marginBottom: 6 }}>SIGNAL ENGINE</div>
           <div style={{ fontFamily: FC, fontSize: 10.5, color: dim, lineHeight: 1.55, marginBottom: 12 }}>
-            Kronos only calls a setup when agent conviction clears this bar. Higher = fewer,
-            stricter signals. This directly gates the engine's FIRE decision.
+            Every setup Kronos looks at gets scored 0–100% — that's how strongly its different
+            angles of analysis (price trend, chart structure, options/sentiment flow) agree
+            with each other. Think of it like a vote: this slider is the minimum percentage
+            of agreement required before Kronos will call it a real, tradeable setup.
+            <br /><br />
+            <b style={{ color: text }}>Higher</b> = only the most one-sided, highest-agreement
+            setups get through — fewer signals, but each one stronger. <b style={{ color: text }}>Lower</b> = you'll
+            see more setups, including ones where the analysis is more mixed or uncertain.
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
             <span style={{ fontFamily: FM, fontSize: 9, color: dim }}>MIN CONVICTION TO FIRE</span>
@@ -209,6 +229,18 @@ export default function BotDashboard({ accent = "#00d4aa", T, botName = "KRONOS"
   // bot-scoped settings panel, live-updates without a reload.
   const botUI = useBotUI();
   const panelSx = botPanelStyle(botUI, T, accent);
+  const tabSx = botTabStyle(botUI, T, accent);
+  const floating = isFloatingStyle(botUI.panelStyle);
+  // Child panels (SignalFeed, the scanner) paint their OWN `T.surface` card
+  // background. Inside a glass/outline/neon column that re-introduces an opaque
+  // block and defeats "everything except the tabs is transparent" — the wrapper
+  // was see-through but the contents weren't. Blanking `surface` (and ONLY
+  // surface — `panel` stays opaque so the reasoning popups remain readable)
+  // makes the children honour the chosen style.
+  const panelT = useMemo(
+    () => (floating ? { ...T, surface: "transparent" } : T),
+    [T, floating]
+  );
 
   const [tab, setTab] = useState("trading");
   const [etTime, setEtTime] = useState("--:--:-- ET");
@@ -242,7 +274,10 @@ export default function BotDashboard({ accent = "#00d4aa", T, botName = "KRONOS"
   const feedRef = useRef(null);
   const cometRef = useRef(null);
 
-  useEffect(() => { try { localStorage.setItem("kronos_min_conviction", String(minConviction)); } catch {} }, [minConviction]);
+  useEffect(() => {
+    try { localStorage.setItem("kronos_min_conviction", String(minConviction)); } catch {}
+    window.dispatchEvent(new Event("kronos-minconviction-change"));
+  }, [minConviction]);
 
   // Mode + entry flow
   const [botMode, setBotMode] = useState(() => {
@@ -489,13 +524,23 @@ export default function BotDashboard({ accent = "#00d4aa", T, botName = "KRONOS"
         </div>
       </div>
 
-      {/* NAV TABS — restyled by the bot's panel style (solid / glass / outline / flat / neon) */}
-      <div style={{ ...panelSx, display: "flex", gap: 5, padding: "6px 20px", borderRadius: 0, borderTop: "none", borderLeft: "none", borderRight: "none", flexShrink: 0 }}>
+      {/* NAV TABS — the one surface that keeps chrome (frosted/solid-ish) across
+          every panel style; the panels themselves (below) go transparent instead. */}
+      <div style={{
+        ...tabSx, display: "flex", gap: 5, padding: "6px 20px", flexShrink: 0,
+        // Flush-mounted for solid/flat (classic terminal look); floated with a
+        // margin for glass/outline/neon so the rounded corners + edge are visible
+        // instead of being cropped against the window.
+        ...(floating
+          ? { margin: "8px 10px 4px" }
+          : { borderTop: "none", borderLeft: "none", borderRight: "none" }),
+      }}>
         {TABS.map(t => {
           const active = tab === t.toLowerCase();
           // "solid"/"flat" keep the original underline look; the richer styles get
           // a filled pill so the tab reads as a surface, matching the panels.
           const pill = botUI.panelStyle !== "solid" && botUI.panelStyle !== "flat";
+          const glow = botUI.panelStyle === "neon" || botUI.panelStyle === "outline";
           return (
             <button key={t} onClick={() => setTab(t.toLowerCase())} style={{
               padding: pill ? "7px 16px" : "9px 18px",
@@ -507,8 +552,8 @@ export default function BotDashboard({ accent = "#00d4aa", T, botName = "KRONOS"
                     borderRadius: 8,
                     background: active ? `${accent}18` : "transparent",
                     border: `1px solid ${active ? `${accent}45` : "transparent"}`,
-                    boxShadow: active && botUI.panelStyle === "neon" ? `0 0 12px ${accent}35` : "none",
-                    backdropFilter: botUI.panelStyle === "glass" ? "blur(8px)" : "none",
+                    boxShadow: active && glow ? `0 0 ${botUI.panelStyle === "neon" ? 12 : 6}px ${accent}${botUI.panelStyle === "neon" ? "35" : "20"}` : "none",
+                    backdropFilter: (botUI.panelStyle === "glass" || botUI.panelStyle === "outline" || botUI.panelStyle === "neon") ? "blur(8px)" : "none",
                   }
                 : {
                     background: "transparent",
@@ -522,23 +567,33 @@ export default function BotDashboard({ accent = "#00d4aa", T, botName = "KRONOS"
 
       {/* TRADING TAB */}
       {tab === "trading" && (
-        <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+        <div style={{ flex: 1, display: "flex", overflow: "hidden", position: "relative" }}>
+          {/* V10.5: Starfield moved from inside just the center column to here — a
+              sibling spanning the WHOLE three-column row — so stars actually reach
+              every corner of the screen instead of stopping at the center panel's
+              edges. It paints behind the feed/center/scanner columns (DOM order);
+              with any non-solid panel style those columns are now transparent
+              (see BotSettings' botPanelStyle), so the stars show straight through. */}
+          <Starfield T={T} />
           {/* LEFT — the enlarged signal feed column (items 7+10: stream/tape removed) */}
           {botCollapsed.feed ? (
             <CollapsedRail label="Signal Feed" side="left" onExpand={() => toggleBotCol("feed")} accent={accent} T={T} />
           ) : (
-            <div style={{ ...panelSx, width: 340, borderRadius: 0, borderTop: "none", borderBottom: "none", borderLeft: "none", flexShrink: 0, padding: 10, display: "flex", flexDirection: "column", minHeight: 0, position: "relative" }}>
+            <div style={{
+              ...panelSx, width: 340, flexShrink: 0, padding: 10,
+              display: "flex", flexDirection: "column", minHeight: 0, position: "relative",
+              ...(floating
+                ? { margin: "4px 5px 8px 10px" }
+                : { borderTop: "none", borderBottom: "none", borderLeft: "none" }),
+            }}>
               <button onClick={() => toggleBotCol("feed")} title="Collapse signal feed" style={{ position: "absolute", top: 6, right: 6, zIndex: 10, width: 18, height: 18, borderRadius: 4, background: `${surface}cc`, border: `1px solid ${border}`, color: dim, cursor: "pointer", fontFamily: FM, fontSize: 9, display: "flex", alignItems: "center", justifyContent: "center" }}>◂</button>
-              <SignalFeed ref={feedRef} accent={accent} T={T} assetClass={assetClass} onNewSignal={handleSignalEvent} fill vix={vix} />
+              <SignalFeed ref={feedRef} accent={accent} T={panelT} assetClass={assetClass} onNewSignal={handleSignalEvent} fill vix={vix} />
             </div>
           )}
 
           {/* CENTER — VIX galaxy + real market state */}
           <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, position: "relative", overflow: "hidden" }}>
             <OrbTooltip dim={dim} border={border} surface={surface} text={text} />
-            {/* Stars fill the whole panel, BEHIND the galaxy — so the orb sits in
-                space rather than floating on a flat surface. */}
-            <Starfield T={T} />
             {botUI.showGrid && (
               <div style={{
                 position: "absolute", inset: 0, pointerEvents: "none",
@@ -550,7 +605,7 @@ export default function BotDashboard({ accent = "#00d4aa", T, botName = "KRONOS"
             {/* The galaxy. The VIX read-out is NOT overlaid on it any more — it was
                 sitting right on the core and hiding the thing it describes. */}
             <div ref={orbWrapRef} style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "center", justifyContent: "center", marginTop: -6 }}>
-              <GalaxyOrb ref={orbRef} size={560} vix={vix} T={T} />
+              <GalaxyOrb ref={orbRef} size={640} vix={vix} T={T} />
             </div>
 
             {/* VIX read-out — below the galaxy, clear of it. */}
@@ -605,7 +660,12 @@ export default function BotDashboard({ accent = "#00d4aa", T, botName = "KRONOS"
           {botCollapsed.scanner ? (
             <CollapsedRail label="Scanner" side="right" onExpand={() => toggleBotCol("scanner")} accent={accent} T={T} />
           ) : (
-          <div style={{ ...panelSx, width: 300, borderRadius: 0, borderTop: "none", borderBottom: "none", borderRight: "none", overflowY: "auto", padding: 12, flexShrink: 0, position: "relative" }}>
+          <div style={{
+            ...panelSx, width: 300, overflowY: "auto", padding: 12, flexShrink: 0, position: "relative",
+            ...(floating
+              ? { margin: "4px 10px 8px 5px" }
+              : { borderTop: "none", borderBottom: "none", borderRight: "none" }),
+          }}>
             <button onClick={() => toggleBotCol("scanner")} title="Collapse scanner" style={{ position: "absolute", top: 6, left: 6, zIndex: 10, width: 18, height: 18, borderRadius: 4, background: `${surface}cc`, border: `1px solid ${border}`, color: dim, cursor: "pointer", fontFamily: FM, fontSize: 9, display: "flex", alignItems: "center", justifyContent: "center" }}>▸</button>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, paddingLeft: 20 }}>
               <span style={{ fontFamily: FM, fontSize: 8, fontWeight: 800, letterSpacing: 2, color: modeCfg.color }}>
@@ -663,19 +723,24 @@ export default function BotDashboard({ accent = "#00d4aa", T, botName = "KRONOS"
               </div>
             )}
 
-            <div style={{ display: "flex", gap: 4, marginBottom: 12 }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 12 }}>
               {modeCfg.intervals.map(iv => (
-                <button key={iv} onClick={() => setSignalInterval(iv)} style={{
-                  flex: 1, fontFamily: FM, fontSize: 8, fontWeight: 700,
-                  color: signalInterval === iv ? accent : dim,
-                  background: signalInterval === iv ? `${accent}10` : "transparent",
-                  border: `1px solid ${signalInterval === iv ? `${accent}25` : border}`,
-                  padding: "4px 6px", borderRadius: 5, cursor: "pointer",
-                }}>{iv}</button>
+                <button key={iv} onClick={() => setSignalInterval(iv)}
+                  title={`${iv} candles — ${INTERVAL_HORIZON[iv] || ""} horizon`}
+                  style={{
+                    flex: "1 1 22%", fontFamily: FM, fontWeight: 700, lineHeight: 1.25,
+                    color: signalInterval === iv ? accent : dim,
+                    background: signalInterval === iv ? `${accent}10` : "transparent",
+                    border: `1px solid ${signalInterval === iv ? `${accent}25` : border}`,
+                    padding: "4px 5px", borderRadius: 5, cursor: "pointer",
+                  }}>
+                  <span style={{ display: "block", fontSize: 8.5 }}>{iv}</span>
+                  <span style={{ display: "block", fontSize: 6, letterSpacing: 0.5, opacity: 0.75 }}>{INTERVAL_HORIZON[iv]}</span>
+                </button>
               ))}
             </div>
             <MultiAgentSignal
-              accent={accent} T={T}
+              accent={accent} T={panelT}
               symbol={signalSymbol || modeCfg.defaultSymbol}
               interval={modeCfg.intervals.includes(signalInterval) ? signalInterval : modeCfg.defaultInterval}
               assetClass={assetClass}

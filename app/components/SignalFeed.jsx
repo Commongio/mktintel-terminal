@@ -15,6 +15,12 @@ function getRiskProfile() {
   try { return JSON.parse(localStorage.getItem("kronos_profile") || "null"); } catch { return null; }
 }
 
+// The user's own "min conviction to fire" slider (Studio tab). The feed should
+// never show weaker setups than the user themselves asked for.
+function getUserMinConviction() {
+  try { return Number(localStorage.getItem("kronos_min_conviction")) || 65; } catch { return 65; }
+}
+
 const FM = "'JetBrains Mono',monospace";
 const FC = "'Inter',sans-serif";
 
@@ -288,22 +294,49 @@ const SignalFeed = forwardRef(function SignalFeed({ accent = "#00d4aa", T, asset
   const [state, setState] = useState(supabaseConfigured() ? "loading" : "unconfigured");
   const [highlightId, setHighlightId] = useState(null);
   const [cadence, setCadence] = useState(getCadencePref());
+  const [userMinConviction, setUserMinConviction] = useState(getUserMinConviction());
   const [refreshing, setRefreshing] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const onNewRef = useRef(onNewSignal);
   onNewRef.current = onNewSignal;
+  // The feed never shows below this, no matter what the user's slider says —
+  // it's the platform-wide floor, not a personalization knob.
+  const effectiveThreshold = Math.max(MIN_FEED_CONVICTION, userMinConviction);
+  const thresholdRef = useRef(effectiveThreshold);
+  thresholdRef.current = effectiveThreshold;
 
   useEffect(() => {
     const onStorage = () => setCadence(getCadencePref());
+    const onConviction = () => setUserMinConviction(getUserMinConviction());
     window.addEventListener("kronos-cadence-change", onStorage);
-    return () => window.removeEventListener("kronos-cadence-change", onStorage);
+    window.addEventListener("kronos-minconviction-change", onConviction);
+    return () => {
+      window.removeEventListener("kronos-cadence-change", onStorage);
+      window.removeEventListener("kronos-minconviction-change", onConviction);
+    };
   }, []);
 
-  // Manual refresh. NOTE: this re-pulls the signals table — it does NOT re-run the
-  // engine. The engine is driven server-side by the cron (that endpoint is secured
-  // by CRON_SECRET, which must never reach the browser). To force a fresh
-  // engine vote on one instrument, use REFRESH on the scanner panel.
-  const refresh = () => { setRefreshing(true); setReloadKey((k) => k + 1); };
+  // Manual refresh — V10.5b: this now actually RE-RUNS the engine for the active
+  // mode's core instruments (via /api/refresh-feed, which applies the user's own
+  // conviction threshold), then re-pulls the table. Previously it only re-SELECTed
+  // the table, so if the cron hadn't run you got the same stale rows back and the
+  // button looked broken. The cron endpoint itself stays server-only (CRON_SECRET
+  // must never reach the browser) — hence the separate, deliberately narrow route.
+  const refresh = async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    try {
+      await fetch("/api/refresh-feed", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assetClass, minConviction: thresholdRef.current }),
+      });
+    } catch {
+      // Engine re-run failed (offline/rate-limited) — still re-pull below so the
+      // button does something useful rather than silently dying.
+    }
+    setReloadKey((k) => k + 1); // triggers the effect that re-SELECTs + clears `refreshing`
+  };
 
   useEffect(() => {
     if (!supabaseConfigured()) return;
@@ -311,13 +344,25 @@ const SignalFeed = forwardRef(function SignalFeed({ accent = "#00d4aa", T, asset
     let channel, cancelled = false;
     (async () => {
       const cutoff = tradingDayCutoff();
-      const { data, error } = await sb.from("signals")
-        .select("id,asset_class,symbol,interval,status,direction,conviction,plan,agents,created_at")
+      // `source` only exists once migration 003 has been applied. Selecting a
+      // column that doesn't exist makes Postgres reject the WHOLE query (42703),
+      // which would black out the entire feed on any deployment where the
+      // migration hasn't been run yet. So: try with it, and fall back without it.
+      // Pre-migration the feed still works, it just can't tell manual signals
+      // apart (they get tier-filtered like cron ones until 003 lands).
+      const COLS = "id,asset_class,symbol,interval,status,direction,conviction,plan,agents,created_at";
+      const query = (withSource) => sb.from("signals")
+        .select(withSource ? `${COLS},source` : COLS)
         .eq("asset_class", assetClass)
         .gte("conviction", MIN_FEED_CONVICTION)          // strong signals only
         .gte("created_at", new Date(cutoff).toISOString()) // current + previous trading day
         .order("created_at", { ascending: false })
         .limit(200);
+
+      let { data, error } = await query(true);
+      if (error?.code === "42703") {
+        ({ data, error } = await query(false)); // migration 003 not applied yet
+      }
       if (cancelled) return;
       if (error) { setState("error"); return; }
       // Dedupe to the newest signal per instrument (older same-instrument rows are
@@ -334,7 +379,7 @@ const SignalFeed = forwardRef(function SignalFeed({ accent = "#00d4aa", T, asset
           if (sig?.asset_class !== assetClass) return; // strict mode isolation
           // A weak incoming signal can still INVALIDATE a shown one (the setup is
           // gone), but it must never be added as a row of its own.
-          const strongEnough = (sig.conviction ?? 0) >= MIN_FEED_CONVICTION;
+          const strongEnough = (sig.conviction ?? 0) >= thresholdRef.current;
           setRows((prev) => {
             const key = `${sig.symbol}|${sig.interval}`;
             const nowT = Date.now();
@@ -397,7 +442,12 @@ const SignalFeed = forwardRef(function SignalFeed({ accent = "#00d4aa", T, asset
   const profile = getRiskProfile();
   const tiers = allowedTiers(profile, vix);
   const filtered = rows.filter((r) => {
+    if ((r.conviction ?? 0) < effectiveThreshold) return false;
     if (!cadence.includes("all") && !cadence.includes(INTERVAL_BUCKET[r.interval] || "daily")) return false;
+    // A signal the user explicitly searched for bypasses the risk-tier filter —
+    // that filter exists to gate what the engine auto-surfaces, not to hide a
+    // ticker the user themselves typed in and got a real setup on.
+    if (r.source === "manual") return true;
     return tiers.includes(symbolTier(r.symbol));
   });
 
@@ -416,7 +466,7 @@ const SignalFeed = forwardRef(function SignalFeed({ accent = "#00d4aa", T, asset
         <div>
           <span style={{ fontFamily: FM, fontSize: 9, fontWeight: 800, color: text, letterSpacing: 2 }}>SIGNAL FEED</span>
           <span style={{ fontFamily: FM, fontSize: 7, color: dim, letterSpacing: 1, marginLeft: 8 }}>
-            {assetClass.toUpperCase()} · {MIN_FEED_CONVICTION}%+ · 2 SESSIONS · {tiers.length === 3 ? "ALL TIERS" : tiers.map((t) => t[0].toUpperCase()).join("")}
+            {assetClass.toUpperCase()} · {effectiveThreshold}%+ · 2 SESSIONS · {tiers.length === 3 ? "ALL TIERS" : tiers.map((t) => t[0].toUpperCase()).join("")}
           </span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 7, flexShrink: 0 }}>
@@ -425,7 +475,7 @@ const SignalFeed = forwardRef(function SignalFeed({ accent = "#00d4aa", T, asset
           </span>
           {state !== "unconfigured" && (
             <button onClick={refresh} disabled={refreshing}
-              title="Re-pull the latest signals from the engine feed"
+              title="Re-run the engine on this mode's core instruments now, at your conviction threshold"
               style={{
                 width: 20, height: 20, borderRadius: 5, display: "flex", alignItems: "center", justifyContent: "center",
                 fontSize: 11, color: accent, background: `${accent}10`, border: `1px solid ${accent}25`,
@@ -459,7 +509,7 @@ const SignalFeed = forwardRef(function SignalFeed({ accent = "#00d4aa", T, asset
         )}
         {state === "empty" && (
           <div style={{ padding: "14px", fontFamily: FC, fontSize: 10.5, color: dim, lineHeight: 1.6 }}>
-            No {assetClass} setups at {MIN_FEED_CONVICTION}%+ conviction across the last two sessions. The engine writes new signals as setups change — nothing is
+            No {assetClass} setups at {effectiveThreshold}%+ conviction across the last two sessions. The engine writes new signals as setups change — nothing is
             shown here unless it's real.
           </div>
         )}

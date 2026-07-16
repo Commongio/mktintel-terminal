@@ -9,7 +9,7 @@
 // threshold is written like a cron signal (same dedup), so the feed catches it
 // and it survives a reload.
 import { runSignalEngine, ENGINE_VERSION } from "../../../lib/signalEngine";
-import { getAdmin, serverConfigured } from "../../../lib/supabaseServer";
+import { getAdmin, serverConfigured, insertSignal } from "../../../lib/supabaseServer";
 
 async function persistIfStrong(sig, { assetClass, symbol, interval, threshold }) {
   if (!serverConfigured()) return { saved: false, why: "no-db" };
@@ -27,12 +27,17 @@ async function persistIfStrong(sig, { assetClass, symbol, interval, threshold })
     const stale = last && Date.now() - new Date(last.created_at).getTime() > 30 * 60_000;
     if (!changed && !stale) return { saved: false, why: "duplicate" };
 
-    const { error } = await admin.from("signals").insert({
+    const { error, degraded } = await insertSignal(admin, {
       asset_class: assetClass, symbol, interval,
       status: sig.status, direction: sig.direction, conviction: sig.conviction,
       plan: sig.plan, agents: sig.agents, engine_version: ENGINE_VERSION,
+      source: "manual",
     });
-    return error ? { saved: false, why: error.message } : { saved: true };
+    if (error) return { saved: false, why: error.message };
+    // `degraded` = migration 003 hasn't run, so the row saved but WITHOUT its
+    // manual tag — meaning the feed's tier filter can still hide it. Surfaced so
+    // this shows up as a diagnosable state instead of a mystery missing signal.
+    return degraded ? { saved: true, why: "saved-untagged-run-migration-003" } : { saved: true };
   } catch (e) {
     return { saved: false, why: String(e.message) };
   }

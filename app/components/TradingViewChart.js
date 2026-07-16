@@ -2,7 +2,7 @@
 "use client";
 import { useEffect, useRef } from "react";
 
-export default function TradingViewChart({ symbol = "AAPL", colorTheme = "dark" }) {
+export default function TradingViewChart({ symbol = "AAPL", interval = "D", colorTheme = "dark" }) {
   const containerRef = useRef(null);
   const idRef = useRef(`tv_${Math.random().toString(36).slice(2, 9)}`);
 
@@ -18,7 +18,7 @@ export default function TradingViewChart({ symbol = "AAPL", colorTheme = "dark" 
           container_id: cid,
           autosize: true,
           symbol,
-          interval: "D",
+          interval,
           timezone: "America/New_York",
           theme: colorTheme,
           style: "1",
@@ -46,7 +46,7 @@ export default function TradingViewChart({ symbol = "AAPL", colorTheme = "dark" 
       document.head.appendChild(s);
     }
     return () => { if (containerRef.current) containerRef.current.innerHTML = ""; };
-  }, [symbol, colorTheme]);
+  }, [symbol, interval, colorTheme]);
 
   return <div ref={containerRef} style={{ width: "100%", height: "100%", minHeight: 0 }} />;
 }

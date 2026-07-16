@@ -7,9 +7,17 @@
 //   GET /api/cron/generate-signals  with  Authorization: Bearer ${CRON_SECRET}
 // Dedup: a new row is only written when status/direction changes or the
 // last row for that symbol is older than 30 minutes.
+//
+// V10.5: added portfolio-horizon sweeps (weekly/monthly/yearly), not just the
+// intraday one. Before this, the cadence picker (BotFlowPopups) and the feed's
+// INTERVAL_BUCKET map both implied weekly/monthly/yearly setups existed, but
+// nothing ever wrote a signal at those intervals — those buckets were always
+// empty in production. Kept intentionally small (curated large-cap names only)
+// and rate-gated by time-of-day — position/long-horizon setups don't need
+// thousands of names or 2-minute freshness the way intraday scanning does.
 import { runSignalEngine, MODE_DEFAULT_INTERVAL, ENGINE_VERSION } from "../../../../lib/signalEngine";
-import { getAdmin, serverConfigured } from "../../../../lib/supabaseServer";
-import { scanUniverse, fetchMostActives, FULL_UNIVERSE, BUCKET_SIZE, ROTATING_PER_RUN, rotationLength } from "../../../../lib/universe";
+import { getAdmin, serverConfigured, insertSignal } from "../../../../lib/supabaseServer";
+import { scanUniverse, fetchMostActives, FULL_UNIVERSE, BUCKET_SIZE, ROTATING_PER_RUN, rotationLength, CURATED } from "../../../../lib/universe";
 
 export const maxDuration = 60;
 
@@ -25,6 +33,43 @@ function clockCursor() {
   return (runIndex * ROTATING_PER_RUN) % FULL_UNIVERSE.length;
 }
 
+// The portfolio-horizon universe: a handful of the most liquid large caps, plus
+// the core index futures. These timeframes are about "is this still a good name
+// to hold", not "what's moving right now" — a small, stable list is exactly
+// right, not a limitation.
+//
+// V10.5b: futures are included now. Previously all three portfolio sweeps were
+// hardcoded to assetClass "options", so futures mode could never show a
+// weekly/monthly/yearly signal no matter what cadence the user picked.
+const PORTFOLIO_UNIVERSE = {
+  options: CURATED.large.slice(0, 12),
+  futures: ["NQ", "ES", "CL", "GC"],
+};
+
+// Roughly-every-N-minutes gate using wall-clock minutes (no state to persist).
+const everyNMinutes = (n) => new Date().getMinutes() % n < 2;
+
+async function writeIfChanged(admin, { assetClass, symbol, interval }, buckets) {
+  const sig = await runSignalEngine({ assetClass, symbol, interval });
+  const { data: last } = await admin.from("signals")
+    .select("status,direction,created_at")
+    .eq("asset_class", assetClass).eq("symbol", symbol).eq("interval", interval)
+    .order("created_at", { ascending: false }).limit(1).maybeSingle();
+
+  const changed = !last || last.status !== sig.status || last.direction !== sig.direction;
+  const stale = last && Date.now() - new Date(last.created_at).getTime() > 30 * 60_000;
+  if (!changed && !stale) { buckets.skipped.push(`${assetClass}:${symbol}:${interval}`); return; }
+
+  const { error } = await insertSignal(admin, {
+    asset_class: assetClass, symbol, interval,
+    status: sig.status, direction: sig.direction, conviction: sig.conviction,
+    plan: sig.plan, agents: sig.agents, engine_version: ENGINE_VERSION,
+    source: "cron",
+  });
+  if (error) buckets.failed.push({ symbol: `${assetClass}:${symbol}:${interval}`, error: error.message });
+  else buckets.written.push(`${assetClass}:${symbol}:${interval}:${sig.status}`);
+}
+
 export async function GET(request) {
   const secret = process.env.CRON_SECRET;
   const authz = request.headers.get("authorization") || "";
@@ -35,7 +80,7 @@ export async function GET(request) {
     return Response.json({ error: "Supabase not configured — signal feed disabled" }, { status: 503 });
   }
   const admin = getAdmin();
-  const written = [], skipped = [], failed = [];
+  const buckets = { written: [], skipped: [], failed: [] };
 
   // V10.3: the day's most-actives are PINNED into every run (movers are never
   // missed); the rest of the run is a rotating slice of the full universe.
@@ -47,42 +92,47 @@ export async function GET(request) {
   const startedAt = Date.now();
   const TIME_BUDGET_MS = 50_000;
   let ranOutOfTime = false;
+  const timeLeft = () => Date.now() - startedAt <= TIME_BUDGET_MS;
 
+  // ── INTRADAY (existing V10.3 rotation) — "daily" feed bucket ────────────────
   for (const assetClass of ["futures", "options"]) {
     const interval = MODE_DEFAULT_INTERVAL[assetClass];
     const universe = scanUniverse(assetClass, assetClass === "options" ? mostActives : [], cursor);
     for (const symbol of universe) {
-      if (Date.now() - startedAt > TIME_BUDGET_MS) { ranOutOfTime = true; break; }
-      try {
-        const sig = await runSignalEngine({ assetClass, symbol, interval });
-
-        const { data: last } = await admin.from("signals")
-          .select("status,direction,created_at")
-          .eq("asset_class", assetClass).eq("symbol", symbol).eq("interval", interval)
-          .order("created_at", { ascending: false }).limit(1).maybeSingle();
-
-        const changed = !last || last.status !== sig.status || last.direction !== sig.direction;
-        const stale = last && Date.now() - new Date(last.created_at).getTime() > 30 * 60_000;
-        if (!changed && !stale) { skipped.push(`${assetClass}:${symbol}`); continue; }
-
-        const { error } = await admin.from("signals").insert({
-          asset_class: assetClass, symbol, interval,
-          status: sig.status, direction: sig.direction, conviction: sig.conviction,
-          plan: sig.plan, agents: sig.agents, engine_version: ENGINE_VERSION,
-        });
-        if (error) failed.push({ symbol, error: error.message });
-        else written.push(`${assetClass}:${symbol}:${sig.status}`);
-      } catch (e) {
-        failed.push({ symbol: `${assetClass}:${symbol}`, error: String(e.message) });
-      }
+      if (!timeLeft()) { ranOutOfTime = true; break; }
+      try { await writeIfChanged(admin, { assetClass, symbol, interval }, buckets); }
+      catch (e) { buckets.failed.push({ symbol: `${assetClass}:${symbol}`, error: String(e.message) }); }
     }
     if (ranOutOfTime) break;
   }
 
+  // ── PORTFOLIO-HORIZON SWEEPS (V10.5) — weekly / monthly / yearly buckets ────
+  // Each runs across BOTH asset classes so every cadence the picker offers can
+  // actually be populated. Cadence gating by wall clock keeps the cost sane:
+  // a long-horizon setup does not change on a 2-minute timescale.
+  const portfolio = { weekly: false, monthly: false, yearly: false };
+  const sweep = async (interval, flag) => {
+    for (const assetClass of ["futures", "options"]) {
+      for (const symbol of PORTFOLIO_UNIVERSE[assetClass]) {
+        if (!timeLeft()) { ranOutOfTime = true; return; }
+        try { await writeIfChanged(admin, { assetClass, symbol, interval }, buckets); portfolio[flag] = true; }
+        catch (e) { buckets.failed.push({ symbol: `${assetClass}:${symbol}:${interval}`, error: String(e.message) }); }
+      }
+    }
+  };
+
+  // Weekly bucket ("1d"): cheap daily candles, safe to run every call.
+  if (!ranOutOfTime) await sweep("1d", "weekly");
+  // Monthly bucket ("1w"): swing/position setups don't need 2-min freshness.
+  if (!ranOutOfTime && everyNMinutes(15)) await sweep("1w", "monthly");
+  // Yearly bucket ("1mo"): long-horizon — once a day, near the open, is plenty.
+  if (!ranOutOfTime && new Date().getUTCHours() === 13 && everyNMinutes(2)) await sweep("1mo", "yearly");
+
   return Response.json({
     ok: true,
-    written, skipped, failed,
+    written: buckets.written, skipped: buckets.skipped, failed: buckets.failed,
     mostActives: mostActives.length,
+    portfolioSweeps: portfolio,
     // Rotation telemetry — makes coverage auditable instead of a black box.
     rotation: {
       cursor,

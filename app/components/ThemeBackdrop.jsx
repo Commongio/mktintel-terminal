@@ -60,8 +60,12 @@ function CanvasThemes({ theme, accent }) {
     const onVis = () => { running = document.visibilityState !== "hidden"; if (running) raf = requestAnimationFrame(loop); else cancelAnimationFrame(raf); };
     document.addEventListener("visibilitychange", onVis);
 
-    const loop = (now) => {
-      if (!running) return;
+    // draw() is separate from the rAF loop so we can force a guaranteed FIRST
+    // paint below. Without it the backdrop is blank until rAF fires — and rAF is
+    // throttled to zero in some embedded/automation contexts and on background
+    // tabs, which renders the theme as "not displaying at all". Starfield already
+    // does this; CanvasThemes didn't, and should.
+    const draw = (now) => {
       ctx.clearRect(0, 0, w, h);
 
       if (theme === "aurora") {
@@ -71,7 +75,11 @@ function CanvasThemes({ theme, accent }) {
             const y = h * (0.25 + r0.hue * 0.22) + Math.sin(x / 190 + now / (5200 + r0.hue * 900) + r0.off) * 60 + Math.sin(x / 67 + now / 3400) * 22;
             x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
           }
-          const cols = [ac(0.10), "rgba(126,184,247,0.09)", "rgba(167,139,250,0.08)"];
+          // V10.5b: alphas raised ~4x. At the old 0.08–0.10 the ribbons peaked at
+          // ~21/255 on-canvas — under a panel even slightly tinted, that rounds to
+          // invisible, which is why "the themes stopped displaying". These are the
+          // BACKDROP; they need to actually register behind translucent panels.
+          const cols = [ac(0.42), "rgba(126,184,247,0.36)", "rgba(167,139,250,0.34)"];
           ctx.strokeStyle = cols[r0.hue % 3];
           ctx.lineWidth = 46; ctx.lineCap = "round";
           ctx.filter = "blur(18px)"; ctx.stroke(); ctx.filter = "none";
@@ -80,24 +88,30 @@ function CanvasThemes({ theme, accent }) {
 
       if (theme === "gridpulse") {
         const horizon = h * 0.42;
-        ctx.strokeStyle = ac(0.10); ctx.lineWidth = 1;
+        ctx.strokeStyle = ac(0.34); ctx.lineWidth = 1;   // was 0.10 — see aurora note
         for (let i = 0; i <= 24; i++) {
           const t = i / 24, x = w / 2 + (t - 0.5) * w * 2.2;
           ctx.beginPath(); ctx.moveTo(w / 2 + (t - 0.5) * w * 0.5, horizon); ctx.lineTo(x, h); ctx.stroke();
         }
         for (let i = 0; i < 14; i++) {
           const t = ((now / 2600) + i / 14) % 1, y = horizon + Math.pow(t, 2.2) * (h - horizon);
-          ctx.globalAlpha = 0.25 * t + 0.03; ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); ctx.globalAlpha = 1;
+          ctx.globalAlpha = 0.7 * t + 0.08; ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); ctx.globalAlpha = 1;
         }
         for (let i = 0; i < 4; i++) {
           const t = ((now / 1900) + i * 0.27) % 1, lane = [0.2, 0.4, 0.6, 0.8][i];
           const x = w / 2 + (lane - 0.5) * w * (0.5 + 1.7 * Math.pow(t, 2.2)), y = horizon + Math.pow(t, 2.2) * (h - horizon);
-          ctx.fillStyle = ac(0.5 * (1 - t) + 0.1); ctx.beginPath(); ctx.arc(x, y, 2.4, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = ac(0.9 * (1 - t) + 0.1); ctx.beginPath(); ctx.arc(x, y, 2.8, 0, Math.PI * 2); ctx.fill();
         }
       }
+    };
 
+    const loop = (now) => {
+      if (!running) return;
+      draw(now);
       raf = requestAnimationFrame(loop);
     };
+
+    draw(performance.now());          // guaranteed first paint — never a blank backdrop
     raf = requestAnimationFrame(loop);
     return () => { running = false; cancelAnimationFrame(raf); window.removeEventListener("resize", resize); document.removeEventListener("visibilitychange", onVis); };
   }, [theme, accent]);

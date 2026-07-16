@@ -191,13 +191,31 @@ something in the app, call the matching tool (multiple tools if needed) and conf
 you did. If a request is ambiguous ("make it look cooler"), pick a sensible action and say what
 you chose. Never claim you changed something without calling the tool.
 
-KNOWN LIMIT — chart drawing: you CANNOT draw trendlines, shapes, or annotations onto the
-TradingView chart. The embedded chart is TradingView's free widget, which has no programmatic
-drawing API from the parent page (that requires TradingView's licensed Advanced Charts product).
-You CAN load a different ticker onto the chart (set_chart_symbol) and discuss levels verbally
-("resistance looks like it's around 452"), but not draw them. If asked to draw or annotate,
-say so plainly and offer the verbal-levels alternative — don't apologize excessively, just state
-the limit once and move on.
+=== CHART DRAWING — DRAW, DON'T JUST DESCRIBE (V10.6) ===
+The chart is now OURS (lightweight-charts), so you can draw on it directly. This changed in
+V10.6 — you are no longer limited to talking about levels.
+
+THE RULE: whenever you give a view on a specific ticker's setup, DRAW IT. Do not hand back a
+wall of numbers and make the user picture it. If you say "entry 452, stop 448, target 461",
+those three numbers belong ON the chart, drawn, before you finish talking. A user asking
+"what's the setup on NVDA" or "what should I trade" or "is AAPL a buy" is asking to be SHOWN.
+
+How:
+- chart_plot_trade — THE ONE YOU WANT ~90% of the time. Draws entry + stop + targets in a
+  single call, correctly colored. Use it for any answer containing a trade plan.
+- chart_draw_trendline — support/resistance/channel lines. Needs two {time, price} points;
+  ISO dates like "2026-06-01" are fine, they snap to the nearest candle.
+- chart_add_marker — pin a note to a specific candle (an event, a sweep, an entry trigger).
+- chart_clear_annotations — wipe the chart before drawing a NEW, unrelated setup, so old
+  drawings don't pile up and confuse. Don't clear when adding to the current idea.
+
+Rules that matter:
+- chart_plot_trade auto-loads the ticker onto the chart — you do NOT also need set_chart_symbol.
+- Only draw levels you actually derived. Never invent a number to have something to draw.
+- Drawing is not a substitute for the answer: still explain the WHY in text, briefly.
+- If the user only wants information ("what is RSI", "what happened to Intel"), don't draw.
+  Drawing is for actionable setups on a specific ticker.
+- Prices are plain numbers (452.30), not "$452.30".
 
 Keep responses tight. Use single line breaks between sections. No triple blank lines. No excessive spacing.
 
@@ -220,6 +238,81 @@ const TERMINAL_TOOLS = [
   { name: "set_chart_symbol", description: "Load a ticker on the Chart page (also switches to chart view).", input_schema: { type: "object", properties: { symbol: { type: "string" } }, required: ["symbol"] } },
   { name: "open_settings", description: "Open the settings panel.", input_schema: { type: "object", properties: {} } },
   { name: "start_tour", description: "Start the guided terminal tour.", input_schema: { type: "object", properties: {} } },
+
+  // ─── V10.6 CHART DRAWING ───────────────────────────────────────────────────
+  // Possible now that the chart is lightweight-charts instead of the TradingView
+  // iframe embed. These write into the annotation model (lib/chartAnnotations),
+  // which page.js renders — so anything drawn here is user-clearable and persists.
+  {
+    name: "chart_plot_trade",
+    description:
+      "Draw a complete trade plan on the chart: entry, stop-loss, and target(s), each as a labelled horizontal price line. Also loads the ticker and switches to the chart view. USE THIS whenever you give a trade setup for a specific ticker — it is the primary way you show your work. Prices must be plain numbers.",
+    input_schema: {
+      type: "object",
+      properties: {
+        symbol: { type: "string", description: "Ticker, e.g. NVDA" },
+        entry: { type: "number", description: "Entry price" },
+        stop: { type: "number", description: "Stop-loss price" },
+        targets: { type: "array", items: { type: "number" }, description: "One or more take-profit prices, nearest first" },
+        note: { type: "string", description: "Optional short label for the entry line, e.g. 'break of 452'" },
+        replace: { type: "boolean", description: "Default true: clear existing drawings on this ticker first. Set false to add to what's already drawn." },
+      },
+      required: ["symbol", "entry"],
+    },
+  },
+  {
+    name: "chart_draw_trendline",
+    description:
+      "Draw a straight line between two points on the chart — support, resistance, a channel edge, or a trend. Times accept ISO dates ('2026-06-01') or datetimes; they snap to the nearest real candle.",
+    input_schema: {
+      type: "object",
+      properties: {
+        symbol: { type: "string" },
+        fromTime: { type: "string", description: "ISO date/datetime of the first point" },
+        fromPrice: { type: "number" },
+        toTime: { type: "string", description: "ISO date/datetime of the second point" },
+        toPrice: { type: "number" },
+        label: { type: "string", description: "Short label, e.g. 'resistance'" },
+        color: { type: "string", enum: ["purple", "blue", "green", "red", "gold"], description: "Default purple" },
+      },
+      required: ["symbol", "fromTime", "fromPrice", "toTime", "toPrice"],
+    },
+  },
+  {
+    name: "chart_add_marker",
+    description: "Pin a small labelled marker to a specific candle — an event, a liquidity sweep, a trigger bar.",
+    input_schema: {
+      type: "object",
+      properties: {
+        symbol: { type: "string" },
+        time: { type: "string", description: "ISO date/datetime; snaps to nearest candle" },
+        text: { type: "string", description: "Short label (a few words max)" },
+        shape: { type: "string", enum: ["circle", "square", "arrowUp", "arrowDown"] },
+        position: { type: "string", enum: ["aboveBar", "belowBar", "inBar"] },
+        color: { type: "string", enum: ["teal", "blue", "purple", "green", "red", "gold"] },
+      },
+      required: ["symbol", "time", "text"],
+    },
+  },
+  {
+    name: "chart_add_level",
+    description: "Draw a single horizontal price line. Use for a standalone level or a price alert when you're not plotting a full trade.",
+    input_schema: {
+      type: "object",
+      properties: {
+        symbol: { type: "string" },
+        price: { type: "number" },
+        kind: { type: "string", enum: ["entry", "tp", "sl", "alert", "note"], description: "Controls color/style. 'alert' = amber watch level." },
+        label: { type: "string" },
+      },
+      required: ["symbol", "price"],
+    },
+  },
+  {
+    name: "chart_clear_annotations",
+    description: "Remove your drawings from the chart. Pass a symbol to clear just that ticker, or omit to clear the current chart.",
+    input_schema: { type: "object", properties: { symbol: { type: "string" } } },
+  },
 ];
 
 export async function POST(request) {

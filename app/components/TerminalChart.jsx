@@ -7,7 +7,13 @@ const QUICK_SYMS = ["SPY", "QQQ", "NVDA", "AAPL", "TSLA"];
 
 export default function TerminalChart({ accent, T, defaultSymbol = "SPY" }) {
   const containerRef = useRef(null);
-  const [symbol, setSymbol] = useState(defaultSymbol);
+  const [symbol, setSymbolRaw] = useState(() => {
+    try { return localStorage.getItem("kronos_terminal_chart_symbol") || defaultSymbol; } catch { return defaultSymbol; }
+  });
+  const setSymbol = (s) => {
+    setSymbolRaw(s);
+    try { localStorage.setItem("kronos_terminal_chart_symbol", s); } catch {}
+  };
   const isDark = (() => {
     // crude luminance check on T.bg
     const hex = (T?.bg ?? "#060910").replace("#", "");

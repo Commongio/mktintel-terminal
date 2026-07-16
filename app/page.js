@@ -1,6 +1,7 @@
 "use client";import BotDashboard from "./components/BotDashboard";
 import { useState, useEffect, useRef, useCallback, useMemo, memo } from "react";
-import TradingViewChart from "./components/TradingViewChart";
+import LightweightChart from "./components/LightweightChart";
+import { loadAnnotations, saveAnnotations, makeLevel, makeTrendline, makeMarker, num } from "../lib/chartAnnotations";
 import MarketStatusBadge from "./components/MarketStatusBadge";
 import PropFirmPanel from "./components/PropFirmPanel";
 import TerminalChart from "./components/TerminalChart";
@@ -94,6 +95,11 @@ function migrateTheme(t){
   // tint: a hex color blended over the theme; tintStrength 0..1 its intensity.
   return { id, hue:t?.hue??0, sat:t?.sat??1, bri:t?.bri??1, tint:t?.tint??"", tintStrength:t?.tintStrength??0.5 };
 }
+
+// The AI picks colors by NAME (an enum in the tool schema) rather than emitting
+// hex — a free-text hex field invites invalid values and lets the model pick
+// something illegible against the theme.
+const AI_DRAW_COLORS={teal:"#00d4aa",blue:"#7eb8f7",purple:"#a78bfa",green:"#00e676",red:"#ff3d57",gold:"#f7c948"};
 
 const QA_GROUPS=[
   {label:"📰 NEWS",color:"#f7c948",actions:[
@@ -501,6 +507,41 @@ function WidthControl({label,value,setValue,min,max,presets,T,accent,hint}){
   );
 }
 
+// V10.5: honest, visible reassurance that paying customers' data actually
+// survives — settings, chat history, trades/paper account, bot config, layouts.
+// Two states only: really synced, or really local-only. No middle ground that
+// could be misread as "probably fine."
+function DataSyncStatus({user,T,accent}){
+  const synced=!!user&&supabaseConfigured();
+  return(
+    <div style={{marginBottom:18,padding:"11px 13px",borderRadius:9,
+      background:synced?`${accent}0a`:"rgba(247,201,72,0.08)",
+      border:`1px solid ${synced?`${accent}30`:"rgba(247,201,72,0.35)"}`}}>
+      <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:6}}>
+        <span style={{fontSize:11}}>{synced?"✓":"⚠"}</span>
+        <span style={{fontFamily:FONT_MONO,fontSize:9,fontWeight:800,letterSpacing:1.5,color:synced?accent:"#f7c948"}}>
+          {synced?"YOUR DATA IS SAVED TO YOUR ACCOUNT":"LOCAL TO THIS DEVICE ONLY"}
+        </span>
+      </div>
+      <div style={{fontFamily:FONT_CHAT,fontSize:10,color:T.dim,lineHeight:1.55}}>
+        {synced?(
+          <>Settings, theme, watchlist, chat history, layouts, bot panel style, cadence/conviction
+          preferences, and your paper-trading/shadow account all sync to your account and
+          follow you to any device you sign into.<br/><br/>
+          <b style={{color:T.text}}>Local-only by design:</b> a broker API token you paste in (never
+          stored server-side, for security) and an uploaded background video (too large to sync —
+          background photos and colors do sync).</>
+        ):(
+          <>You're not signed in (or this deployment has no account backend configured), so
+          everything — settings, watchlist, chat history, trades — lives only in this browser.
+          Clearing your browser data or switching devices will lose it. Sign in to turn on
+          account sync.</>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function SettingsPanel(props){
   const{onClose,mainBg,setMainBg,mainText,setMainText,leftBg,setLeftBg,leftText,setLeftText,rightBg,setRightBg,rightText,setRightText,accentKey,setAccentKey,density,setDensity,leftWidth,setLeftWidth,rightWidth,setRightWidth,chartRightWidth,setChartRightWidth,onResetAll,T,accent,fontSize,setFontSize,chatStyle,setChatStyle,bgImage,setBgImage,user,onSignOut,themeSel,setThemeSel,sidePanels,setSidePanels,chatFont,setChatFont,onStartTour,bgVideo,onPickVideo,onRemoveVideo}=props;
   const[tab,setTab]=useState("themes");
@@ -722,6 +763,10 @@ function SettingsPanel(props){
 
         {tab==="personal"&&(
           <>
+            {/* V10.5: honest, visible confirmation of what's actually saved — see
+                DataSyncStatus below for the exact list and the local-only exceptions. */}
+            <DataSyncStatus user={user} T={T} accent={accent}/>
+
             {/* ACCOUNT */}
             {user&&(
               <div style={{marginBottom:18}}>
@@ -812,6 +857,19 @@ function SettingsPanel(props){
                 </button>
               </div>
             )}
+
+            {/* LEGAL */}
+            <div style={{marginBottom:6,paddingTop:14,borderTop:`1px solid ${T.border}`}}>
+              <div style={{fontFamily:FONT_MONO,fontSize:9,color:T.dim,letterSpacing:2,fontWeight:700,marginBottom:9}}>LEGAL</div>
+              <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                {[["terms","Terms of Service"],["privacy","Privacy Policy"],["disclaimer","Risk Disclaimer"]].map(([id,label])=>(
+                  <a key={id} href={`/legal#${id}`} target="_blank" rel="noopener noreferrer"
+                    style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"9px 12px",borderRadius:8,textDecoration:"none",background:T.surface,border:`1px solid ${T.border}`,color:T.text,fontFamily:FONT_MONO,fontSize:10,fontWeight:700,letterSpacing:0.5}}>
+                    {label}<span style={{color:T.dim,fontSize:11}}>↗</span>
+                  </a>
+                ))}
+              </div>
+            </div>
           </>
         )}
         {tab==="colors"&&(
@@ -845,7 +903,17 @@ function SettingsPanel(props){
             <WidthControl label="RIGHT PANEL WIDTH" value={rightWidth} setValue={setRightWidth} min={200} max={560} presets={[{l:"Narrow",v:260},{l:"Standard",v:310},{l:"Wide",v:380}]} T={T} accent={accent} hint="💡 Or drag the panel border directly"/>
             <WidthControl label="CHART AI PANEL WIDTH" value={chartRightWidth} setValue={setChartRightWidth} min={200} max={600} presets={[{l:"Narrow",v:280},{l:"Standard",v:340},{l:"Wide",v:420}]} T={T} accent={accent} hint="💡 Or drag the panel border directly"/>
             <div style={{marginTop:18,paddingTop:14,borderTop:`1px solid ${T.border}`}}>
-              <div style={{fontFamily:FONT_MONO,fontSize:9,color:T.dim,letterSpacing:2,fontWeight:700,marginBottom:10}}>GLOBAL TEXT SIZE</div>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:7}}>
+                <span style={{fontFamily:FONT_MONO,fontSize:9,color:T.dim,letterSpacing:2,fontWeight:700}}>GLOBAL TEXT &amp; TAB SIZE</span>
+                <span style={{fontFamily:FONT_MONO,fontSize:10,color:accent,fontWeight:700}}>{fontSize}px</span>
+              </div>
+              {/* V10.5: this used to be 4 fixed buttons that only scaled body text —
+                  the nav tabs (Trading Terminal / Data / Chart / bot sub-tabs) were
+                  hardcoded in px and never moved, so it looked broken. Now a real
+                  slider, and the tab labels below scale off this value too. */}
+              <input type="range" min={11} max={20} step={1} value={fontSize}
+                onChange={e=>{const v=Number(e.target.value);setFontSize(v);localStorage.setItem("kronos_font_size",v);}}
+                style={{width:"100%",accentColor:accent,marginBottom:7,display:"block"}}/>
               <div style={{display:"flex",gap:6}}>
                 {[{label:"S",val:12},{label:"M",val:14},{label:"L",val:16},{label:"XL",val:18}].map(({label,val})=>(
                   <button key={val} onClick={()=>{setFontSize(val);localStorage.setItem("kronos_font_size",val);}} style={{
@@ -925,7 +993,19 @@ function NewsPanel({news,onDiveDeep,onRefresh,refreshing,lastUpd,accent,T,densit
 }
 
 // ─── CHART PAGE ───────────────────────────────────────────────────────────────
-function ChartPage({symbol,onSymbolChange,messages,input,setInput,fontSize=14,send,loading,accent,T,TR,chartRightWidth,onStartResizeRight}){
+// V10.6: intervals are now OUR codes (what /api/candles + the signal engine
+// speak), not TradingView widget codes. The embed is gone, so its vocabulary
+// goes with it.
+const CHART_INTERVALS=[["1min","1m"],["5min","5m"],["15min","15m"],["1h","1h"],["4h","4h"],["1d","1D"],["1w","1W"],["1mo","1M"]];
+// Anyone with a persisted TradingView code from V10.5 gets mapped across once;
+// an unknown value falls back to 1d rather than requesting garbage from the API.
+const TV_INTERVAL_MIGRATION={"1":"1min","5":"5min","15":"15min","60":"1h","240":"4h","D":"1d","W":"1w","M":"1mo"};
+export function migrateChartInterval(iv){
+  if(!iv)return "1d";
+  if(CHART_INTERVALS.some(([code])=>code===iv))return iv;
+  return TV_INTERVAL_MIGRATION[iv]||"1d";
+}
+function ChartPage({symbol,onSymbolChange,interval="1d",onIntervalChange,annotations,onClearAnnotations,messages,input,setInput,fontSize=14,send,loading,accent,T,TR,chartRightWidth,onStartResizeRight}){
   const chatEndRef=useRef(null);
   const[symInput,setSymInput]=useState(symbol);
   const isDark=luminance(TR.bg)<=0.55;
@@ -945,9 +1025,26 @@ function ChartPage({symbol,onSymbolChange,messages,input,setInput,fontSize=14,se
               style={{fontFamily:FONT_MONO,fontSize:10,color:accent,background:`${accent}12`,border:`1px solid ${accent}25`,borderRadius:5,padding:"2px 8px",fontWeight:700,cursor:"pointer"}}>LOAD</button>
           </div>
           {/* V10 item 4: ticker quick-list removed — search bar only */}
+          {/* AI-drawn annotations are the user's to dismiss — never a one-way door. */}
+          {annotations?.filter(a=>a.symbol===symbol).length>0&&(
+            <button onClick={onClearAnnotations}
+              title="Remove all drawings on this chart"
+              style={{fontFamily:FONT_MONO,fontSize:9,fontWeight:700,padding:"4px 9px",borderRadius:5,cursor:"pointer",
+                color:T.dim,background:"transparent",border:`1px solid ${T.border}`}}>
+              ✕ CLEAR {annotations.filter(a=>a.symbol===symbol).length} DRAWING{annotations.filter(a=>a.symbol===symbol).length>1?"S":""}
+            </button>
+          )}
+          <div style={{display:"flex",gap:3,marginLeft:"auto"}}>
+            {CHART_INTERVALS.map(([code,label])=>(
+              <button key={code} onClick={()=>onIntervalChange(code)}
+                style={{fontFamily:FONT_MONO,fontSize:9,fontWeight:700,padding:"4px 7px",borderRadius:5,cursor:"pointer",
+                  color:interval===code?accent:T.dim,background:interval===code?`${accent}14`:"transparent",
+                  border:`1px solid ${interval===code?`${accent}30`:T.border}`}}>{label}</button>
+            ))}
+          </div>
         </div>
         <div style={{flex:1,minHeight:0}}>
-          <TradingViewChart symbol={symbol} colorTheme={isDark?"dark":"light"}/>
+          <LightweightChart symbol={symbol} interval={interval} T={T} accent={accent} annotations={annotations||[]}/>
         </div>
       </div>
       <ResizeDivider onMouseDown={onStartResizeRight} accent={accent}/>
@@ -989,19 +1086,43 @@ function ChartPage({symbol,onSymbolChange,messages,input,setInput,fontSize=14,se
 // lands after the model has actually interrogated the filing (/api/filing-intel).
 // The ⓘ tooltip shows the reasoning, so the number is never a black box.
 function ImpactChip({impact,T}){
+  const[hov,setHov]=useState(false);
   if(!impact)return null;
   const s=impact.score??0;
   const c=s>=70?"#22c55e":s>=45?"#facc15":"#8896a8";
   const reasoned=impact.source==="ai";
-  const tip=[impact.reasoning||impact.explanation,impact.takeaway?`→ ${impact.takeaway}`:null,reasoned?"(AI-reasoned)":"(baseline — awaiting AI pass)"].filter(Boolean).join("\n\n");
+  const why=impact.reasoning||impact.explanation;
   return(
-    <div style={{marginTop:5,display:"flex",alignItems:"center",gap:6}} title={tip}>
-      <div style={{flex:1,height:3,borderRadius:2,background:"rgba(127,127,127,0.14)",overflow:"hidden"}}>
-        <div style={{width:`${s}%`,height:"100%",borderRadius:2,background:"linear-gradient(90deg,#ef4444,#f59e0b 45%,#facc15 65%,#22c55e)",transition:"width 0.5s"}}/>
+    <div style={{position:"relative",marginTop:5}}
+      onMouseEnter={()=>setHov(true)} onMouseLeave={()=>setHov(false)}>
+      <div style={{display:"flex",alignItems:"center",gap:6}}>
+        <div style={{flex:1,height:3,borderRadius:2,background:"rgba(127,127,127,0.14)",overflow:"hidden"}}>
+          <div style={{width:`${s}%`,height:"100%",borderRadius:2,background:"linear-gradient(90deg,#ef4444,#f59e0b 45%,#facc15 65%,#22c55e)",transition:"width 0.5s"}}/>
+        </div>
+        <span style={{fontFamily:FONT_MONO,fontSize:7,fontWeight:800,letterSpacing:1,color:c,whiteSpace:"nowrap"}}>
+          {impact.label}{reasoned?" ✦":""}
+        </span>
       </div>
-      <span style={{fontFamily:FONT_MONO,fontSize:7,fontWeight:800,letterSpacing:1,color:c,whiteSpace:"nowrap"}}>
-        {impact.label}{reasoned?" ✦":""}
-      </span>
+      {hov&&why&&(
+        <div style={{
+          position:"absolute",bottom:"calc(100% + 6px)",left:0,zIndex:50,width:220,
+          background:"rgba(8,14,24,0.97)",border:`1px solid ${s>=70?"rgba(34,197,94,0.4)":T.border}`,
+          borderRadius:8,padding:"9px 11px",boxShadow:"0 8px 22px rgba(0,0,0,0.5)",pointerEvents:"none",
+        }}>
+          <div style={{fontFamily:FONT_MONO,fontSize:8,fontWeight:800,letterSpacing:1.5,marginBottom:4,color:c}}>
+            {impact.label} · {s}/100
+          </div>
+          <div style={{fontFamily:FONT_CHAT,fontSize:10,color:"#aebccc",lineHeight:1.5}}>{why}</div>
+          {impact.takeaway&&(
+            <div style={{fontFamily:FONT_CHAT,fontSize:9.5,color:"#7A9AB5",lineHeight:1.5,marginTop:5,paddingTop:5,borderTop:`1px solid ${T.border}`}}>
+              → {impact.takeaway}
+            </div>
+          )}
+          <div style={{fontFamily:FONT_MONO,fontSize:7,color:"#5a6b7a",marginTop:6,letterSpacing:0.5}}>
+            {reasoned?"AI-reasoned":"Baseline — awaiting AI pass"}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1204,7 +1325,19 @@ export default function MarketTerminal(){
   const[showTour,setShowTour]=useState(false);
   // V10: chart page state survives refresh (bug fix)
   const[chartSymbol,setChartSymbolRaw]=useState(()=>{try{return JSON.parse(localStorage.getItem("kronos_chart_state")||"{}").symbol||"AAPL";}catch{return "AAPL";}});
-  const setChartSymbol=useCallback((s)=>{setChartSymbolRaw(s);try{localStorage.setItem("kronos_chart_state",JSON.stringify({symbol:s}));}catch{}},[]);
+  const[chartInterval,setChartIntervalRaw]=useState(()=>{try{return migrateChartInterval(JSON.parse(localStorage.getItem("kronos_chart_state")||"{}").interval);}catch{return "1d";}});
+  const setChartSymbol=useCallback((s)=>{setChartSymbolRaw(s);try{localStorage.setItem("kronos_chart_state",JSON.stringify({symbol:s,interval:chartInterval}));}catch{}},[chartInterval]);
+  const setChartInterval=useCallback((iv)=>{setChartIntervalRaw(iv);try{localStorage.setItem("kronos_chart_state",JSON.stringify({symbol:chartSymbol,interval:iv}));}catch{}},[chartSymbol]);
+
+  // V10.6: AI-drawn chart annotations. Keyed by symbol so drawings for NVDA don't
+  // bleed onto SPY. Stored flat (one array) because the render path filters by
+  // symbol anyway and a flat list keeps the AI tool handlers trivial.
+  const[chartAnnotations,setChartAnnotations]=useState([]);
+  useEffect(()=>{setChartAnnotations(loadAnnotations());},[]);
+  useEffect(()=>{saveAnnotations(chartAnnotations);},[chartAnnotations]);
+  const clearChartAnnotations=useCallback((sym)=>{
+    setChartAnnotations(prev=>prev.filter(a=>a.symbol!==(sym||chartSymbol)));
+  },[chartSymbol]);
   const[mainBg,setMainBg]=useState(THEME_DEFAULTS.mainBg);
   const[mainText,setMainText]=useState(THEME_DEFAULTS.mainText);
   const[leftBg,setLeftBg]=useState(THEME_DEFAULTS.leftBg);
@@ -1228,7 +1361,12 @@ export default function MarketTerminal(){
   // Default to a canvas theme: video themes only exist once their asset is installed,
   // so defaulting to one would give a fresh user a black backdrop.
   const[themeSel,setThemeSel]=useState({id:FALLBACK_THEME,hue:0,sat:1,bri:1,tint:"",tintStrength:0.5});
-  const[sidePanels,setSidePanels]=useState({mode:"solid",opacity:0.85});
+  // V10.5b: default is TRANSPARENT, not solid. With solid side panels the theme
+  // backdrop was painted correctly but 100% covered by opaque panels, so picking
+  // Aurora/Grid Pulse appeared to do nothing at all. 0.85 keeps text fully
+  // readable while letting the backdrop actually register behind it. Users who
+  // want the old look can still switch to Solid in Settings → Themes.
+  const[sidePanels,setSidePanels]=useState({mode:"transparent",opacity:0.85});
   const[chatFont,setChatFont]=useState("inter");
   const[layouts,setLayouts]=useState({});          // {terminal:[{i,x,y,w,h},...]}
   const[collapsed,setCollapsed]=useState({});      // V10.2: {panelKey:true} collapsed panels
@@ -1342,7 +1480,7 @@ export default function MarketTerminal(){
   // token/account ID (see BrokerConnect.jsx). Syncing it would copy a plaintext
   // secret into the settings JSON server-side, compounding an existing local risk
   // rather than fixing it. Flagged separately; not a V10-scoped fix.
-  const KRONOS_LS_KEYS=["kronos_botmode","kronos_flow_done","kronos_broker_url","kronos_broker_preset","kronos_broker","kronos_papermode","kronos_profile","kronos_propfirm","kronos_font_size","kronos_tape","kronos_studio_config","kronos_tour_seen","kronos_cadence","kronos_min_conviction","kronos_chart_state","kronos_shadow","kronos_paper_futures","kronos_paper_options"];
+  const KRONOS_LS_KEYS=["kronos_botmode","kronos_flow_done","kronos_broker_url","kronos_broker_preset","kronos_broker","kronos_papermode","kronos_profile","kronos_propfirm","kronos_font_size","kronos_tape","kronos_studio_config","kronos_tour_seen","kronos_cadence","kronos_min_conviction","kronos_chart_state","kronos_terminal_chart_symbol","kronos_shadow","kronos_paper_futures","kronos_paper_options","kronos_bot_ui","kronos_bot_collapsed","kronos_chart_annotations"];
   useEffect(()=>{
     if(!user||!supabaseConfigured())return;
     (async()=>{
@@ -1472,6 +1610,62 @@ export default function MarketTerminal(){
     set_chart_symbol:({symbol})=>{const s=String(symbol||"").toUpperCase().trim();if(s){setChartSymbol(s);setView("chart");}},
     open_settings:()=>setShowSettings(true),
     start_tour:()=>setShowTour(true),
+
+    // ── V10.6 CHART DRAWING ──────────────────────────────────────────────────
+    // Every handler builds annotations through lib/chartAnnotations' make*()
+    // factories, which coerce and validate. A malformed tool call (the model
+    // hands back "$452.30", or a price it hallucinated as a string) returns null
+    // and is dropped — a bad draw must never break the chart.
+    chart_plot_trade:({symbol,entry,stop,targets,note,replace})=>{
+      const s=String(symbol||"").toUpperCase().trim();
+      if(!s)return;
+      const built=[];
+      const e=makeLevel({symbol:s,price:entry,kind:"entry",label:note||"ENTRY"});
+      if(e)built.push(e);
+      const st=makeLevel({symbol:s,price:stop,kind:"sl",label:"STOP"});
+      if(st)built.push(st);
+      const tgts=Array.isArray(targets)?targets:(targets!=null?[targets]:[]);
+      tgts.forEach((t,i)=>{
+        const lv=makeLevel({symbol:s,price:t,kind:"tp",label:tgts.length>1?`TP${i+1}`:"TARGET"});
+        if(lv)built.push(lv);
+      });
+      if(!built.length)return; // nothing valid — don't touch the chart or navigate
+      setChartAnnotations(prev=>[
+        ...(replace===false?prev:prev.filter(a=>a.symbol!==s)),
+        ...built,
+      ]);
+      setChartSymbol(s);setView("chart");
+    },
+    chart_draw_trendline:({symbol,fromTime,fromPrice,toTime,toPrice,label,color})=>{
+      const s=String(symbol||"").toUpperCase().trim();
+      const tl=makeTrendline({
+        symbol:s,
+        from:{time:fromTime,price:fromPrice},
+        to:{time:toTime,price:toPrice},
+        label,color:AI_DRAW_COLORS[color]||AI_DRAW_COLORS.purple,
+      });
+      if(!tl)return;
+      setChartAnnotations(prev=>[...prev,tl]);
+      setChartSymbol(s);setView("chart");
+    },
+    chart_add_marker:({symbol,time,text,shape,position,color})=>{
+      const s=String(symbol||"").toUpperCase().trim();
+      const m=makeMarker({symbol:s,time,text,shape,position,color:AI_DRAW_COLORS[color]||AI_DRAW_COLORS.blue});
+      if(!m)return;
+      setChartAnnotations(prev=>[...prev,m]);
+      setChartSymbol(s);setView("chart");
+    },
+    chart_add_level:({symbol,price,kind,label})=>{
+      const s=String(symbol||"").toUpperCase().trim();
+      const lv=makeLevel({symbol:s,price,kind:kind||"note",label});
+      if(!lv)return;
+      setChartAnnotations(prev=>[...prev,lv]);
+      setChartSymbol(s);setView("chart");
+    },
+    chart_clear_annotations:({symbol})=>{
+      const s=String(symbol||"").toUpperCase().trim();
+      clearChartAnnotations(s||chartSymbol);
+    },
   };
 
   const callAPI=useCallback(async(prompt,isAlert,curMsgs)=>{
@@ -1753,7 +1947,7 @@ export default function MarketTerminal(){
 
 {["terminal","data","chart"].map(v=>(
               <button key={v} onClick={()=>setView(v)} style={{cursor:"pointer",position:"relative"}}>
-                <span style={{fontFamily:FONT_DISPLAY,fontSize:18,fontWeight:700,letterSpacing:0.3,color:view===v?T.text:T.dim,transition:"color 0.15s",textTransform:"capitalize"}}>
+                <span style={{fontFamily:FONT_DISPLAY,fontSize:Math.round(18*((fontSize||14)/14)),fontWeight:700,letterSpacing:0.3,color:view===v?T.text:T.dim,transition:"color 0.15s",textTransform:"capitalize"}}>
                   {v==="terminal"?"Trading Terminal":v.charAt(0).toUpperCase()+v.slice(1)}
                 </span>
                 {/* Breaking/live alert dot — visible from ANY page, so a live Fed
@@ -1811,7 +2005,7 @@ export default function MarketTerminal(){
           )}
 
           <div style={{display:view==="chart"?"flex":"none",flex:1,overflow:"hidden"}}>
-            <ChartPage symbol={chartSymbol} onSymbolChange={setChartSymbol} messages={messages} input={input} setInput={setInput} send={send} loading={loading} accent={accent} T={T} TR={TR} chartRightWidth={chartRightWidth} onStartResizeRight={startResize("chartRight",chartRightWidth)} fontSize={fontSize}/>
+            <ChartPage symbol={chartSymbol} onSymbolChange={setChartSymbol} interval={chartInterval} onIntervalChange={setChartInterval} annotations={chartAnnotations} onClearAnnotations={()=>clearChartAnnotations(chartSymbol)} messages={messages} input={input} setInput={setInput} send={send} loading={loading} accent={accent} T={T} TR={TR} chartRightWidth={chartRightWidth} onStartResizeRight={startResize("chartRight",chartRightWidth)} fontSize={fontSize}/>
           </div>
 
           {/* TERMINAL VIEW — classic flex (default) */}

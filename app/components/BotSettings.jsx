@@ -22,15 +22,18 @@ export const BOT_UI_KEY = "kronos_bot_ui";
 // backdrop the user picks.
 export const PANEL_STYLES = [
   { id: "solid",   label: "Solid",    desc: "Plain opaque panels — maximum readability" },
-  { id: "glass",   label: "Glass",    desc: "Frosted translucent panels, blurred backdrop" },
-  { id: "outline", label: "Outline",  desc: "Transparent with a crisp accent border" },
+  { id: "glass",   label: "Glass",    desc: "Tabs frosted; every other panel goes transparent with a faint glass edge" },
+  { id: "outline", label: "Outline",  desc: "Tabs frosted + solid-ish; panels transparent with a glowing accent outline" },
   { id: "flat",    label: "Flat",     desc: "No borders, no chrome — just content" },
-  { id: "neon",    label: "Neon",     desc: "Dark panels with a glowing accent edge" },
+  { id: "neon",    label: "Neon",     desc: "Tabs frosted + solid-ish; panels transparent with a neon-glow accent outline" },
 ];
 
 export const BOT_UI_DEFAULT = {
-  panelStyle: "solid",
-  glassOpacity: 0.45,   // used by glass/neon
+  // V10.5b: default is GLASS, not solid. "Solid" meant a brand-new user saw flat
+  // square panels and no frost at all — the glass/outline/neon work was real but
+  // nothing opted them into it, so it read as "the styling is missing."
+  panelStyle: "glass",
+  glassOpacity: 0.45,   // glass: tab frost fill · outline/neon: outline intensity
   fontScale: 1,         // 0.85 – 1.3, bot-page text size
   showGrid: true,       // the faint grid behind the orb
 };
@@ -59,42 +62,119 @@ export function useBotUI() {
   return ui;
 }
 
-// Resolve a panel style into real CSS for a surface.
-// `T` = active theme tokens, `accent` = user accent.
+// ── V10.5 CORRECTED RECIPES ──────────────────────────────────────────────────
+// Two different surfaces get two different treatments now — they used to share
+// one recipe, which meant turning up "opacity" for a frosted tab bar also fogged
+// up the signal feed / scanner / stat cards floating over the galaxy, which read
+// as broken. The fix: tabs are the only thing allowed to carry real chrome.
+//
+//   PANEL BODY (feed/scanner columns, stat cards, conviction ladder, etc.):
+//     solid  — unchanged, opaque.
+//     flat   — unchanged, fully transparent, no border.
+//     glass  — transparent. No accent/glow — just a faint, non-illuminated
+//              "glass edge" so the panel still reads as a distinct surface.
+//     outline/neon — transparent, but the BORDER illuminates in the accent
+//              color, intensity driven by the opacity slider. Neon additionally
+//              gets a soft glow (boxShadow) the outline style doesn't.
+//
+//   TAB BAR (the nav strip only):
+//     solid/flat — unchanged (underline tabs).
+//     glass  — frosted (blur) and MORE opaque than before — this is the one
+//              place "opacity" still means "how filled-in".
+//     outline/neon — frosted AND "somewhat solid" (partially filled, not just
+//              a transparent line), with the same illuminating border/glow.
+//
+// `T` = active theme tokens, `accent` = user accent, `o` = the opacity slider
+// (0.05–0.95), reused as "outline/glow intensity" for outline/neon.
+
+// V10.5b: `radius` is part of the recipe now. Glass/Outline/Neon are explicitly
+// specced as ROUNDED; solid/flat keep the flush terminal look. The docked columns
+// used to hardcode `borderRadius: 0` at the call site and strip their borders,
+// which silently defeated both the rounded corners AND the glass edge/glow —
+// the styles were correct but invisible. Call sites must NOT override radius.
+export const PANEL_RADIUS = 14;
+export const isFloatingStyle = (id) => id === "glass" || id === "outline" || id === "neon";
+
 export function botPanelStyle(ui, T, accent) {
   const surface = T?.surface ?? "#0A1018";
   const border = T?.border ?? "#1A2535";
   const o = Math.max(0.05, Math.min(0.95, ui?.glassOpacity ?? 0.45));
+  const radius = isFloatingStyle(ui?.panelStyle) ? PANEL_RADIUS : 0;
 
   switch (ui?.panelStyle) {
     case "glass":
       return {
-        background: hexA(surface, o),
-        border: `1px solid ${hexA(accent, 0.18)}`,
-        backdropFilter: "blur(14px) saturate(1.2)",
-        WebkitBackdropFilter: "blur(14px) saturate(1.2)",
+        background: "transparent",
+        border: `1px solid ${hexA(border, 0.55)}`, // non-illuminated glass edge — never accent-colored
+        borderRadius: radius,
       };
     case "outline":
       return {
         background: "transparent",
-        border: `1px solid ${hexA(accent, 0.35)}`,
+        border: `1px solid ${hexA(accent, o)}`,
+        borderRadius: radius,
       };
     case "flat":
       return {
         background: "transparent",
         border: "1px solid transparent",
+        borderRadius: 0,
       };
     case "neon":
       return {
-        background: hexA(surface, Math.max(o, 0.6)),
-        border: `1px solid ${hexA(accent, 0.55)}`,
-        boxShadow: `0 0 14px ${hexA(accent, 0.18)}, inset 0 0 22px ${hexA(accent, 0.06)}`,
-        backdropFilter: "blur(6px)",
-        WebkitBackdropFilter: "blur(6px)",
+        background: "transparent",
+        border: `1px solid ${hexA(accent, o)}`,
+        boxShadow: `0 0 ${6 + o * 20}px ${hexA(accent, o * 0.6)}`,
+        borderRadius: radius,
       };
     case "solid":
     default:
-      return { background: surface, border: `1px solid ${border}` };
+      return { background: surface, border: `1px solid ${border}`, borderRadius: 0 };
+  }
+}
+
+// The nav-tab strip's own surface — the one place chrome/fill survives.
+export function botTabStyle(ui, T, accent) {
+  const surface = T?.surface ?? "#0A1018";
+  const border = T?.border ?? "#1A2535";
+  const o = Math.max(0.05, Math.min(0.95, ui?.glassOpacity ?? 0.45));
+  const radius = isFloatingStyle(ui?.panelStyle) ? PANEL_RADIUS : 0;
+
+  switch (ui?.panelStyle) {
+    case "glass":
+      return {
+        background: hexA(surface, o),
+        border: `1px solid ${hexA(border, 0.55)}`,
+        backdropFilter: "blur(14px) saturate(1.2)",
+        WebkitBackdropFilter: "blur(14px) saturate(1.2)",
+        borderRadius: radius,
+      };
+    case "outline":
+      return {
+        background: hexA(surface, Math.max(0.35, o * 0.7)), // "somewhat solid" — never fully transparent
+        border: `1px solid ${hexA(accent, o)}`,
+        backdropFilter: "blur(10px)",
+        WebkitBackdropFilter: "blur(10px)",
+        borderRadius: radius,
+      };
+    case "flat":
+      return {
+        background: "transparent",
+        border: "1px solid transparent",
+        borderRadius: 0,
+      };
+    case "neon":
+      return {
+        background: hexA(surface, Math.max(0.35, o * 0.7)),
+        border: `1px solid ${hexA(accent, o)}`,
+        boxShadow: `0 0 ${6 + o * 20}px ${hexA(accent, o * 0.5)}`,
+        backdropFilter: "blur(10px)",
+        WebkitBackdropFilter: "blur(10px)",
+        borderRadius: radius,
+      };
+    case "solid":
+    default:
+      return { background: surface, border: `1px solid ${border}`, borderRadius: 0 };
   }
 }
 
@@ -122,8 +202,9 @@ export default function BotSettings({ onClose, T, accent }) {
     setUI((prev) => { const next = { ...prev, ...patch }; saveBotUI(next); return next; });
   }, []);
 
-  const usesOpacity = ui.panelStyle === "glass" || ui.panelStyle === "neon";
+  const usesOpacity = ui.panelStyle === "glass" || ui.panelStyle === "outline" || ui.panelStyle === "neon";
   const preview = botPanelStyle(ui, T, accent);
+  const tabPreview = botTabStyle(ui, T, accent);
 
   const Section = ({ title, children, first }) => (
     <div style={{ marginBottom: 18, paddingTop: first ? 0 : 14, borderTop: first ? "none" : `1px solid ${border}` }}>
@@ -164,16 +245,24 @@ export default function BotSettings({ onClose, T, accent }) {
           {usesOpacity && (
             <div style={{ marginTop: 11 }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
-                <span style={{ fontFamily: FM, fontSize: 8, color: dim, letterSpacing: 1 }}>PANEL OPACITY</span>
+                <span style={{ fontFamily: FM, fontSize: 8, color: dim, letterSpacing: 1 }}>
+                  {ui.panelStyle === "glass" ? "TAB FROST OPACITY" : "OUTLINE INTENSITY"}
+                </span>
                 <span style={{ fontFamily: FM, fontSize: 9, color: accent, fontWeight: 700 }}>{Math.round(ui.glassOpacity * 100)}%</span>
               </div>
               <input type="range" min={5} max={95} value={Math.round(ui.glassOpacity * 100)}
                 onChange={(e) => update({ glassOpacity: Number(e.target.value) / 100 })}
                 style={{ width: "100%", accentColor: accent }} />
+              <div style={{ fontFamily: FC, fontSize: 8.5, color: dim, marginTop: 5, lineHeight: 1.4 }}>
+                {ui.panelStyle === "glass"
+                  ? "Only affects the tab bar's frosted fill — every other panel stays transparent."
+                  : "Controls how bright the glowing outline is, on both the tabs and every panel's border."}
+              </div>
             </div>
           )}
 
-          {/* Live preview — so the choice is obvious without closing the panel. */}
+          {/* Live preview — TWO swatches, since tabs and panels now look different
+              on purpose: tabs carry the chrome, panels stay see-through. */}
           <div style={{ marginTop: 12 }}>
             <div style={{ fontFamily: FM, fontSize: 7, color: dim, letterSpacing: 2, marginBottom: 5 }}>PREVIEW</div>
             <div style={{
@@ -181,6 +270,10 @@ export default function BotSettings({ onClose, T, accent }) {
               backgroundImage: `radial-gradient(circle at 30% 40%, ${accent}22, transparent 60%), radial-gradient(circle at 75% 70%, #7eb8f722, transparent 55%)`,
               backgroundColor: "#05080F",
             }}>
+              <div style={{ ...tabPreview, borderRadius: 8, padding: "6px 12px", marginBottom: 8, display: "flex", gap: 10 }}>
+                <span style={{ fontFamily: FM, fontSize: 8, fontWeight: 700, letterSpacing: 1, color: accent }}>TAB</span>
+                <span style={{ fontFamily: FM, fontSize: 8, fontWeight: 700, letterSpacing: 1, color: dim }}>TAB</span>
+              </div>
               <div style={{ ...preview, borderRadius: 8, padding: "10px 12px" }}>
                 <div style={{ fontFamily: FM, fontSize: 8, color: dim, letterSpacing: 1.5, marginBottom: 4 }}>SIGNAL STATUS</div>
                 <div style={{ fontFamily: FM, fontSize: 13, fontWeight: 800, color: text }}>⚡ FIRE — LONG</div>
