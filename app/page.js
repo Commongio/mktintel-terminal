@@ -2,6 +2,8 @@
 import { useState, useEffect, useRef, useCallback, useMemo, memo } from "react";
 import LightweightChart from "./components/LightweightChart";
 import { loadAnnotations, saveAnnotations, makeLevel, makeTrendline, makeMarker, num } from "../lib/chartAnnotations";
+import { useIsMobile } from "../lib/useIsMobile";
+import PushAlerts from "./components/PushAlerts";
 import MarketStatusBadge from "./components/MarketStatusBadge";
 import PropFirmPanel from "./components/PropFirmPanel";
 import TerminalChart from "./components/TerminalChart";
@@ -100,6 +102,63 @@ function migrateTheme(t){
 // hex — a free-text hex field invites invalid values and lets the model pick
 // something illegible against the theme.
 const AI_DRAW_COLORS={teal:"#00d4aa",blue:"#7eb8f7",purple:"#a78bfa",green:"#00e676",red:"#ff3d57",gold:"#f7c948"};
+
+// ─── V11 MOBILE (M1) ──────────────────────────────────────────────────────────
+// Phone layout is one full-screen panel at a time behind a bottom tab bar. The
+// desktop three-column terminal (290px watchlist + chat + 310px news) is simply
+// not survivable at 375px, and shrinking it produces something unusable rather
+// than something small.
+//
+// `view` stays the single source of truth so the AI's set_view tool and every
+// existing code path keep working untouched; `mobilePanel` only picks WHICH
+// piece of the terminal view a phone is showing. That's why the tab id is
+// derived from (view, mobilePanel) rather than being separate state that could
+// silently drift out of sync with `view`.
+const MOBILE_TABS=[
+  {id:"chat",     icon:"◈",  label:"Desk"},
+  {id:"chart",    icon:"📈", label:"Chart"},
+  {id:"bot",      icon:"🤖", label:"Kronos"},
+  {id:"watchlist",icon:"★",  label:"List"},
+  {id:"news",     icon:"📰", label:"News"},
+  {id:"data",     icon:"⚡", label:"Data"},
+];
+function mobileTabFor(view,mobilePanel){
+  if(view==="chart")return "chart";
+  if(view==="bot")return "bot";
+  if(view==="data")return "data";
+  return mobilePanel||"chat"; // terminal view splits into chat/watchlist/news
+}
+function MobileTabBar({active,onSelect,accent,T,alertCount=0}){
+  return(
+    <div style={{
+      display:"flex",flexShrink:0,background:T.panel,
+      borderTop:`1px solid ${T.border}`,position:"relative",zIndex:5,
+      // Keeps the bar above the iPhone home indicator instead of under it.
+      paddingBottom:"env(safe-area-inset-bottom, 0px)",
+    }}>
+      {MOBILE_TABS.map(t=>{
+        const on=active===t.id;
+        return(
+          <button key={t.id} onClick={()=>onSelect(t.id)} aria-label={t.label} aria-current={on?"page":undefined}
+            style={{
+              flex:1,minWidth:0,minHeight:52,   // ≥44px — an actual thumb target
+              display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:3,
+              background:on?`${accent}0e`:"transparent",
+              border:"none",borderTop:`2px solid ${on?accent:"transparent"}`,
+              cursor:"pointer",padding:"6px 2px",position:"relative",
+            }}>
+            <span style={{fontSize:15,lineHeight:1,opacity:on?1:0.55,filter:on?"none":"grayscale(1)"}}>{t.icon}</span>
+            <span style={{fontFamily:FONT_MONO,fontSize:7.5,letterSpacing:0.4,fontWeight:700,color:on?accent:T.dim,whiteSpace:"nowrap"}}>{t.label}</span>
+            {/* Breaking-news dot must reach you from any tab — same rule as desktop. */}
+            {t.id==="data"&&alertCount>0&&(
+              <span style={{position:"absolute",top:6,right:"50%",marginRight:-16,width:6,height:6,borderRadius:"50%",background:"#ff3d57",animation:"news-pulse 1.1s ease-in-out infinite"}}/>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 const QA_GROUPS=[
   {label:"📰 NEWS",color:"#f7c948",actions:[
@@ -584,10 +643,13 @@ function SettingsPanel(props){
   return(
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:1000,display:"flex",justifyContent:"flex-end"}}
       onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
-      <div style={{width:310,height:"100vh",background:T.panel,borderLeft:`1px solid ${T.border}`,padding:22,overflowY:"auto",boxShadow:"-8px 0 40px rgba(0,0,0,0.6)"}}>
+      {/* V11 M1: full-width sheet on a phone. A 310px drawer on a 375px screen
+          leaves a useless 65px sliver of dimmed backdrop and squeezes the
+          controls for no reason — on mobile the sheet IS the screen. */}
+      <div className="kronos-settings-sheet" style={{background:T.panel,borderLeft:`1px solid ${T.border}`,padding:22,overflowY:"auto",boxShadow:"-8px 0 40px rgba(0,0,0,0.6)"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
           <span style={{fontFamily:FONT_MONO,fontSize:11,fontWeight:700,color:accent,letterSpacing:3}}>⚙ SETTINGS</span>
-          <button onClick={onClose} style={{color:T.dim,fontSize:17,cursor:"pointer"}}>✕</button>
+          <button onClick={onClose} aria-label="Close settings" style={{color:T.dim,fontSize:17,cursor:"pointer",minWidth:44,minHeight:44,display:"flex",alignItems:"center",justifyContent:"flex-end"}}>✕</button>
         </div>
         <div style={{display:"flex",gap:4,marginBottom:16}}>
           {["themes","colors","layout","personal"].map(t=>(
@@ -766,6 +828,10 @@ function SettingsPanel(props){
             {/* V10.5: honest, visible confirmation of what's actually saved — see
                 DataSyncStatus below for the exact list and the local-only exceptions. */}
             <DataSyncStatus user={user} T={T} accent={accent}/>
+
+            {/* V11 M3: signal push alerts — the reason mobile matters for a
+                signals product. Self-gates on platform support + sign-in. */}
+            <PushAlerts T={T} accent={accent} user={user}/>
 
             {/* ACCOUNT */}
             {user&&(
@@ -1005,7 +1071,7 @@ export function migrateChartInterval(iv){
   if(CHART_INTERVALS.some(([code])=>code===iv))return iv;
   return TV_INTERVAL_MIGRATION[iv]||"1d";
 }
-function ChartPage({symbol,onSymbolChange,interval="1d",onIntervalChange,annotations,onClearAnnotations,messages,input,setInput,fontSize=14,send,loading,accent,T,TR,chartRightWidth,onStartResizeRight}){
+function ChartPage({symbol,onSymbolChange,interval="1d",onIntervalChange,annotations,onClearAnnotations,messages,input,setInput,fontSize=14,send,loading,accent,T,TR,chartRightWidth,onStartResizeRight,isMobile=false}){
   const chatEndRef=useRef(null);
   const[symInput,setSymInput]=useState(symbol);
   const isDark=luminance(TR.bg)<=0.55;
@@ -1014,9 +1080,13 @@ function ChartPage({symbol,onSymbolChange,interval="1d",onIntervalChange,annotat
   const handleSymKey=(e)=>{if(e.key==="Enter"&&symInput.trim())onSymbolChange(symInput.trim().toUpperCase());};
   const handleKey=(e)=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send();}};
   return(
-    <div style={{flex:1,display:"flex",overflow:"hidden",minWidth:0}}>
-      {/* TradingView area */}
-      <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",minWidth:0}}>
+    // Mobile stacks chart OVER chat rather than showing chart alone. The AI draws
+    // and explains in the same breath — splitting those across two tabs would
+    // mean reading the answer here and the drawing somewhere else, which is
+    // exactly the thing this feature exists to avoid.
+    <div style={{flex:1,display:"flex",flexDirection:isMobile?"column":"row",overflow:"hidden",minWidth:0}}>
+      {/* Chart area */}
+      <div style={{flex:isMobile?"1.45 1 0":"1",display:"flex",flexDirection:"column",overflow:"hidden",minWidth:0,minHeight:0}}>
         <div style={{padding:"8px 14px",borderBottom:`1px solid ${T.border}`,background:T.panel,display:"flex",alignItems:"center",gap:10,flexShrink:0,flexWrap:"wrap"}}>
           <div style={{display:"flex",alignItems:"center",gap:6,background:T.surface,border:`1px solid ${T.border}`,borderRadius:7,padding:"5px 10px"}}>
             <input value={symInput} onChange={e=>setSymInput(e.target.value.toUpperCase())} onKeyDown={handleSymKey}
@@ -1034,10 +1104,12 @@ function ChartPage({symbol,onSymbolChange,interval="1d",onIntervalChange,annotat
               ✕ CLEAR {annotations.filter(a=>a.symbol===symbol).length} DRAWING{annotations.filter(a=>a.symbol===symbol).length>1?"S":""}
             </button>
           )}
-          <div style={{display:"flex",gap:3,marginLeft:"auto"}}>
+          {/* 8 intervals don't fit on a 375px row — scroll them horizontally
+              rather than wrapping into a second row that eats chart height. */}
+          <div style={{display:"flex",gap:3,marginLeft:isMobile?0:"auto",overflowX:isMobile?"auto":"visible",WebkitOverflowScrolling:"touch",maxWidth:"100%"}}>
             {CHART_INTERVALS.map(([code,label])=>(
               <button key={code} onClick={()=>onIntervalChange(code)}
-                style={{fontFamily:FONT_MONO,fontSize:9,fontWeight:700,padding:"4px 7px",borderRadius:5,cursor:"pointer",
+                style={{fontFamily:FONT_MONO,fontSize:9,fontWeight:700,padding:isMobile?"7px 10px":"4px 7px",borderRadius:5,cursor:"pointer",flexShrink:0,
                   color:interval===code?accent:T.dim,background:interval===code?`${accent}14`:"transparent",
                   border:`1px solid ${interval===code?`${accent}30`:T.border}`}}>{label}</button>
             ))}
@@ -1047,9 +1119,13 @@ function ChartPage({symbol,onSymbolChange,interval="1d",onIntervalChange,annotat
           <LightweightChart symbol={symbol} interval={interval} T={T} accent={accent} annotations={annotations||[]}/>
         </div>
       </div>
-      <ResizeDivider onMouseDown={onStartResizeRight} accent={accent}/>
-      {/* AI Chat panel */}
-      <div style={{width:chartRightWidth,minWidth:chartRightWidth,borderLeft:`1px solid ${TR.border}`,display:"flex",flexDirection:"column",background:TR.panel}}>
+      {/* Drag-to-resize is a mouse affordance; there's nothing to drag with a thumb. */}
+      {!isMobile&&<ResizeDivider onMouseDown={onStartResizeRight} accent={accent}/>}
+      {/* AI Chat panel — a fixed px width on a phone would push the chart off-screen,
+          so on mobile it becomes a flex row under the chart instead. */}
+      <div style={isMobile
+        ?{flex:"1 1 0",minHeight:0,borderTop:`1px solid ${TR.border}`,display:"flex",flexDirection:"column",background:TR.panel}
+        :{width:chartRightWidth,minWidth:chartRightWidth,borderLeft:`1px solid ${TR.border}`,display:"flex",flexDirection:"column",background:TR.panel}}>
         <div style={{padding:"11px 14px",borderBottom:`1px solid ${TR.border}`,display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
           <div style={{width:7,height:7,borderRadius:"50%",background:accent,boxShadow:`0 0 8px ${accent}`}}/>
           <span style={{fontFamily:FONT_MONO,fontSize:10,fontWeight:700,color:accent,letterSpacing:2}}>AI DESK</span>
@@ -1328,6 +1404,12 @@ export default function MarketTerminal(){
   const[chartInterval,setChartIntervalRaw]=useState(()=>{try{return migrateChartInterval(JSON.parse(localStorage.getItem("kronos_chart_state")||"{}").interval);}catch{return "1d";}});
   const setChartSymbol=useCallback((s)=>{setChartSymbolRaw(s);try{localStorage.setItem("kronos_chart_state",JSON.stringify({symbol:s,interval:chartInterval}));}catch{}},[chartInterval]);
   const setChartInterval=useCallback((iv)=>{setChartIntervalRaw(iv);try{localStorage.setItem("kronos_chart_state",JSON.stringify({symbol:chartSymbol,interval:iv}));}catch{}},[chartSymbol]);
+
+  // V11 M1: phone layout. `false` until mounted (see lib/useIsMobile) so SSR and
+  // first paint always agree.
+  const isMobile=useIsMobile();
+  const[mobilePanel,setMobilePanel]=useState("chat");
+  const mobileTab=mobileTabFor(view,mobilePanel);
 
   // V10.6: AI-drawn chart annotations. Keyed by symbol so drawings for NVDA don't
   // bleed onto SPY. Stored flat (one array) because the render path filters by
@@ -1887,6 +1969,29 @@ export default function MarketTerminal(){
             textarea:focus,input:focus{outline:none;}
             textarea{resize:none;}
 
+            /* ── V11 M1: MOBILE SHELL ──
+               100dvh is the whole point: on iOS, 100vh is the viewport WITHOUT the
+               URL bar, so a 100vh shell is taller than the visible area and the
+               bottom tab bar sits permanently off-screen. dvh tracks the real
+               visible height as the bar shows/hides. The 100vh line is the
+               fallback for browsers that don't know dvh — order matters. */
+            .kronos-shell{height:100vh;height:100dvh;}
+            /* Settings drawer: fixed rail on desktop, full sheet on a phone. */
+            .kronos-settings-sheet{width:310px;height:100vh;height:100dvh;}
+            @media (max-width:767px){
+              .kronos-settings-sheet{width:100vw;max-width:100vw;padding-bottom:calc(22px + env(safe-area-inset-bottom, 0px));}
+            }
+            /* Nothing may scroll the page sideways on a phone. Panels scroll
+               internally; the shell itself never does. */
+            html,body{overscroll-behavior-y:none;}
+            @media (max-width:767px){
+              body{overflow-x:hidden;}
+              /* iOS zooms the whole page when you focus an input under 16px.
+                 Chat/ticker inputs are 13px by design, so pin them at 16 on
+                 phones — the zoom is far more disruptive than the size change. */
+              input,textarea,select{font-size:16px !important;}
+            }
+
             /* ── GPU ACCELERATION FOR ANIMATED ELEMENTS ── */
             [data-animated]{will-change:transform;transform:translateZ(0);backface-visibility:hidden;}
 
@@ -1895,8 +2000,8 @@ export default function MarketTerminal(){
               *{animation-duration:0.01ms!important;animation-iteration-count:1!important;transition-duration:0.01ms!important;}
             }
           `}</style>
-          <div style={{
-            display:"flex",flexDirection:"column",height:"100vh",
+          <div className="kronos-shell" style={{
+            display:"flex",flexDirection:"column",
             backgroundColor:T.bg,
             fontFamily:FONT_CHOICES.find(f=>f.id===chatFont)?.stack||FONT_CHAT,
             overflow:"hidden",position:"relative",
@@ -1932,9 +2037,18 @@ export default function MarketTerminal(){
         {showSettings&&view==="bot"&&<BotSettings onClose={()=>setShowSettings(false)} T={T} accent={accent}/>}
         {showSettings&&view!=="bot"&&<SettingsPanel onClose={()=>setShowSettings(false)} mainBg={mainBg} setMainBg={setMainBg} mainText={mainText} setMainText={setMainText} leftBg={leftBg} setLeftBg={setLeftBg} leftText={leftText} setLeftText={setLeftText} rightBg={rightBg} setRightBg={setRightBg} rightText={rightText} setRightText={setRightText} accentKey={accentKey} setAccentKey={setAccentKey} density={density} setDensity={setDensity} leftWidth={leftWidth} setLeftWidth={setLeftWidth} rightWidth={rightWidth} setRightWidth={setRightWidth} chartRightWidth={chartRightWidth} setChartRightWidth={setChartRightWidth} onResetAll={resetAll} T={T} accent={accent} fontSize={fontSize} setFontSize={setFontSize} chatStyle={chatStyle} setChatStyle={setChatStyle} bgImage={bgImage} setBgImage={setBgImage} bgVideo={bgVideo} onPickVideo={handlePickVideo} onRemoveVideo={handleRemoveVideo} themeSel={themeSel} setThemeSel={setThemeSel} sidePanels={sidePanels} setSidePanels={setSidePanels} chatFont={chatFont} setChatFont={setChatFont} onStartTour={()=>setShowTour(true)} user={user} onSignOut={async()=>{try{await getSupabase()?.auth.signOut();}catch{}window.location.reload();}}/>}
 
-        {/* HEADER */}
-        <div style={{padding:"10px 18px",borderBottom:`1px solid ${T.border}`,display:"flex",alignItems:"center",justifyContent:"space-between",background:T.panel,flexShrink:0,position:"relative",zIndex:2}}>
-          <div style={{display:"flex",alignItems:"baseline",gap:18}}>
+        {/* HEADER — on mobile this condenses to wordmark + market badge + gear.
+            The page-name row and the ⇄ bot flip are redundant on a phone: the
+            bottom tab bar already does that navigation, and at 375px the text
+            tabs would wrap and eat a third of the viewport. */}
+        <div style={{padding:isMobile?"8px 12px":"10px 18px",borderBottom:`1px solid ${T.border}`,display:"flex",alignItems:"center",justifyContent:"space-between",background:T.panel,flexShrink:0,position:"relative",zIndex:2,paddingTop:isMobile?"max(8px, env(safe-area-inset-top, 0px))":undefined}}>
+          <div style={{display:"flex",alignItems:"baseline",gap:isMobile?9:18,minWidth:0}}>
+            {isMobile?(
+              <>
+                <span style={{fontFamily:FONT_DISPLAY,fontSize:15,fontWeight:800,letterSpacing:0.4,color:T.text,whiteSpace:"nowrap"}}>KRONOS</span>
+                <span style={{fontFamily:FONT_MONO,fontSize:7,color:accent,background:`${accent}10`,border:`1px solid ${accent}22`,padding:"2px 5px",borderRadius:4,letterSpacing:1.5,fontWeight:700}}>LIVE</span>
+              </>
+            ):(<>
             {/* BOT FLIP BUTTON */}
 <button onClick={()=>setView(v=>v==="bot"?"terminal":"bot")} title="Toggle Bot Dashboard" style={{
   width:34,height:34,borderRadius:8,display:"flex",alignItems:"center",
@@ -1963,10 +2077,13 @@ export default function MarketTerminal(){
               </button>
             ))}
             <span style={{fontFamily:FONT_MONO,fontSize:8,color:accent,background:`${accent}10`,border:`1px solid ${accent}22`,padding:"2px 6px",borderRadius:4,letterSpacing:2,fontWeight:700}}>LIVE</span>
+            </>)}
           </div>
-          <div style={{display:"flex",alignItems:"center",gap:10}}>
-            {/* V10: drag-and-drop layout controls (terminal + data views) */}
-            {(view==="terminal"||view==="data")&&(
+          <div style={{display:"flex",alignItems:"center",gap:isMobile?7:10,flexShrink:0}}>
+            {/* V10: drag-and-drop layout controls (terminal + data views).
+                Hidden on mobile: dragging a dense grid with a thumb is misery,
+                and the phone layout is a fixed order by design (M1 scope). */}
+            {!isMobile&&(view==="terminal"||view==="data")&&(
               layoutEdit?(
                 <div style={{display:"flex",gap:6}}>
                   {view==="terminal"&&<button onClick={()=>setNotes(prev=>[...prev,{id:Date.now(),text:""}])}
@@ -1988,6 +2105,41 @@ export default function MarketTerminal(){
           </div>
         </div>
 
+        {/* ── MOBILE BODY (M1) — one panel at a time, reusing the SAME panel
+            elements the desktop layout uses. The V9 refactor that extracted
+            watchlistInner/consoleInner/newsInner is why this needs no panel
+            rewrite: the phone renders the identical element, full-screen. ── */}
+        {isMobile&&(
+          <div style={{display:"flex",flex:1,overflow:"hidden",position:"relative",zIndex:1,minHeight:0}}>
+            {mobileTab==="chat"&&(
+              <div style={{flex:1,display:"flex",flexDirection:"column",minWidth:0,overflow:"hidden"}}>{consoleInner}</div>
+            )}
+            {mobileTab==="watchlist"&&(
+              <div style={{flex:1,display:"flex",flexDirection:"column",minWidth:0,overflow:"hidden",background:TL.panel}}>{watchlistInner}</div>
+            )}
+            {mobileTab==="news"&&(
+              <div style={{flex:1,display:"flex",flexDirection:"column",minWidth:0,overflow:"hidden",background:TR.panel}}>{newsInner}</div>
+            )}
+            {mobileTab==="chart"&&(
+              <ChartPage isMobile symbol={chartSymbol} onSymbolChange={setChartSymbol} interval={chartInterval} onIntervalChange={setChartInterval}
+                annotations={chartAnnotations} onClearAnnotations={()=>clearChartAnnotations(chartSymbol)}
+                messages={messages} input={input} setInput={setInput} send={send} loading={loading}
+                accent={accent} T={T} TR={TR} chartRightWidth={chartRightWidth} onStartResizeRight={()=>{}} fontSize={fontSize}/>
+            )}
+            {mobileTab==="data"&&(
+              <DataPage isMobile news={news} secData={secData} secLoading={secLoading} onRefreshAll={()=>{fetchNews();loadSecData();}}
+                onDiveNews={handleNews} onDiveFiling={handleFiling} onDiveInsider={handleInsider}
+                messages={messages} input={input} setInput={setInput} send={send} loading={loading}
+                onOpenChat={()=>{setView("terminal");setMobilePanel("chat");}} accent={accent} T={T} watchlist={watchlist}
+                gridLayout={migrateDataLayout(layouts?.data)} onGridChange={()=>{}} editMode={false}
+                collapsed={collapsed} onToggleCollapse={toggleCollapse}/>
+            )}
+            {mobileTab==="bot"&&<BotDashboard isMobile accent={accent} T={T} botName="KRONOS BOT"/>}
+          </div>
+        )}
+
+        {/* ── DESKTOP BODY — unchanged above 768px ───────────────────────────── */}
+        {!isMobile&&(
         <div style={{display:"flex",flex:1,overflow:"hidden",position:"relative",zIndex:1}}>
           {/* LEFT PANEL — data page (terminal renders its own copy, grid-aware) */}
           {(view==="data"||(view==="terminal"&&!terminalGrid))&&(
@@ -2050,8 +2202,23 @@ export default function MarketTerminal(){
 {view==="bot"&&(
   <BotDashboard accent={accent} T={T} botName="KRONOS BOT" />
 )}
-          
+
         </div>
+        )}
+
+        {/* Bottom tab bar — mobile only, always last so it pins to the bottom. */}
+        {isMobile&&(
+          <MobileTabBar active={mobileTab} accent={accent} T={T} alertCount={newsAlerts.length}
+            onSelect={(id)=>{
+              // Map a tab back onto (view, mobilePanel). Keeping `view` authoritative
+              // means AI actions, the tour, and deep links all still drive the phone
+              // layout for free.
+              if(id==="chart"){setView("chart");}
+              else if(id==="bot"){setView("bot");}
+              else if(id==="data"){setView("data");}
+              else{setView("terminal");setMobilePanel(id);}
+            }}/>
+        )}
       </div>
     </>      )}
     </>  );

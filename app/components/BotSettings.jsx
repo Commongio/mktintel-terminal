@@ -216,10 +216,12 @@ export default function BotSettings({ onClose, T, accent }) {
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", justifyContent: "flex-end" }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div style={{ width: 310, height: "100vh", background: panel, borderLeft: `1px solid ${border}`, padding: 22, overflowY: "auto", boxShadow: "-8px 0 40px rgba(0,0,0,0.6)" }}>
+      {/* Shares .kronos-settings-sheet with the main settings drawer (defined in
+          page.js): 310px rail on desktop, full-width sheet under 768px. */}
+      <div className="kronos-settings-sheet" style={{ background: panel, borderLeft: `1px solid ${border}`, padding: 22, overflowY: "auto", boxShadow: "-8px 0 40px rgba(0,0,0,0.6)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
           <span style={{ fontFamily: FM, fontSize: 11, fontWeight: 700, color: accent, letterSpacing: 3 }}>⚙ KRONOS BOT</span>
-          <button onClick={onClose} style={{ color: dim, fontSize: 17, cursor: "pointer", background: "none", border: "none" }}>✕</button>
+          <button onClick={onClose} aria-label="Close bot settings" style={{ color: dim, fontSize: 17, cursor: "pointer", background: "none", border: "none", minWidth: 44, minHeight: 44, display: "flex", alignItems: "center", justifyContent: "flex-end" }}>✕</button>
         </div>
         <div style={{ fontFamily: FC, fontSize: 10, color: dim, lineHeight: 1.5, marginBottom: 18 }}>
           These settings only affect the bot page. Terminal appearance lives in the terminal's own settings.

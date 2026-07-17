@@ -224,7 +224,7 @@ function StudioTab({ accent, T, profile, onEditProfile, onOpenBroker, brokerData
 }
 
 // ─── MAIN ──────────────────────────────────────────────────────────────────────
-export default function BotDashboard({ accent = "#00d4aa", T, botName = "KRONOS" }) {
+export default function BotDashboard({ accent = "#00d4aa", T, botName = "KRONOS", isMobile = false }) {
   // V10.5: the bot's own appearance (panel style, text size, grid) — set in the
   // bot-scoped settings panel, live-updates without a reload.
   const botUI = useBotUI();
@@ -565,9 +565,18 @@ export default function BotDashboard({ accent = "#00d4aa", T, botName = "KRONOS"
         })}
       </div>
 
-      {/* TRADING TAB */}
+      {/* TRADING TAB
+          Mobile: the 340 + orb + 300 three-column row becomes ONE scrolling
+          column. Order is deliberate — SCANNER first (the thing you came to ask),
+          then the FEED, then the orb. The orb is beautiful but it's ambient; on a
+          phone the actionable content has to win the top of the viewport. */}
       {tab === "trading" && (
-        <div style={{ flex: 1, display: "flex", overflow: "hidden", position: "relative" }}>
+        <div style={{
+          flex: 1, display: "flex", position: "relative",
+          ...(isMobile
+            ? { flexDirection: "column", overflowY: "auto", overflowX: "hidden", WebkitOverflowScrolling: "touch" }
+            : { overflow: "hidden" }),
+        }}>
           {/* V10.5: Starfield moved from inside just the center column to here — a
               sibling spanning the WHOLE three-column row — so stars actually reach
               every corner of the screen instead of stopping at the center panel's
@@ -575,24 +584,35 @@ export default function BotDashboard({ accent = "#00d4aa", T, botName = "KRONOS"
               with any non-solid panel style those columns are now transparent
               (see BotSettings' botPanelStyle), so the stars show straight through. */}
           <Starfield T={T} />
-          {/* LEFT — the enlarged signal feed column (items 7+10: stream/tape removed) */}
-          {botCollapsed.feed ? (
+          {/* LEFT — the enlarged signal feed column (items 7+10: stream/tape removed).
+              On mobile: full-width, order 2 (under the scanner). Collapse rails are
+              a desktop idea — there's no side to collapse to on a phone, and the
+              tab bar already gets you out. */}
+          {botCollapsed.feed && !isMobile ? (
             <CollapsedRail label="Signal Feed" side="left" onExpand={() => toggleBotCol("feed")} accent={accent} T={T} />
           ) : (
             <div style={{
-              ...panelSx, width: 340, flexShrink: 0, padding: 10,
-              display: "flex", flexDirection: "column", minHeight: 0, position: "relative",
-              ...(floating
-                ? { margin: "4px 5px 8px 10px" }
-                : { borderTop: "none", borderBottom: "none", borderLeft: "none" }),
+              ...panelSx, padding: 10,
+              display: "flex", flexDirection: "column", position: "relative",
+              ...(isMobile
+                ? { order: 2, width: "100%", flexShrink: 0, minHeight: 420, margin: "6px 0" }
+                : { width: 340, flexShrink: 0, minHeight: 0,
+                    ...(floating ? { margin: "4px 5px 8px 10px" } : { borderTop: "none", borderBottom: "none", borderLeft: "none" }) }),
             }}>
-              <button onClick={() => toggleBotCol("feed")} title="Collapse signal feed" style={{ position: "absolute", top: 6, right: 6, zIndex: 10, width: 18, height: 18, borderRadius: 4, background: `${surface}cc`, border: `1px solid ${border}`, color: dim, cursor: "pointer", fontFamily: FM, fontSize: 9, display: "flex", alignItems: "center", justifyContent: "center" }}>◂</button>
+              {!isMobile && (
+                <button onClick={() => toggleBotCol("feed")} title="Collapse signal feed" style={{ position: "absolute", top: 6, right: 6, zIndex: 10, width: 18, height: 18, borderRadius: 4, background: `${surface}cc`, border: `1px solid ${border}`, color: dim, cursor: "pointer", fontFamily: FM, fontSize: 9, display: "flex", alignItems: "center", justifyContent: "center" }}>◂</button>
+              )}
               <SignalFeed ref={feedRef} accent={accent} T={panelT} assetClass={assetClass} onNewSignal={handleSignalEvent} fill vix={vix} />
             </div>
           )}
 
-          {/* CENTER — VIX galaxy + real market state */}
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, position: "relative", overflow: "hidden" }}>
+          {/* CENTER — VIX galaxy + real market state. Order 3 on mobile: it's the
+              ambient volatility gauge, not the thing you act on. */}
+          <div style={{
+            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+            gap: 12, position: "relative", overflow: "hidden",
+            ...(isMobile ? { order: 3, width: "100%", flexShrink: 0, padding: "18px 0 26px" } : { flex: 1 }),
+          }}>
             <OrbTooltip dim={dim} border={border} surface={surface} text={text} />
             {botUI.showGrid && (
               <div style={{
@@ -604,12 +624,17 @@ export default function BotDashboard({ accent = "#00d4aa", T, botName = "KRONOS"
 
             {/* The galaxy. The VIX read-out is NOT overlaid on it any more — it was
                 sitting right on the core and hiding the thing it describes. */}
-            <div ref={orbWrapRef} style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "center", justifyContent: "center", marginTop: -6 }}>
-              <GalaxyOrb ref={orbRef} size={640} vix={vix} T={T} />
+            {/* 640 is a desktop number — it would overflow a 375px phone and force
+                a horizontal scroll. 300 keeps the galaxy legible without hijacking
+                the whole viewport. */}
+            <div ref={orbWrapRef} style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "center", justifyContent: "center", marginTop: isMobile ? 0 : -6 }}>
+              <GalaxyOrb ref={orbRef} size={isMobile ? 300 : 640} vix={vix} T={T} />
             </div>
 
-            {/* VIX read-out — below the galaxy, clear of it. */}
-            <div style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "baseline", gap: 12, marginTop: -28 }}>
+            {/* VIX read-out — below the galaxy, clear of it. The -28 pull-up is
+                tuned to the 640px orb's empty lower halo; at 300px that would
+                drag the number onto the galaxy itself. */}
+            <div style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "baseline", gap: 12, marginTop: isMobile ? -6 : -28 }}>
               <div style={{ textAlign: "center" }}>
                 <div style={{ fontFamily: FM, fontSize: 7.5, color: dim, letterSpacing: 3.5, marginBottom: 4 }}>MARKET VOLATILITY</div>
                 <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
@@ -656,18 +681,22 @@ export default function BotDashboard({ accent = "#00d4aa", T, botName = "KRONOS"
             </div>
           </div>
 
-          {/* RIGHT — live scanner */}
-          {botCollapsed.scanner ? (
+          {/* RIGHT — live scanner. Order 1 on mobile: this is the ask-a-ticker
+              panel, so it earns the top of the phone viewport. */}
+          {botCollapsed.scanner && !isMobile ? (
             <CollapsedRail label="Scanner" side="right" onExpand={() => toggleBotCol("scanner")} accent={accent} T={T} />
           ) : (
           <div style={{
-            ...panelSx, width: 300, overflowY: "auto", padding: 12, flexShrink: 0, position: "relative",
-            ...(floating
-              ? { margin: "4px 10px 8px 5px" }
-              : { borderTop: "none", borderBottom: "none", borderRight: "none" }),
+            ...panelSx, padding: 12, position: "relative",
+            ...(isMobile
+              ? { order: 1, width: "100%", flexShrink: 0, margin: "6px 0 0" }
+              : { width: 300, overflowY: "auto", flexShrink: 0,
+                  ...(floating ? { margin: "4px 10px 8px 5px" } : { borderTop: "none", borderBottom: "none", borderRight: "none" }) }),
           }}>
-            <button onClick={() => toggleBotCol("scanner")} title="Collapse scanner" style={{ position: "absolute", top: 6, left: 6, zIndex: 10, width: 18, height: 18, borderRadius: 4, background: `${surface}cc`, border: `1px solid ${border}`, color: dim, cursor: "pointer", fontFamily: FM, fontSize: 9, display: "flex", alignItems: "center", justifyContent: "center" }}>▸</button>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, paddingLeft: 20 }}>
+            {!isMobile && (
+              <button onClick={() => toggleBotCol("scanner")} title="Collapse scanner" style={{ position: "absolute", top: 6, left: 6, zIndex: 10, width: 18, height: 18, borderRadius: 4, background: `${surface}cc`, border: `1px solid ${border}`, color: dim, cursor: "pointer", fontFamily: FM, fontSize: 9, display: "flex", alignItems: "center", justifyContent: "center" }}>▸</button>
+            )}
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, paddingLeft: isMobile ? 0 : 20 }}>
               <span style={{ fontFamily: FM, fontSize: 8, fontWeight: 800, letterSpacing: 2, color: modeCfg.color }}>
                 {assetClass === "options" ? "🎯 OPTIONS MODE" : "📈 FUTURES MODE"}
               </span>

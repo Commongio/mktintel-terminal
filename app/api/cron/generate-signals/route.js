@@ -17,6 +17,7 @@
 // thousands of names or 2-minute freshness the way intraday scanning does.
 import { runSignalEngine, MODE_DEFAULT_INTERVAL, ENGINE_VERSION } from "../../../../lib/signalEngine";
 import { getAdmin, serverConfigured, insertSignal } from "../../../../lib/supabaseServer";
+import { sendSignalPush } from "../../../../lib/push";
 import { scanUniverse, fetchMostActives, FULL_UNIVERSE, BUCKET_SIZE, ROTATING_PER_RUN, rotationLength, CURATED } from "../../../../lib/universe";
 
 export const maxDuration = 60;
@@ -66,8 +67,30 @@ async function writeIfChanged(admin, { assetClass, symbol, interval }, buckets) 
     plan: sig.plan, agents: sig.agents, engine_version: ENGINE_VERSION,
     source: "cron",
   });
-  if (error) buckets.failed.push({ symbol: `${assetClass}:${symbol}:${interval}`, error: error.message });
-  else buckets.written.push(`${assetClass}:${symbol}:${interval}:${sig.status}`);
+  if (error) { buckets.failed.push({ symbol: `${assetClass}:${symbol}:${interval}`, error: error.message }); return; }
+  buckets.written.push(`${assetClass}:${symbol}:${interval}:${sig.status}`);
+
+  // ── V11 M3: push fan-out ──────────────────────────────────────────────────
+  // Gated on `changed`, NOT on `stale`. A stale re-write is the same verdict the
+  // user was already told about 30 minutes ago — pushing it again would buzz
+  // their phone every half hour for a signal they've already seen, which is how
+  // people turn notifications off and never turn them back on.
+  //
+  // FIRE only. HOLD/SCAN are context, not a call to action, and don't earn an
+  // interruption. Per-device conviction filtering happens in sendSignalPush.
+  if (sig.status === "FIRE" && changed) {
+    try {
+      const res = await sendSignalPush({
+        asset_class: assetClass, symbol, interval,
+        status: sig.status, direction: sig.direction, conviction: sig.conviction, plan: sig.plan,
+      });
+      buckets.pushed.push(`${symbol}:${res.sent}sent${res.pruned ? `/${res.pruned}pruned` : ""}`);
+    } catch (e) {
+      // A push failure must never fail the scan — the signal is already written,
+      // and the feed is the source of truth. Notifications are the bonus.
+      buckets.pushFailed.push(`${symbol}:${String(e.message).slice(0, 60)}`);
+    }
+  }
 }
 
 export async function GET(request) {
@@ -80,7 +103,7 @@ export async function GET(request) {
     return Response.json({ error: "Supabase not configured — signal feed disabled" }, { status: 503 });
   }
   const admin = getAdmin();
-  const buckets = { written: [], skipped: [], failed: [] };
+  const buckets = { written: [], skipped: [], failed: [], pushed: [], pushFailed: [] };
 
   // V10.3: the day's most-actives are PINNED into every run (movers are never
   // missed); the rest of the run is a rotating slice of the full universe.

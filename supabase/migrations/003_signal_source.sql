@@ -1,15 +1,25 @@
 -- 003_signal_source.sql — V10.5: tag where a signal came from.
 --
--- Bug this fixes: a user searches a ticker not in the curated tier list (e.g. MU),
--- gets a real FIRE/HOLD signal in the scanner panel, it persists to `signals`
--- (multi-agent-signal route already did this since V10.6) — but SignalFeed's
--- client-side risk-tier filter silently drops it, because any unrecognized symbol
--- defaults to the "small" (high-risk) tier, which most risk profiles hide.
--- A signal the user explicitly searched for should never be hidden by a tier
--- filter meant to gate what the CRON auto-discovers for them.
+-- CORRECTION (2026-07-16): an earlier version of this comment claimed this fixed
+-- the "MU doesn't show in the feed" bug, on the theory that MU fell through to the
+-- "small" tier and got hidden. That was WRONG and is retained here only so nobody
+-- re-derives it: MU is explicitly in CURATED.large (lib/universe.js), so
+-- symbolTier("MU") === "large" and EVERY risk profile shows it. The tier filter
+-- never touched MU. The real MU cause was that on-demand scans didn't persist at
+-- all — fixed separately by persistIfStrong() in app/api/multi-agent-signal/route.js.
 --
--- Fix: tag rows with where they came from, and let the feed bypass the tier
--- filter (but keep the conviction + cadence filters) for manually-searched rows.
+-- What this migration ACTUALLY fixes: the same class of bug for tickers that are
+-- genuinely NOT in the curated tier list. symbolTier() defaults an unknown symbol
+-- to "small", and Conservative/Balanced profiles hide the small tier — so a user
+-- who searches e.g. SAVA / IONQ / RKLB / ACHR / SOUN / BBAI, gets a real FIRE/HOLD,
+-- and has it persisted, would still never see it in their feed. Those are exactly
+-- the small/micro-cap names the "hidden gems" scans are for.
+--
+-- The principle: the tier filter exists to gate what the engine AUTO-DISCOVERS on
+-- the user's behalf. It should never hide a ticker the user deliberately typed in.
+--
+-- Fix: tag rows with where they came from, and let the feed bypass the TIER filter
+-- (conviction + cadence filters still apply) for manually-searched rows.
 --
 -- Run this in the Supabase SQL editor (Dashboard -> SQL -> New query -> paste -> Run).
 

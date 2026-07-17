@@ -1,7 +1,28 @@
-# MOBILE PLAN — parked for a future version
+# MOBILE PLAN — V11
 
-Status: **PLANNING — awaiting green flag.** No code written yet.
+Status: **BUILT (M1 + M2 + M3) — green flag 2026-07-16. Uncommitted.**
+Route confirmed by Gio: phased web (responsive → PWA → push). Native app stays deferred.
 Context: terminal is live at market-terminal-…vercel.app, desktop-first, ~25-user paid signals product.
+
+## BUILD NOTES (what actually shipped vs. this plan)
+
+- **Migration numbering changed**: this doc called push_subscriptions "migration 003",
+  but 003 was taken by `signal_source` in V10.5. It shipped as **`004_push_subscriptions.sql`**.
+- **Tabs are 6, not 5**: CHAT · CHART · KRONOS · LIST · NEWS · DATA. Chart earned a tab it
+  didn't have when this plan was written — V10.6 replaced the TradingView embed with
+  lightweight-charts + AI drawing, which made the chart a primary surface rather than a widget.
+- **Chart on mobile stacks chart-over-chat** rather than showing one panel. The AI draws AND
+  explains; splitting those across two tabs would defeat the feature.
+- **`useIsMobile` is mount-then-measure** (returns false on SSR + first paint) to avoid a
+  hydration mismatch on exactly the devices this targets.
+- **Bot trading tab reorders via CSS `order`**: scanner (1) → feed (2) → orb (3). The orb drops
+  640px → 300px. Actionable content wins the top of the viewport; the orb is ambient.
+- **Added beyond plan**: `/api/push/test` (a test-send route — otherwise verifying push means
+  waiting for a real 65%+ FIRE during market hours), and an explicit iOS "install to home
+  screen first" state, since that's the #1 silent push failure on iPhone.
+- **Service worker caches NOTHING on purpose.** This is a live market-data app; serving a
+  stale price from cache is a real-money bug. The SW exists only to make the app installable
+  and to receive push.
 
 ---
 
