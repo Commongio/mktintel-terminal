@@ -4,6 +4,9 @@ import LightweightChart from "./components/LightweightChart";
 import { loadAnnotations, saveAnnotations, makeLevel, makeTrendline, makeMarker, num } from "../lib/chartAnnotations";
 import { useIsMobile } from "../lib/useIsMobile";
 import PushAlerts from "./components/PushAlerts";
+import MoversPanel from "./components/MoversPanel";
+import CalendarPanel from "./components/CalendarPanel";
+import TickerOverview from "./components/TickerOverview";
 import MarketStatusBadge from "./components/MarketStatusBadge";
 import PropFirmPanel from "./components/PropFirmPanel";
 import TerminalChart from "./components/TerminalChart";
@@ -58,9 +61,12 @@ function deriveTheme(bg,text){
     border:b,
     border2:shade(bg,d*16),
     text,
-    textDim:mix(text,bg,0.62),
-    dim:mix(text,bg,0.30),
-    ghost:mix(text,bg,0.14),
+    // V12 readability pass: secondary/muted text was too dark to read (reported
+    // hard even with glasses). Weights are the fraction of TEXT vs bg — raised
+    // across the board so muted copy has real contrast. Erring toward brighter.
+    textDim:mix(text,bg,0.88), // was 0.62
+    dim:mix(text,bg,0.68),     // was 0.30 — the widely-used secondary; biggest win
+    ghost:mix(text,bg,0.42),   // was 0.14 — faint labels/hints
   };
 }
 
@@ -117,6 +123,7 @@ const AI_DRAW_COLORS={teal:"#00d4aa",blue:"#7eb8f7",purple:"#a78bfa",green:"#00e
 const MOBILE_TABS=[
   {id:"chat",     icon:"◈",  label:"Desk"},
   {id:"chart",    icon:"📈", label:"Chart"},
+  {id:"overview", icon:"🔎", label:"Overview"},
   {id:"bot",      icon:"🤖", label:"Kronos"},
   {id:"watchlist",icon:"★",  label:"List"},
   {id:"news",     icon:"📰", label:"News"},
@@ -126,6 +133,7 @@ function mobileTabFor(view,mobilePanel){
   if(view==="chart")return "chart";
   if(view==="bot")return "bot";
   if(view==="data")return "data";
+  if(view==="overview")return "overview"; // per-ticker drill-down (no tab highlighted)
   return mobilePanel||"chat"; // terminal view splits into chat/watchlist/news
 }
 function MobileTabBar({active,onSelect,accent,T,alertCount=0}){
@@ -253,7 +261,7 @@ function TypingIndicator({accent}){
   );
 }
 
-const ChatMessage=memo(function ChatMessage({msg,accent,T,fontSize}){
+const ChatMessage=memo(function ChatMessage({msg,accent,T,fontSize,onButton}){
   const u=msg.role==="user";
   return(
     <div style={{display:"flex",flexDirection:"column",alignItems:u?"flex-end":"flex-start",marginBottom:5}}>
@@ -275,6 +283,19 @@ const ChatMessage=memo(function ChatMessage({msg,accent,T,fontSize}){
   {(msg.content||"").replace(/\n{3,}/g,"\n\n")}
 </p>
       </div>
+      {/* V12: inline action buttons the desk attaches to a reply — auto-setup re-show
+          (kind:action → runs a chart tool) or a choice like short/long (kind:prompt
+          → sends that prompt back to the desk). Keeps the user from having to type. */}
+      {!u&&Array.isArray(msg.buttons)&&msg.buttons.length>0&&(
+        <div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:7,maxWidth:"91%"}}>
+          {msg.buttons.map((b,bi)=>(
+            <button key={bi} onClick={()=>onButton?.(b)}
+              style={{fontFamily:FONT_MONO,fontSize:10,fontWeight:700,letterSpacing:0.4,color:accent,background:`${accent}12`,border:`1px solid ${accent}38`,padding:"6px 12px",borderRadius:7,cursor:"pointer"}}>
+              {b.label}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 });
@@ -344,7 +365,7 @@ const WatchlistRow=memo(function WatchlistRow({symbol,quote,name,onClick,T,densi
           <div style={{fontFamily:FONT_MONO,fontSize:9,color:T.dim,marginTop:2,display:"flex",flexDirection:"column",alignItems:"flex-end"}}>
             {techData[symbol].rsi!=null&&(
               <span style={{
-                color: Number(techData[symbol].rsi)>70?"#ff3d57":Number(techData[symbol].rsi)<30?"#00e676":"#7A9AB5",
+                color: Number(techData[symbol].rsi)>70?"#ff3d57":Number(techData[symbol].rsi)<30?"#00e676":"#9DB4CC",
                 fontWeight:700
               }}>
                 RSI {Number(techData[symbol].rsi).toFixed(0)}
@@ -1071,7 +1092,7 @@ export function migrateChartInterval(iv){
   if(CHART_INTERVALS.some(([code])=>code===iv))return iv;
   return TV_INTERVAL_MIGRATION[iv]||"1d";
 }
-function ChartPage({symbol,onSymbolChange,interval="1d",onIntervalChange,annotations,onClearAnnotations,messages,input,setInput,fontSize=14,send,loading,accent,T,TR,chartRightWidth,onStartResizeRight,isMobile=false}){
+function ChartPage({symbol,onSymbolChange,interval="1d",onIntervalChange,annotations,onClearAnnotations,messages,input,setInput,fontSize=14,send,loading,onButton,accent,T,TR,chartRightWidth,onStartResizeRight,isMobile=false}){
   const chatEndRef=useRef(null);
   const[symInput,setSymInput]=useState(symbol);
   const isDark=luminance(TR.bg)<=0.55;
@@ -1131,7 +1152,7 @@ function ChartPage({symbol,onSymbolChange,interval="1d",onIntervalChange,annotat
           <span style={{fontFamily:FONT_MONO,fontSize:10,fontWeight:700,color:accent,letterSpacing:2}}>AI DESK</span>
         </div>
         <div style={{flex:1,overflowY:"auto",padding:"12px 12px"}}>
-          {messages.slice(-30).map((msg,i)=><ChatMessage key={i} msg={msg} accent={accent} T={TR} fontSize={fontSize}/>)}
+          {messages.slice(-30).map((msg,i)=><ChatMessage key={i} msg={msg} accent={accent} T={TR} fontSize={fontSize} onButton={onButton}/>)}
           {loading&&<TypingIndicator accent={accent}/>}
           <div ref={chatEndRef}/>
         </div>
@@ -1190,7 +1211,7 @@ function ImpactChip({impact,T}){
           </div>
           <div style={{fontFamily:FONT_CHAT,fontSize:10,color:"#aebccc",lineHeight:1.5}}>{why}</div>
           {impact.takeaway&&(
-            <div style={{fontFamily:FONT_CHAT,fontSize:9.5,color:"#7A9AB5",lineHeight:1.5,marginTop:5,paddingTop:5,borderTop:`1px solid ${T.border}`}}>
+            <div style={{fontFamily:FONT_CHAT,fontSize:9.5,color:"#9DB4CC",lineHeight:1.5,marginTop:5,paddingTop:5,borderTop:`1px solid ${T.border}`}}>
               → {impact.takeaway}
             </div>
           )}
@@ -1215,12 +1236,16 @@ const DEFAULT_DATA_LAYOUT=[
   {i:"insiders",x:8,y:0,w:4,h:6,minW:2,minH:3},
   {i:"desk",x:0,y:6,w:12,h:6,minW:3,minH:3},
 ];
-// Strip panels that no longer exist from a persisted layout.
+// Strip panels that no longer exist from a persisted layout. (Movers is NOT a
+// grid card — it's a fixed panel at the top of the Data page — so it's absent here.)
 const LIVE_DATA_PANELS=new Set(["news","filings","insiders","desk"]);
 export function migrateDataLayout(l){
   return Array.isArray(l) ? l.filter((p)=>LIVE_DATA_PANELS.has(p.i)) : l;
 }
-function DataPage({news,secData,secLoading,onRefreshAll,onDiveNews,onDiveFiling,onDiveInsider,messages,input,setInput,send,loading,onOpenChat,accent,T,watchlist,gridLayout,onGridChange,editMode,collapsed,onToggleCollapse}){
+function DataPage({news,secData,secLoading,onRefreshAll,onDiveNews,onDiveFiling,onDiveInsider,messages,input,setInput,send,loading,onOpenChat,accent,T,watchlist,gridLayout,onGridChange,editMode,collapsed,onToggleCollapse,onPickTicker}){
+  const moversCard=(
+    <MoversPanel T={T} accent={accent} onPick={onPickTicker} fill/>
+  );
   const lastMsg=[...messages].reverse().find(m=>m.role==="assistant");
   const handleKey=(e)=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send();}};
 
@@ -1327,6 +1352,16 @@ function DataPage({news,secData,secLoading,onRefreshAll,onDiveNews,onDiveFiling,
         </button>
       </div>
 
+      {/* V12: Movers + Calendars as FIXED panels above the grid/flex fork, so they
+          always render regardless of the layout system (the draggable grid only
+          engages when a layout is saved or in edit mode — otherwise the page uses
+          the flex fallback, which is why a grid-only card never showed).
+          Side-by-side on desktop; they wrap to stacked on narrow screens. */}
+      <div style={{padding:"0 22px 12px",flexShrink:0,display:"flex",gap:14,flexWrap:"wrap"}}>
+        <div style={{flex:"1 1 320px",minWidth:0,height:250}}>{moversCard}</div>
+        <div style={{flex:"1 1 320px",minWidth:0,height:250}}><CalendarPanel T={T} accent={accent} onPick={onPickTicker} fill/></div>
+      </div>
+
       {useGrid?(
         <GridDock
           layout={gridLayout||DEFAULT_DATA_LAYOUT}
@@ -1400,6 +1435,7 @@ export default function MarketTerminal(){
   const[showWelcome,setShowWelcome]=useState(true);
   const[showTour,setShowTour]=useState(false);
   // V10: chart page state survives refresh (bug fix)
+  const[overviewSymbol,setOverviewSymbol]=useState(null); // V12: per-ticker overview page
   const[chartSymbol,setChartSymbolRaw]=useState(()=>{try{return JSON.parse(localStorage.getItem("kronos_chart_state")||"{}").symbol||"AAPL";}catch{return "AAPL";}});
   const[chartInterval,setChartIntervalRaw]=useState(()=>{try{return migrateChartInterval(JSON.parse(localStorage.getItem("kronos_chart_state")||"{}").interval);}catch{return "1d";}});
   const setChartSymbol=useCallback((s)=>{setChartSymbolRaw(s);try{localStorage.setItem("kronos_chart_state",JSON.stringify({symbol:s,interval:chartInterval}));}catch{}},[chartInterval]);
@@ -1416,6 +1452,15 @@ export default function MarketTerminal(){
   // symbol anyway and a flat list keeps the AI tool handlers trivial.
   const[chartAnnotations,setChartAnnotations]=useState([]);
   useEffect(()=>{setChartAnnotations(loadAnnotations());},[]);
+  // V12: "Show Trade on Chart" (from a signal in the feed) draws entry/TP/SL into
+  // the shared annotation store, then fires this event — reload the drawings, load
+  // the ticker, and switch to the chart. Same chart + same annotations the AI and
+  // the terminal use, so bot and terminal render the trade identically.
+  useEffect(()=>{
+    const onShow=(e)=>{const sym=e.detail?.symbol;setChartAnnotations(loadAnnotations());if(sym)setChartSymbol(sym);setView("chart");};
+    window.addEventListener("kronos-show-chart",onShow);
+    return()=>window.removeEventListener("kronos-show-chart",onShow);
+  },[]);
   useEffect(()=>{saveAnnotations(chartAnnotations);},[chartAnnotations]);
   const clearChartAnnotations=useCallback((sym)=>{
     setChartAnnotations(prev=>prev.filter(a=>a.symbol!==(sym||chartSymbol)));
@@ -1678,6 +1723,56 @@ export default function MarketTerminal(){
     fetchedAt:lastUpd,
   }),[watchlist,watchlistMeta,quotes,news,lastUpd]);
 
+  // ── V12 AUTO-SETUP (chat rules 1 & 2) ──────────────────────────────────────
+  // When the user names a ticker in chat, the desk checks the Signal Feed for a
+  // live setup on it and, if one exists, plots it on the chart automatically and
+  // hands back a re-show button. Deterministic (reads the real stored plan) — it
+  // does NOT depend on the model deciding to call a tool.
+  const KNOWN_SYMBOLS=useMemo(()=>new Set([...Object.keys(COMPANY_NAMES),...watchlist]),[watchlist]);
+  const findActiveSetupInText=useCallback(async(text)=>{
+    if(!text||!supabaseConfigured())return null;
+    const raw=String(text).toUpperCase();
+    const toks=new Set();
+    (raw.match(/\$[A-Z]{1,5}\b/g)||[]).forEach(t=>toks.add(t.slice(1)));         // cashtags
+    (raw.match(/\b[A-Z]{1,5}\b/g)||[]).forEach(t=>{if(KNOWN_SYMBOLS.has(t))toks.add(t);}); // known tickers
+    if(!toks.size)return null;
+    const sb=getSupabase();if(!sb)return null;
+    for(const sym of toks){
+      const COLS="id,symbol,direction,conviction,plan,created_at";
+      // Prefer state-based (active/won) selection; fall back if migration 006 isn't run.
+      let{data,error}=await sb.from("signals").select(`${COLS},state`).eq("symbol",sym).in("state",["active","won"]).order("created_at",{ascending:false}).limit(1);
+      if(error?.code==="42703")({data}=await sb.from("signals").select(COLS).eq("symbol",sym).order("created_at",{ascending:false}).limit(1));
+      const row=(data||[])[0];
+      if(row&&row.plan&&row.plan.entry!=null&&row.direction!=="NEUTRAL")return row;
+    }
+    return null;
+  },[KNOWN_SYMBOLS]);
+  const setupTargets=(p)=>[p?.t1,p?.t2].filter(v=>v!=null);
+  // Rule 1: draw the setup onto the shared chart AND jump to the chart view so the
+  // user sees it immediately (Gio's call — auto-jump, not silent). Same makeLevel
+  // machinery the signal feed and the AI's chart_plot_trade use, so it renders
+  // identically. The re-show button (rule 2) re-triggers this after they navigate away.
+  const plotSetupOnChart=useCallback((row)=>{
+    const sym=String(row.symbol||"").toUpperCase();const p=row.plan||{};
+    const built=[];
+    const push=(price,kind,label)=>{const lv=makeLevel({symbol:sym,price,kind,label});if(lv)built.push(lv);};
+    push(p.entry,"entry",`ENTRY ${row.direction}`);
+    push(p.stop,"sl","STOP");
+    if(p.t1!=null)push(p.t1,"tp",p.t2!=null?"TP1":"TARGET");
+    if(p.t2!=null)push(p.t2,"tp","TP2");
+    if(!built.length)return;
+    setChartSymbol(sym);
+    setChartAnnotations(prev=>[...prev.filter(a=>a.symbol!==sym),...built]);
+    setView("chart");
+  },[]);
+  // Rule 2: the reply's re-show button — clicking re-plots + jumps to the chart via
+  // the existing chart_plot_trade registry entry.
+  const setupReshowButton=(row)=>({
+    kind:"action",
+    label:`▸ SHOW ${row.symbol} SETUP ON CHART`,
+    action:{name:"chart_plot_trade",input:{symbol:row.symbol,entry:row.plan.entry,stop:row.plan.stop,targets:setupTargets(row.plan),note:`${row.direction} ${row.symbol}`,replace:true}},
+  });
+
   // V10: the desk AI can operate the terminal — registry of client-executable actions.
   const aiActionsRef=useRef({});
   aiActionsRef.current={
@@ -1752,6 +1847,9 @@ export default function MarketTerminal(){
 
   const callAPI=useCallback(async(prompt,isAlert,curMsgs)=>{
     setLoading(true);
+    // Rules 1&2: look up any active setup on a ticker named in this message (in
+    // parallel with the model call). If found we auto-plot it and offer a button.
+    const setupP=findActiveSetupInText(prompt).catch(()=>null);
     try{
       const history=(curMsgs||messages).map(m=>({role:m.role,content:m.content}));
       const r=await fetch("/api/scan",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({messages:history,prompt,marketContext:ctx()})});
@@ -1765,10 +1863,16 @@ export default function MarketTerminal(){
         }
         if(done.length)actionNote=`\n\n⚙ Executed: ${done.join(", ")}`;
       }
-      setMessages(p=>[...p,{role:"assistant",content:(d.text||d.error||"Analysis complete.")+actionNote,isAlertDive:isAlert}]);
+      // Assemble inline buttons: the auto-setup re-show (rules 1&2) first, then any
+      // choice buttons the model offered via offer_choices (rule 3, e.g. short/long).
+      const setup=await setupP;
+      const buttons=[];
+      if(setup){plotSetupOnChart(setup);buttons.push(setupReshowButton(setup));}
+      if(Array.isArray(d.buttons))buttons.push(...d.buttons);
+      setMessages(p=>[...p,{role:"assistant",content:(d.text||d.error||"Analysis complete.")+actionNote,isAlertDive:isAlert,...(buttons.length?{buttons}:{})}]);
     }catch{setMessages(p=>[...p,{role:"assistant",content:"⚠️ Connection error. Please retry."}]);}
     finally{setLoading(false);}
-  },[messages,ctx]);
+  },[messages,ctx,findActiveSetupInText,plotSetupOnChart]);
 
   const send=useCallback(async()=>{
     if(!input.trim()||loading)return;
@@ -1783,9 +1887,21 @@ export default function MarketTerminal(){
     setMessages(nm);await callAPI(prompt,false,nm);
   },[loading,callAPI,messages]);
 
+  // V12: an inline button on an assistant message was clicked. kind "action" runs a
+  // client tool (e.g. re-show a setup on the chart); kind "prompt" sends a follow-up
+  // to the desk (e.g. the short/long explanation choice).
+  const onButton=useCallback((b)=>{
+    if(!b)return;
+    if(b.kind==="action"){const fn=aiActionsRef.current[b.action?.name];if(fn){try{fn(b.action.input||{});}catch{}}}
+    else if(b.kind==="prompt"&&b.prompt){handleQuick(b.prompt,b.userLabel||b.label);}
+  },[handleQuick]);
+
   const handleWLClick=useCallback(async(q)=>{
-    if(loading)return;
+    // V12: clicking a watchlist ticker opens its dedicated Overview page (chart +
+    // technicals + signals + news flow + embedded AI). On the chart page it still
+    // just loads the symbol there.
     if(view==="chart"){setChartSymbol(q.symbol);return;}
+    setOverviewSymbol(q.symbol);setView("overview");return;
     const prompt=`DEEP DIVE — ${q.symbol} (${q.name||q.symbol})\nLive: $${q.price?.toFixed(2)}, ${q.changePercent?.toFixed(2)}% today, H$${q.high?.toFixed(2)} L$${q.low?.toFixed(2)}\n\n▸ CATALYST\n▸ LEVELS — exact support and resistance\n▸ OPTIONS LANDSCAPE — IV rank\n▸ DIRECTION — CALL or PUT\n▸ PLAY — exact strike and expiry\n▸ ENTRY / TARGET / STOP\n▸ TIMEFRAME\n▸ SYMPATHY PLAYS\n▸ RISK\n▸ VERDICT — 🔥/⚡/👀`;
     const nm=[...messages,{role:"user",content:`🔍 Deep dive: ${q.symbol} — $${q.price?.toFixed(2)} (${q.changePercent?.toFixed(2)}%)`}];
     setMessages(nm);await callAPI(prompt,true,nm);
@@ -1830,7 +1946,10 @@ export default function MarketTerminal(){
   const watchlistInner=(
     <div style={{height:"100%",display:"flex",flexDirection:"column",background:TL.panel,minHeight:0}}>
       <div style={{padding:"11px 12px 9px",borderBottom:`1px solid ${TL.border}`,flexShrink:0}}>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+        {/* V12 fix: the panel's collapse button is absolutely positioned at top:8
+            right:8 (see the term_watchlist wrapper), which sat ON TOP of this
+            clock readout. Reserve ~26px on the right so the clock clears it. */}
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8,paddingRight:24}}>
           <div style={{display:"flex",alignItems:"center",gap:7}}>
             <div style={{width:7,height:7,borderRadius:"50%",background:dataErr?"#ff4d6d":accent,boxShadow:dataErr?"none":`0 0 8px ${accent}`}}/>
             <span style={{fontFamily:FONT_SANS,fontSize:14,fontWeight:700,color:TL.text,letterSpacing:0.2}}>Watchlist</span>
@@ -1862,7 +1981,7 @@ export default function MarketTerminal(){
     <div style={{height:"100%",display:"flex",flexDirection:"column",overflowY:"auto",overflowX:"hidden",minWidth:0,minHeight:0}}>
       <TickerTape accent={accent} T={T} speed={55}/>
       <div style={{minHeight:"44vh",maxHeight:"60vh",overflowY:"auto",padding:"14px 18px",flexShrink:0,...chatBgStyle}}>
-        {messages.map((msg,i)=><ChatMessage key={i} msg={msg} accent={accent} T={T} fontSize={fontSize}/>)}
+        {messages.map((msg,i)=><ChatMessage key={i} msg={msg} accent={accent} T={T} fontSize={fontSize} onButton={onButton}/>)}
         {loading&&<TypingIndicator accent={accent}/>}
         <div ref={chatEndRef}/>
       </div>
@@ -1944,7 +2063,7 @@ export default function MarketTerminal(){
             ::-webkit-scrollbar{width:2px;height:2px;}
             ::-webkit-scrollbar-track{background:transparent;}
             ::-webkit-scrollbar-thumb{background:#2A3D5288;border-radius:2px;}
-            ::-webkit-scrollbar-thumb:hover{background:#7A9AB566;}
+            ::-webkit-scrollbar-thumb:hover{background:#9DB4CC66;}
 
             /* ── MONO FONT OPTIMIZATION ── */
             .mono,span[style*="JetBrains"]{
@@ -2059,8 +2178,14 @@ export default function MarketTerminal(){
   cursor:"pointer",transition:"all 0.15s",marginRight:4,flexShrink:0,
 }}>⇄</button>
 
-{["terminal","data","chart"].map(v=>(
-              <button key={v} onClick={()=>setView(v)} style={{cursor:"pointer",position:"relative"}}>
+{["terminal","data","chart","overview"].map(v=>(
+              <button key={v} onClick={()=>{
+                // V12: Overview is now an explicit nav tab. Clicking it with no
+                // ticker chosen defaults to the current chart symbol so the tab is
+                // never blank; a watchlist click still deep-links a specific ticker.
+                if(v==="overview"&&!overviewSymbol)setOverviewSymbol(chartSymbol||"AAPL");
+                setView(v);
+              }} style={{cursor:"pointer",position:"relative"}}>
                 <span style={{fontFamily:FONT_DISPLAY,fontSize:Math.round(18*((fontSize||14)/14)),fontWeight:700,letterSpacing:0.3,color:view===v?T.text:T.dim,transition:"color 0.15s",textTransform:"capitalize"}}>
                   {v==="terminal"?"Trading Terminal":v.charAt(0).toUpperCase()+v.slice(1)}
                 </span>
@@ -2123,7 +2248,7 @@ export default function MarketTerminal(){
             {mobileTab==="chart"&&(
               <ChartPage isMobile symbol={chartSymbol} onSymbolChange={setChartSymbol} interval={chartInterval} onIntervalChange={setChartInterval}
                 annotations={chartAnnotations} onClearAnnotations={()=>clearChartAnnotations(chartSymbol)}
-                messages={messages} input={input} setInput={setInput} send={send} loading={loading}
+                messages={messages} input={input} setInput={setInput} send={send} loading={loading} onButton={onButton}
                 accent={accent} T={T} TR={TR} chartRightWidth={chartRightWidth} onStartResizeRight={()=>{}} fontSize={fontSize}/>
             )}
             {mobileTab==="data"&&(
@@ -2131,10 +2256,16 @@ export default function MarketTerminal(){
                 onDiveNews={handleNews} onDiveFiling={handleFiling} onDiveInsider={handleInsider}
                 messages={messages} input={input} setInput={setInput} send={send} loading={loading}
                 onOpenChat={()=>{setView("terminal");setMobilePanel("chat");}} accent={accent} T={T} watchlist={watchlist}
+                onPickTicker={(s)=>{setOverviewSymbol(s);setView("overview");}}
                 gridLayout={migrateDataLayout(layouts?.data)} onGridChange={()=>{}} editMode={false}
                 collapsed={collapsed} onToggleCollapse={toggleCollapse}/>
             )}
             {mobileTab==="bot"&&<BotDashboard isMobile accent={accent} T={T} botName="KRONOS BOT"/>}
+            {view==="overview"&&overviewSymbol&&(
+              <TickerOverview symbol={overviewSymbol} T={T} accent={accent}
+                messages={messages} input={input} setInput={setInput} send={send} loading={loading}
+                fontSize={fontSize} onBack={()=>setView("terminal")} onSymbolChange={(s)=>setOverviewSymbol(s)}/>
+            )}
           </div>
         )}
 
@@ -2157,7 +2288,7 @@ export default function MarketTerminal(){
           )}
 
           <div style={{display:view==="chart"?"flex":"none",flex:1,overflow:"hidden"}}>
-            <ChartPage symbol={chartSymbol} onSymbolChange={setChartSymbol} interval={chartInterval} onIntervalChange={setChartInterval} annotations={chartAnnotations} onClearAnnotations={()=>clearChartAnnotations(chartSymbol)} messages={messages} input={input} setInput={setInput} send={send} loading={loading} accent={accent} T={T} TR={TR} chartRightWidth={chartRightWidth} onStartResizeRight={startResize("chartRight",chartRightWidth)} fontSize={fontSize}/>
+            <ChartPage symbol={chartSymbol} onSymbolChange={setChartSymbol} interval={chartInterval} onIntervalChange={setChartInterval} annotations={chartAnnotations} onClearAnnotations={()=>clearChartAnnotations(chartSymbol)} messages={messages} input={input} setInput={setInput} send={send} loading={loading} onButton={onButton} accent={accent} T={T} TR={TR} chartRightWidth={chartRightWidth} onStartResizeRight={startResize("chartRight",chartRightWidth)} fontSize={fontSize}/>
           </div>
 
           {/* TERMINAL VIEW — classic flex (default) */}
@@ -2195,6 +2326,7 @@ export default function MarketTerminal(){
           {/* DATA VIEW */}
           {view==="data"&&(
             <DataPage news={news} secData={secData} secLoading={secLoading} onRefreshAll={()=>{fetchNews();loadSecData();}} onDiveNews={handleNews} onDiveFiling={handleFiling} onDiveInsider={handleInsider} messages={messages} input={input} setInput={setInput} send={send} loading={loading} onOpenChat={()=>setView("terminal")} accent={accent} T={T} watchlist={watchlist}
+              onPickTicker={(s)=>{setOverviewSymbol(s);setView("overview");}}
               gridLayout={migrateDataLayout(layouts?.data)} onGridChange={(l)=>setLayouts(prev=>({...prev,data:l}))} editMode={layoutEdit} collapsed={collapsed} onToggleCollapse={toggleCollapse}/>
           )}
 
@@ -2202,6 +2334,13 @@ export default function MarketTerminal(){
 {view==="bot"&&(
   <BotDashboard accent={accent} T={T} botName="KRONOS BOT" />
 )}
+
+          {/* V12: PER-TICKER OVERVIEW VIEW */}
+          {view==="overview"&&overviewSymbol&&(
+            <TickerOverview symbol={overviewSymbol} T={T} accent={accent}
+              messages={messages} input={input} setInput={setInput} send={send} loading={loading}
+              fontSize={fontSize} onBack={()=>setView("terminal")}/>
+          )}
 
         </div>
         )}
@@ -2216,6 +2355,7 @@ export default function MarketTerminal(){
               if(id==="chart"){setView("chart");}
               else if(id==="bot"){setView("bot");}
               else if(id==="data"){setView("data");}
+              else if(id==="overview"){if(!overviewSymbol)setOverviewSymbol(chartSymbol||"AAPL");setView("overview");}
               else{setView("terminal");setMobilePanel(id);}
             }}/>
         )}

@@ -10,8 +10,8 @@ import TickerLogo from "./TickerLogo";
 const FM = "'JetBrains Mono',monospace";
 const FC = "'Inter',sans-serif";
 
-const dirColor = (d) => d === "LONG" ? "#00e676" : d === "SHORT" ? "#ff3d57" : "#7A9AB5";
-const sigColor = (s) => s === "bullish" ? "#00e676" : s === "bearish" ? "#ff3d57" : "#7A9AB5";
+const dirColor = (d) => d === "LONG" ? "#00e676" : d === "SHORT" ? "#ff3d57" : "#9DB4CC";
+const sigColor = (s) => s === "bullish" ? "#00e676" : s === "bearish" ? "#ff3d57" : "#9DB4CC";
 const statusColor = (s) => s === "FIRE" ? "#00e676" : s === "HOLD" ? "#f7c948" : "#7eb8f7";
 
 // ── Shadow account helpers (localStorage) ─────────────────────────────────────
@@ -87,7 +87,7 @@ export function InfoDot({ info, accent = "#00d4aa", T }) {
   const panel = T?.panel ?? "#0A1018";
   const border = T?.border ?? "#1A2535";
   const text = T?.text ?? "#E2EDF8";
-  const dim = T?.dim ?? "#7A9AB5";
+  const dim = T?.dim ?? "#9DB4CC";
   return (
     <span className="kronos-info" style={{ position: "relative", display: "inline-flex", marginLeft: 5 }}>
       <span tabIndex={0} aria-label="What is this?" style={{
@@ -133,7 +133,7 @@ function AgentCard({ a, T, accent }) {
         </div>
       </div>
       {(a.reasons || []).slice(0, 3).map((r, i) => (
-        <div key={i} style={{ fontFamily: FC, fontSize: 9.5, color: T?.dim ?? "#7A9AB5", lineHeight: 1.45 }}>• {r}</div>
+        <div key={i} style={{ fontFamily: FC, fontSize: 9.5, color: T?.dim ?? "#9DB4CC", lineHeight: 1.45 }}>• {r}</div>
       ))}
     </div>
   );
@@ -143,7 +143,7 @@ export default function MultiAgentSignal({ accent = "#00d4aa", T, symbol = "NQ",
   const surface = T?.surface ?? "#0A1018";
   const border  = T?.border  ?? "#1A2535";
   const text    = T?.text    ?? "#E2EDF8";
-  const dim     = T?.dim     ?? "#7A9AB5";
+  const dim     = T?.dim     ?? "#9DB4CC";
 
   const [data,    setData]    = useState(null);
   const [loading, setLoading] = useState(false);

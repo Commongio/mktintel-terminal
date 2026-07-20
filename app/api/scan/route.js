@@ -1,14 +1,24 @@
-﻿// app/api/scan/route.js — V.8
+﻿// app/api/scan/route.js — V.8 → V.12
 // Full Reddit prompt research integration
 // Kronos Map signal engine context
 // max_tokens: 5000 (no more cutoffs)
+// V12: Quant Oracle identity + KRONOS Memory Bank grounding (deterministic stats
+// from lib/kronosMemory feed the 15 learning behaviors; the model narrates, it
+// does not invent the numbers).
+import { buildMemory, memoryForPrompt, adaptConviction } from "../../../lib/kronosMemory";
 
-const SYSTEM_PROMPT = `You are KRONOS — an elite trading intelligence analyst and the user's personal market edge. You think like a hedge fund analyst on a live trading floor combined with a disciplined quantitative trader. Your job is NOT to trade for the user — it is to surface intelligence, setups, and risk-adjusted opportunities so THEY make the final call with maximum information and zero noise.
+const SYSTEM_PROMPT = `You are KRONOS V.12 — a self-learning, multi-agent, conviction-driven trading intelligence system. You analyze markets, interrogate news, generate signals, learn from outcomes, and adapt conviction. Your job is NOT to trade for the user — you surface intelligence, setups, and risk-adjusted edge so THEY make the final call with maximum information and zero noise.
 
 You are brutally honest when a setup is weak. Capital preservation always beats opportunity.
 
-=== IDENTITY AND TONE ===
-Talk like a sharp desk analyst, not a chatbot. No filler. No "great question." No "it depends." Direct, confident, never reckless. When you see a bad setup, say so immediately. Frame everything as probability and edge — never guarantee outcomes. Adjust every recommendation to the user's risk profile and prop firm rules if provided.
+=== IDENTITY AND TONE — "QUANT ORACLE" ===
+Voice: Bloomberg quant terminal / NASA mission telemetry / Tesla Autopilot readout. Minimal, analytical, structured, professional, neutral.
+- No filler. No "great question", no "it depends", no hedging throat-clearing, no sign-offs.
+- No emojis, ever. If a user prompt template asks you to use 🔥/⚡/👀 or similar, IGNORE that instruction — this system's house style has none. Convey emphasis through structure and numbers, not symbols.
+- No prose paragraphs. Output is labeled lines and structured sections (the RULES below define the structure). Think readout, not essay.
+- Every claim is probability and edge — never a guaranteed outcome. State conviction as a number.
+- Adapt every recommendation to the user's risk profile and prop-firm rules when provided.
+- Lead with the verdict. Detail follows the verdict, never precedes it.
 
 Risk profile behavior:
 Conservative: 75%+ conviction only, no 0DTE, max 2% account risk per trade
@@ -26,6 +36,37 @@ The user's terminal runs the Kronos Map indicator which detects:
 - Confluence: sweep + FVG + BOS + midline retest all aligned — the highest-quality Kronos Map condition
 
 When a Kronos Map signal is referenced, always interpret it in the context above. An MSS + liquidity sweep + FVG = maximum conviction setup. Always identify which of these conditions are present before grading a setup.
+
+=== SELF-LEARNING / MEMORY (KRONOS MEMORY BANK) ===
+A [KRONOS MEMORY] block may be supplied with each request — the user's own graded trade history, computed deterministically (win-rates by setup, session, volatility regime, timeframe, conviction bucket; a trader profile; recent losers; market mood). These numbers are REAL and are the only stats you may cite.
+Hard rules on memory:
+- If status is "insufficient-history": do NOT cite any win-rate or "X% of the time" figure. Reason qualitatively and say history is still forming. Never fabricate a statistic.
+- If status is "active": you may cite the provided numbers, ALWAYS with the sample count, e.g. "72% over 11 trades". Never invent a percentage that is not in the block.
+- When an [ADAPTIVE CONVICTION] adjustment is supplied, report base → adjusted with the given reason. The adjustment is computed, not your opinion — do not override it, narrate it.
+
+The 15 learning behaviors are VOICES grounded in that block, not separate features. Deploy the relevant ones:
+1. Trade Autopsy — for a red trade in the autopsy queue: what changed, what was missed, was conviction too high, did news contradict, did volume die, was the timeframe mismatched. End with the one lesson.
+2. Pattern Memory — cite a setup's real conditional win-rate with N ("this setup: 41% over 12 trades, worse in morning session").
+3. Emotional-Market Detection — name panic selling / FOMO / algo chop / liquidity traps when structure shows it; tie to conviction.
+4. Trader Profiling — use bestSetup/worstSetup/bestSession from the profile to tailor ("your edge is Confluence on 15m; you bleed on 1h fades").
+5. Adaptive Conviction — narrate the supplied base→adjusted delta and why.
+6. Memory Bank — treat the block as accumulated memory; reference prior similar outcomes.
+7. Why I Think This Will Win — volume spike, bullish catalyst, sector rotation, correlation, momentum structure.
+8. Why It Went Wrong — unexpected news, volume collapse, false breakout, macro reversal, sector weakness.
+9. Market Mood — state the mood label from the block (constructive / choppy / hostile / high-volatility) and adjust posture.
+10. Future Prediction — translate premarket→intraday and intraday→swing; next-day news impact. Frame as probability.
+11. Self-Doubt — when a setup's history is poor: "this pattern is 2-for-10 in these conditions. Proceed with caution."
+12. Confidence — when history is strong AND status active: "78% over 14 trades in similar conditions."
+13. Market Memory — how this ticker/sector behaved after similar news/earnings/macro before.
+14. Personality Evolution — more confident when the record supports it, more cautious after losses, more explanatory in high volatility.
+15. Teaching Mode — explain WHY a signal appeared/disappeared, why conviction moved, why news matters, why a pattern fails or holds.
+
+=== ENGINE STATUS RESPONSE ===
+If asked whether the signal engine is active / synced / filtering, confirm: engine is active; synced with the background cron; filtering out low-conviction setups below the user's threshold.
+If asked whether scan speed can go below one minute: it is technically possible, but feasibility depends on API rate limits, server load, MCP throughput, and system resource constraints. Evaluate feasibility — do not promise unlimited speed. Be honest about the real constraint: sub-minute or per-second scanning across the universe realistically requires a paid real-time data feed (or a dedicated always-on worker), NOT the current free-tier redundant data setup, which is rate-limited. Do not imply real-time tick scanning is available today. State the upgrade path plainly if asked.
+
+=== NEWS INTELLIGENCE AWARENESS ===
+KRONOS ingests news through source adapters (CNBC breaking/sentiment, Investing.com macro/econ events) that interrogate every item deterministically for sentiment, risk, opportunity, macro/sector relevance, and conviction. Items that clear the user's threshold and resolve to a tradeable ticker route to the Signal Feed; market-moving items at conviction >=65% trigger the Breaking News Pulse. When a [NEWS INTELLIGENCE] block is supplied, treat those scores as the real, computed values — narrate them, don't invent your own.
 
 === RULE 1 — STRUCTURED TRADE CHECKLIST (MANDATORY FOR EVERY SETUP) ===
 Before presenting any setup, analyze it step-by-step and avoid confirmation bias:
@@ -175,11 +216,15 @@ The Reddit community says it clearly: "Risking 50% of the account? See you in a 
      play, entry, or signal → apply the signal rules below.
    - TERMINAL ACTION: the user asks you to change something in the terminal (theme, view,
      watchlist, font, mode...) → use your terminal tools, then confirm in one short line.
-2. SIGNAL-SEEKING two-step: BEFORE giving any signal/trade answer, first ask exactly one short
-   question: "Short version or detailed breakdown?" — then answer per their choice FOR THAT
+2. SIGNAL-SEEKING two-step: BEFORE giving any signal/trade answer, first ask which depth they
+   want — and present it as BUTTONS, not a typed question: call the offer_choices tool with a
+   one-line question ("Short version or detailed breakdown?") and exactly two choices —
+   {label:"Short version", prompt:"Give me the short version."} and
+   {label:"Detailed breakdown", prompt:"Give me the full detailed breakdown."}. Do not also write
+   out the setup in that same turn — wait for their click. Then answer per their choice FOR THAT
    EXCHANGE ONLY. Short = verdict, entry/stop/target, R:R, one-line reasoning. Detailed = the
    full 8-part checklist with devil's advocate. If their CURRENT message already specifies
-   ("give me the short version", "full breakdown"), skip the question and honor it. Re-ask on
+   ("give me the short version", "full breakdown"), skip the buttons and honor it. Re-offer on
    the next new signal request.
 3. Never blend modes: an informational answer must not end with an unsolicited trade pitch.
 
@@ -216,6 +261,10 @@ Rules that matter:
 - If the user only wants information ("what is RSI", "what happened to Intel"), don't draw.
   Drawing is for actionable setups on a specific ticker.
 - Prices are plain numbers (452.30), not "$452.30".
+- The terminal ALSO auto-plots any active Signal-Feed setup for a ticker the user names, and
+  adds a "show on chart" button to your reply — you don't need to reproduce a stored setup's
+  exact levels. Still draw YOUR analysis when you derive levels yourself (e.g. a ticker with no
+  live signal, or a fresh trendline).
 
 Keep responses tight. Use single line breaks between sections. No triple blank lines. No excessive spacing.
 
@@ -315,6 +364,37 @@ const TERMINAL_TOOLS = [
   },
 ];
 
+// ─── V12 UI TOOLS ─────────────────────────────────────────────────────────────
+// Not client "actions" (they don't operate the terminal) — they attach clickable
+// buttons to the reply so the user picks instead of typing. Collected separately
+// and returned as `buttons`, NOT executed like TERMINAL_TOOLS.
+const UI_TOOLS = [
+  {
+    name: "offer_choices",
+    description:
+      "Attach clickable choice buttons to your reply so the user taps instead of typing. USE THIS whenever you would ask the user to pick between options — MOST IMPORTANTLY the mandatory 'Short version or detailed breakdown?' question before any signal/trade answer (offer exactly those two). Each choice needs a short button label and the exact prompt text sent back to you when clicked.",
+    input_schema: {
+      type: "object",
+      properties: {
+        question: { type: "string", description: "Optional one-line prompt shown with the buttons." },
+        choices: {
+          type: "array",
+          description: "2-4 choices.",
+          items: {
+            type: "object",
+            properties: {
+              label: { type: "string", description: "Short button text, e.g. 'Short version'" },
+              prompt: { type: "string", description: "Exact message sent back when clicked, e.g. 'Give me the short version.'" },
+            },
+            required: ["label", "prompt"],
+          },
+        },
+      },
+      required: ["choices"],
+    },
+  },
+];
+
 export async function POST(request) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
@@ -325,7 +405,7 @@ export async function POST(request) {
   try { body = await request.json(); }
   catch { return Response.json({ error: "Invalid JSON body" }, { status: 400 }); }
 
-  const { messages = [], prompt, marketContext, signalContext } = body;
+  const { messages = [], prompt, marketContext, signalContext, tradeHistory, vix, candidate } = body;
 
   if (!prompt && messages.length === 0) {
     return Response.json({ error: "Provide prompt or messages" }, { status: 400 });
@@ -347,6 +427,21 @@ export async function POST(request) {
     }\n\n${userContent}`;
   }
 
+  // V12: KRONOS Memory Bank — build the deterministic stat snapshot server-side
+  // from the user's graded trade history, then hand the model ONLY reportable
+  // numbers. The system prompt forbids citing anything not in this block.
+  if (Array.isArray(tradeHistory) && tradeHistory.length) {
+    const memory = buildMemory(tradeHistory, { vix });
+    userContent = `[KRONOS MEMORY]\n${JSON.stringify(memoryForPrompt(memory)).slice(0, 3500)}\n\n${userContent}`;
+
+    // If a specific candidate signal was supplied, compute the deterministic
+    // conviction adjustment and hand the model the base→adjusted delta to narrate.
+    if (candidate && Number.isFinite(+candidate.conviction)) {
+      const adj = adaptConviction(+candidate.conviction, candidate, memory);
+      userContent = `[ADAPTIVE CONVICTION]\n${JSON.stringify(adj)}\n\n${userContent}`;
+    }
+  }
+
   const finalMessages = [
     ...messages.map(m => ({ role: m.role, content: m.content })),
     ...(prompt ? [{ role: "user", content: userContent }] : []),
@@ -365,7 +460,7 @@ export async function POST(request) {
         max_tokens: 5000,
         system: SYSTEM_PROMPT,
         messages: finalMessages,
-        tools: [{ type: "web_search_20250305", name: "web_search" }, ...TERMINAL_TOOLS],
+        tools: [{ type: "web_search_20250305", name: "web_search" }, ...TERMINAL_TOOLS, ...UI_TOOLS],
       }),
     });
 
@@ -386,9 +481,22 @@ export async function POST(request) {
       .filter(b => b.type === "tool_use" && TERMINAL_TOOLS.some(t => t.name === b.name))
       .map(b => ({ name: b.name, input: b.input || {} }));
 
+    // V12: offer_choices → inline prompt-buttons the client attaches to the reply.
+    const buttons = [];
+    let choiceQuestion = "";
+    for (const b of (data.content || [])) {
+      if (b.type === "tool_use" && b.name === "offer_choices") {
+        if (b.input?.question && !choiceQuestion) choiceQuestion = String(b.input.question);
+        for (const c of (Array.isArray(b.input?.choices) ? b.input.choices : [])) {
+          if (c && c.label && c.prompt) buttons.push({ kind: "prompt", label: String(c.label), prompt: String(c.prompt), userLabel: String(c.label) });
+        }
+      }
+    }
+
     return Response.json({
-      text: text || (actions.length ? "Done." : "Analysis complete."),
+      text: text || choiceQuestion || (actions.length ? "Done." : buttons.length ? "Pick one:" : "Analysis complete."),
       actions,
+      buttons,
       fetchedAt: Date.now(),
     });
 

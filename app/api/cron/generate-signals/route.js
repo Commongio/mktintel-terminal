@@ -15,9 +15,10 @@
 // empty in production. Kept intentionally small (curated large-cap names only)
 // and rate-gated by time-of-day — position/long-horizon setups don't need
 // thousands of names or 2-minute freshness the way intraday scanning does.
-import { runSignalEngine, MODE_DEFAULT_INTERVAL, ENGINE_VERSION } from "../../../../lib/signalEngine";
+import { runSignalEngine, MODE_DEFAULT_INTERVAL, ENGINE_VERSION, MIN_SURFACE_CONVICTION } from "../../../../lib/signalEngine";
 import { getAdmin, serverConfigured, insertSignal } from "../../../../lib/supabaseServer";
 import { sendSignalPush } from "../../../../lib/push";
+import { gradeSignalLifecycle } from "../../../../lib/signalLifecycle";
 import { scanUniverse, fetchMostActives, FULL_UNIVERSE, BUCKET_SIZE, ROTATING_PER_RUN, rotationLength, CURATED } from "../../../../lib/universe";
 
 export const maxDuration = 60;
@@ -52,6 +53,15 @@ const everyNMinutes = (n) => new Date().getMinutes() % n < 2;
 
 async function writeIfChanged(admin, { assetClass, symbol, interval }, buckets) {
   const sig = await runSignalEngine({ assetClass, symbol, interval });
+
+  // V12: only surface setups at or above the hard floor. Previously the cron
+  // wrote any changed/stale verdict regardless of conviction, so sub-45% SCAN
+  // rows polluted the feed. The user's slider still filters further on top.
+  if ((sig.conviction ?? 0) < MIN_SURFACE_CONVICTION) {
+    buckets.skipped.push(`${assetClass}:${symbol}:${interval}:lowconv${sig.conviction ?? 0}`);
+    return;
+  }
+
   const { data: last } = await admin.from("signals")
     .select("status,direction,created_at")
     .eq("asset_class", assetClass).eq("symbol", symbol).eq("interval", interval)
@@ -151,9 +161,19 @@ export async function GET(request) {
   // Yearly bucket ("1mo"): long-horizon — once a day, near the open, is plenty.
   if (!ranOutOfTime && new Date().getUTCHours() === 13 && everyNMinutes(2)) await sweep("1mo", "yearly");
 
+  // ── V12 LIFECYCLE: grade open signals → won/lost/invalidated ────────────────
+  // Runs after writes so a signal generated this same tick can be superseded in
+  // the same pass. No-ops safely until migration 006 adds the state column.
+  let lifecycle = { skipped: "no-time" };
+  if (!ranOutOfTime) {
+    try { lifecycle = await gradeSignalLifecycle(admin); }
+    catch (e) { lifecycle = { error: String(e.message) }; }
+  }
+
   return Response.json({
     ok: true,
     written: buckets.written, skipped: buckets.skipped, failed: buckets.failed,
+    lifecycle,
     mostActives: mostActives.length,
     portfolioSweeps: portfolio,
     // Rotation telemetry — makes coverage auditable instead of a black box.

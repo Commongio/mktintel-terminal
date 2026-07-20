@@ -65,7 +65,7 @@ export default function LightweightChart({
   const [meta, setMeta] = useState(null);
 
   const text = T?.text ?? "#E2EDF8";
-  const dim = T?.dim ?? "#7A9AB5";
+  const dim = T?.dim ?? "#9DB4CC";
   const border = T?.border ?? "#1A2535";
 
   // ── create chart once ──────────────────────────────────────────────────────
@@ -108,7 +108,25 @@ export default function LightweightChart({
     volRef.current = volSeries;
     markersRef.current = createSeriesMarkers(candleSeries, []);
 
-    return () => { chart.remove(); chartRef.current = null; };
+    // THE SQUISHED-STRIP FIX: this chart is often created while its container is
+    // display:none (the Chart tab is hidden until selected), so it initializes at
+    // 0 width and any fitContent() packs every candle into a sliver on the right.
+    // autoSize grows the CANVAS when the tab is shown, but does NOT re-fit the
+    // visible range — so the sliver persists. Watch for the container gaining real
+    // width and fit ONCE at that point. We deliberately don't re-fit on every
+    // resize afterward, so a user's manual zoom/pan is respected.
+    let lastW = wrapRef.current.clientWidth || 0;
+    if (lastW > 0) chart.timeScale().fitContent();
+    const ro = new ResizeObserver(() => {
+      const w = wrapRef.current?.clientWidth || 0;
+      // Refit on every 0→visible transition (tab shown, or data loaded while
+      // hidden), but not on ordinary width changes — so manual zoom survives.
+      if (lastW === 0 && w > 0) chart.timeScale().fitContent();
+      lastW = w;
+    });
+    ro.observe(wrapRef.current);
+
+    return () => { ro.disconnect(); chart.remove(); chartRef.current = null; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

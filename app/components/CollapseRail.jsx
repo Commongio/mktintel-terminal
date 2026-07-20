@@ -6,7 +6,7 @@
 const FM = "'JetBrains Mono',monospace";
 
 export function CollapseButton({ collapsed, onToggle, accent, T, title }) {
-  const dim = T?.dim ?? "#7A9AB5";
+  const dim = T?.dim ?? "#9DB4CC";
   const border = T?.border ?? "#1A2535";
   return (
     <button onClick={onToggle} title={title || (collapsed ? "Expand panel" : "Collapse panel")}
@@ -25,7 +25,7 @@ export function CollapseButton({ collapsed, onToggle, accent, T, title }) {
 export function CollapsedRail({ label, side = "left", onExpand, accent = "#00d4aa", T }) {
   const panel = T?.panel ?? "#0A1018";
   const border = T?.border ?? "#1A2535";
-  const dim = T?.dim ?? "#7A9AB5";
+  const dim = T?.dim ?? "#9DB4CC";
   return (
     <div
       onClick={onExpand}

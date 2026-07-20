@@ -134,8 +134,8 @@ export default function TickerTape({ accent = "#00d4aa", T, speed = 60 }) {
   const border = T?.border ?? "#1A2535";
   const surface = T?.surface ?? "#0A1018";
   const text = T?.text ?? "#E2EDF8";
-  const dim = T?.dim ?? "#7A9AB5";
-  const textDim = T?.textDim ?? "#7A9AB5";
+  const dim = T?.dim ?? "#9DB4CC";
+  const textDim = T?.textDim ?? "#9DB4CC";
 
   const fetchQuotes = useCallback(async () => {
     if (!symbols.length) return;

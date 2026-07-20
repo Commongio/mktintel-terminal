@@ -11,14 +11,14 @@ const FC = "'Inter',sans-serif";
 
 const outcomeColor = (o) =>
   o === "WIN" || o === "WINNING" ? "#00e676" :
-  o === "STOPPED" || o === "LOSING" ? "#ff3d57" : "#7A9AB5";
+  o === "STOPPED" || o === "LOSING" ? "#ff3d57" : "#9DB4CC";
 
 // ─── SHADOW ACCOUNT PANEL ─────────────────────────────────────────────────────
 export default function ShadowAccountPanel({ accent = "#00d4aa", T, assetClass = "futures" }) {
   const surface = T?.surface ?? "#0A1018";
   const border  = T?.border  ?? "#1A2535";
   const text    = T?.text    ?? "#E2EDF8";
-  const dim     = T?.dim     ?? "#7A9AB5";
+  const dim     = T?.dim     ?? "#9DB4CC";
 
   const [evaluated, setEvaluated] = useState([]);
   const [stats,     setStats]     = useState(null);
@@ -132,7 +132,7 @@ export function PaperTradingPanel({ accent = "#00d4aa", T, paperMode, setPaperMo
   const surface = T?.surface ?? "#0A1018";
   const border  = T?.border  ?? "#1A2535";
   const text    = T?.text    ?? "#E2EDF8";
-  const dim     = T?.dim     ?? "#7A9AB5";
+  const dim     = T?.dim     ?? "#9DB4CC";
 
   const [paper, setPaper] = useState(() => getPaperState(assetClass));
 

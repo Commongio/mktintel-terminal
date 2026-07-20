@@ -13,7 +13,7 @@
 // Conviction: the caller's own minConviction gates BOTH the engine's FIRE
 // decision and whether we bother writing the row — so a refresh respects the
 // user's slider rather than a hardcoded default.
-import { runSignalEngine, MODE_SYMBOLS, MODE_DEFAULT_INTERVAL, ENGINE_VERSION } from "../../../lib/signalEngine";
+import { runSignalEngine, MODE_SYMBOLS, MODE_DEFAULT_INTERVAL, ENGINE_VERSION, MIN_SURFACE_CONVICTION } from "../../../lib/signalEngine";
 import { getAdmin, serverConfigured, insertSignal } from "../../../lib/supabaseServer";
 
 export const maxDuration = 60;
@@ -32,7 +32,7 @@ export async function POST(request) {
   try { body = await request.json(); } catch {}
   const assetClass = body.assetClass === "options" ? "options" : "futures";
   // Floor at the feed's own 60% minimum — below that the feed hides it anyway.
-  const minConviction = Math.max(60, Math.min(95, Number(body.minConviction) || 65));
+  const minConviction = Math.max(MIN_SURFACE_CONVICTION, Math.min(95, Number(body.minConviction) || 65));
 
   const since = Date.now() - (lastRun.get(assetClass) || 0);
   if (since < COOLDOWN_MS) {

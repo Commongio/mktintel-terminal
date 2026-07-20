@@ -149,7 +149,7 @@ function EvalGauge({ label, current, limit, color, invert = false }) {
   return (
     <div style={{ marginBottom: 12 }}>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-        <span style={{ fontFamily: FM, fontSize: 8, color: "#7A9AB5", letterSpacing: 1 }}>{label}</span>
+        <span style={{ fontFamily: FM, fontSize: 8, color: "#9DB4CC", letterSpacing: 1 }}>{label}</span>
         <span style={{ fontFamily: FM, fontSize: 10, fontWeight: 700, color: gc }}>
           ${Math.abs(current).toLocaleString()} / ${limit.toLocaleString()}
         </span>
@@ -173,7 +173,7 @@ export default function PropFirmPanel({ accent, T, onFirmSelect }) {
   const surface = T?.surface ?? "#0A1018";
   const border  = T?.border  ?? "#1A2535";
   const text    = T?.text    ?? "#E2EDF8";
-  const dim     = T?.dim     ?? "#7A9AB5";
+  const dim     = T?.dim     ?? "#9DB4CC";
 
   const [activeFirm,    setActiveFirm]    = useState(null);
   const [activeAccount, setActiveAccount] = useState(0);

@@ -10,6 +10,49 @@ import { getSupabase, supabaseConfigured } from "../../lib/supabase";
 import { symbolTier, allowedTiers } from "../../lib/universe";
 import { getMarketStatus } from "./MarketStatusBadge";
 import TickerLogo from "./TickerLogo";
+import { makeLevel, loadAnnotations, saveAnnotations } from "../../lib/chartAnnotations";
+
+// ── V12 lifecycle helpers ─────────────────────────────────────────────────────
+
+// A signal that reached a terminal state feeds the Phase-1 self-learning engine
+// (kronosMemory reads kronos_shadow). Lost/invalidated are the autopsy fuel;
+// wins reinforce pattern memory. Deduped by signal id so a re-render can't double
+// count. Outcome maps to the vocabulary kronosMemory grades on.
+const OUTCOME_MAP = { won: "WIN", lost: "STOPPED", invalidated: "INVALIDATED" };
+function recordOutcome(r, state) {
+  const outcome = OUTCOME_MAP[state];
+  if (!outcome) return;
+  try {
+    const arr = JSON.parse(localStorage.getItem("kronos_shadow") || "[]");
+    if (arr.some((x) => x._sigId === r.id)) return; // already recorded
+    arr.push({
+      _sigId: r.id, symbol: r.symbol, direction: r.direction, conviction: r.conviction,
+      interval: r.interval, setup: r.plan?.kind || r.status, outcome,
+      entry: r.plan?.entry ?? null, movePct: null, time: Date.now(),
+    });
+    localStorage.setItem("kronos_shadow", JSON.stringify(arr.slice(-200)));
+  } catch {}
+}
+
+// "Show Trade on Chart": prepare chart-ready data (entry/TP/SL as level lines)
+// via the SAME annotation model the terminal chart uses, then ask the shell to
+// open the chart. Rendering "exactly like the terminal chart" is literal here —
+// it IS the terminal chart + terminal annotation system, not a separate clone.
+function showTradeOnChart(r) {
+  try {
+    const sym = String(r.symbol || "").toUpperCase();
+    if (!sym) return;
+    const all = loadAnnotations().filter((a) => a.symbol !== sym); // clear old lines for this symbol
+    const p = r.plan || {};
+    const add = (price, kind, label) => { const lv = makeLevel({ symbol: sym, price, kind, label }); if (lv) all.push(lv); };
+    add(p.entry, "entry", `ENTRY ${r.direction}`);
+    add(p.stop, "sl", "STOP");
+    add(p.t1, "tp", "TP1");
+    add(p.t2, "tp", "TP2");
+    saveAnnotations(all);
+    window.dispatchEvent(new CustomEvent("kronos-show-chart", { detail: { symbol: sym } }));
+  } catch {}
+}
 
 function getRiskProfile() {
   try { return JSON.parse(localStorage.getItem("kronos_profile") || "null"); } catch { return null; }
@@ -25,8 +68,8 @@ const FM = "'JetBrains Mono',monospace";
 const FC = "'Inter',sans-serif";
 
 const stColor = (s) => (s === "FIRE" ? "#00e676" : s === "HOLD" ? "#f7c948" : "#7eb8f7");
-const dirColor = (d) => (d === "LONG" ? "#00e676" : d === "SHORT" ? "#ff3d57" : "#7A9AB5");
-const convColor = (c) => (c >= 90 ? "#00e676" : c >= 78 ? "#f7c948" : c >= 60 ? "#fb923c" : "#7A9AB5");
+const dirColor = (d) => (d === "LONG" ? "#00e676" : d === "SHORT" ? "#ff3d57" : "#9DB4CC");
+const convColor = (c) => (c >= 90 ? "#00e676" : c >= 78 ? "#f7c948" : c >= 60 ? "#fb923c" : "#9DB4CC");
 
 // Cadence buckets: interval → bucket. "daily" = intraday signals, "weekly" = swing TFs.
 const INTERVAL_BUCKET = { "1min": "daily", "5min": "daily", "15min": "daily", "1h": "daily", "4h": "weekly", "1d": "weekly", "1w": "monthly", "1mo": "yearly" };
@@ -42,8 +85,11 @@ function ago(ts) {
 // V10.5 lifecycle: the old 4h age cap was silently dropping good setups overnight
 // and across weekends. Now we keep every STRONG signal from the current or previous
 // trading day instead, so nothing worth seeing gets binned just because time passed.
-export const MIN_FEED_CONVICTION = 60;          // below this, it isn't worth the row
-export const INVALIDATION_GRACE_MS = 25 * 1000; // blurred grace before removal
+// V12: mirrors MIN_SURFACE_CONVICTION in lib/signalEngine (kept as a literal so
+// this client component doesn't bundle the server engine). Lowered 60 → 45 per
+// the V12 spec: the user's own conviction slider is the real gate; this is just
+// the hard floor so the slider can reach down to 45%.
+export const MIN_FEED_CONVICTION = 45;
 const isActive = (s) => s === "FIRE" || s === "HOLD";
 
 // Start-of-day in US market time (ET) for a given date.
@@ -67,12 +113,6 @@ export function tradingDayCutoff(now = new Date()) {
   const back = day === 1 ? 3 : day === 0 ? 3 : day === 6 ? 2 : 1;
   const prev = new Date(now.getTime() - back * 86400000);
   return etStartOfDay(prev);
-}
-
-// A signal earns its place in the feed if it's strong enough AND recent enough.
-export function keepSignal(r, cutoff) {
-  if ((r.conviction ?? 0) < MIN_FEED_CONVICTION) return false;
-  return new Date(r.created_at).getTime() >= cutoff;
 }
 
 // Plain-English "why" for a signal, derived from the agents that actually voted.
@@ -103,7 +143,7 @@ function reasoningFor(r) {
 function ReasoningPopup({ r, T, accent, anchorRect, onClose }) {
   const border = T?.border ?? "#1A2535";
   const text = T?.text ?? "#E2EDF8";
-  const dim = T?.dim ?? "#7A9AB5";
+  const dim = T?.dim ?? "#9DB4CC";
   const panel = T?.panel ?? "#0A1018";
   const { headline, agents } = reasoningFor(r);
   const sc = stColor(r.status);
@@ -196,6 +236,17 @@ function ReasoningPopup({ r, T, accent, anchorRect, onClose }) {
           </div>
         </>
       )}
+      {/* Show Trade on Chart — draws entry/TP/SL on the (shared) terminal chart. */}
+      {r.plan?.entry != null && r.direction !== "NEUTRAL" && (
+        <button
+          onClick={(e) => { e.stopPropagation(); showTradeOnChart(r); onClose?.(); }}
+          style={{
+            width: "100%", marginTop: 10, padding: "9px 0", borderRadius: 8, cursor: "pointer",
+            fontFamily: FM, fontSize: 9, fontWeight: 800, letterSpacing: 1.5,
+            color: accent, background: `${accent}12`, border: `1px solid ${accent}35`,
+          }}
+        >⧉ SHOW TRADE ON CHART</button>
+      )}
       <div style={{ fontFamily: FM, fontSize: 7, color: dim, marginTop: 10, opacity: 0.7, lineHeight: 1.5 }}>
         Probability-based analysis — not financial advice.
       </div>
@@ -204,17 +255,17 @@ function ReasoningPopup({ r, T, accent, anchorRect, onClose }) {
   );
 }
 
-function FeedRow({ r, T, accent, highlight, invalidated }) {
+function FeedRow({ r, T, accent, highlight, onDelete }) {
   const border = T?.border ?? "#1A2535";
   const text = T?.text ?? "#E2EDF8";
-  const dim = T?.dim ?? "#7A9AB5";
+  const dim = T?.dim ?? "#9DB4CC";
   const [open, setOpen] = useState(false);
   const [anchorRect, setAnchorRect] = useState(null);
   const rowRef = useRef(null);
   const sc = stColor(r.status);
+  const won = r.state === "won"; // only active + won reach this component
 
   const toggle = () => {
-    if (invalidated) return;
     if (open) { setOpen(false); return; }
     setAnchorRect(rowRef.current?.getBoundingClientRect() || null);
     setOpen(true);
@@ -237,25 +288,31 @@ function FeedRow({ r, T, accent, highlight, invalidated }) {
 
   return (
     <div ref={rowRef} onClick={toggle} style={{
-      padding: "10px 12px", borderBottom: `1px solid ${border}55`, cursor: invalidated ? "default" : "pointer",
-      background: invalidated ? "rgba(255,61,87,0.05)" : highlight ? `${sc}14` : "transparent",
-      transition: "background 0.8s ease, filter 0.6s ease, opacity 0.6s ease",
-      filter: invalidated ? "blur(1.4px) grayscale(0.6)" : "none",
-      opacity: invalidated ? 0.55 : 1,
+      padding: "10px 12px", borderBottom: `1px solid ${border}55`, cursor: "pointer",
+      background: won ? "rgba(0,230,118,0.06)" : highlight ? `${sc}14` : "transparent",
+      transition: "background 0.8s ease",
       position: "relative",
     }}>
-      {invalidated && (
-        <div style={{
-          position: "absolute", inset: 0, zIndex: 3, display: "flex", alignItems: "center", justifyContent: "center",
-          pointerEvents: "none",
-        }}>
-          <span style={{
-            fontFamily: FM, fontSize: 9, fontWeight: 800, letterSpacing: 3, color: "#ff3d57",
-            background: "rgba(10,14,22,0.82)", border: "1px solid rgba(255,61,87,0.5)",
-            borderRadius: 5, padding: "3px 12px", filter: "none",
-          }}>✕ INVALIDATED</span>
-        </div>
+      {/* WON badge — winners stay in the feed (spec: never hide winning trades). */}
+      {won && (
+        <span style={{
+          position: "absolute", top: 8, right: 30, zIndex: 2,
+          fontFamily: FM, fontSize: 7.5, fontWeight: 800, letterSpacing: 1.5, color: "#00e676",
+          background: "rgba(0,230,118,0.12)", border: "1px solid rgba(0,230,118,0.4)",
+          borderRadius: 4, padding: "2px 6px",
+        }}>✓ WON</span>
       )}
+      {/* Manual delete — user override, distinct from the automatic lifecycle. */}
+      <button
+        onClick={(e) => { e.stopPropagation(); onDelete?.(r); }}
+        title="Delete this signal"
+        style={{
+          position: "absolute", top: 6, right: 6, zIndex: 4, width: 20, height: 20,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          borderRadius: 5, background: "transparent", border: "none",
+          color: dim, fontSize: 11, cursor: "pointer", opacity: 0.55,
+        }}
+      >🗑</button>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 5 }}>
         <div style={{ display: "flex", gap: 7, alignItems: "center", minWidth: 0 }}>
           <span style={{ fontFamily: FM, fontSize: 8, fontWeight: 800, color: sc, letterSpacing: 1, flexShrink: 0 }}>
@@ -288,9 +345,23 @@ const SignalFeed = forwardRef(function SignalFeed({ accent = "#00d4aa", T, asset
   const surface = T?.surface ?? "#0A1018";
   const border = T?.border ?? "#1A2535";
   const text = T?.text ?? "#E2EDF8";
-  const dim = T?.dim ?? "#7A9AB5";
+  const dim = T?.dim ?? "#9DB4CC";
 
   const [rows, setRows] = useState([]);
+  // V12: user-dismissed signal ids. The `signals` table is a SHARED standardized
+  // feed (one row seen by everyone), so a trash click can't hard-delete the row
+  // globally — it's a per-user hide, persisted locally. This is the manual
+  // override that sits on top of the automatic lifecycle.
+  const [dismissed, setDismissed] = useState(() => {
+    try { return new Set(JSON.parse(localStorage.getItem("kronos_dismissed") || "[]")); } catch { return new Set(); }
+  });
+  const dismissSignal = (r) => {
+    setDismissed((prev) => {
+      const next = new Set(prev); next.add(r.id);
+      try { localStorage.setItem("kronos_dismissed", JSON.stringify([...next].slice(-500))); } catch {}
+      return next;
+    });
+  };
   const [state, setState] = useState(supabaseConfigured() ? "loading" : "unconfigured");
   const [highlightId, setHighlightId] = useState(null);
   const [cadence, setCadence] = useState(getCadencePref());
@@ -350,18 +421,29 @@ const SignalFeed = forwardRef(function SignalFeed({ accent = "#00d4aa", T, asset
       // migration hasn't been run yet. So: try with it, and fall back without it.
       // Pre-migration the feed still works, it just can't tell manual signals
       // apart (they get tier-filtered like cron ones until 003 lands).
-      const COLS = "id,asset_class,symbol,interval,status,direction,conviction,plan,agents,created_at";
-      const query = (withSource) => sb.from("signals")
-        .select(withSource ? `${COLS},source` : COLS)
+      // V12 lifecycle: prefer state-based selection with NO time deletion — show
+      // active + won, hide lost + invalidated (kept in the DB for analysis). Falls
+      // back to the old time-window query only if migration 006 (state) isn't run.
+      const COLS = "id,asset_class,symbol,interval,status,direction,conviction,plan,agents,source,created_at";
+      const stateQuery = () => sb.from("signals")
+        .select(`${COLS},state,resolved_at`)
         .eq("asset_class", assetClass)
-        .gte("conviction", MIN_FEED_CONVICTION)          // strong signals only
-        .gte("created_at", new Date(cutoff).toISOString()) // current + previous trading day
+        .gte("conviction", MIN_FEED_CONVICTION)
+        .in("state", ["active", "won"])                 // hide lost/invalidated; no time filter
+        .order("created_at", { ascending: false })
+        .limit(200);
+      const legacyQuery = (withSource) => sb.from("signals")
+        .select(withSource ? COLS : COLS.replace(",source", ""))
+        .eq("asset_class", assetClass)
+        .gte("conviction", MIN_FEED_CONVICTION)
+        .gte("created_at", new Date(cutoff).toISOString()) // pre-006 keeps the 2-session window
         .order("created_at", { ascending: false })
         .limit(200);
 
-      let { data, error } = await query(true);
-      if (error?.code === "42703") {
-        ({ data, error } = await query(false)); // migration 003 not applied yet
+      let { data, error } = await stateQuery();
+      if (error?.code === "42703") {                    // state column not there yet
+        ({ data, error } = await legacyQuery(true));
+        if (error?.code === "42703") ({ data, error } = await legacyQuery(false)); // nor source
       }
       if (cancelled) return;
       if (error) { setState("error"); return; }
@@ -373,35 +455,32 @@ const SignalFeed = forwardRef(function SignalFeed({ accent = "#00d4aa", T, asset
       setRows(deduped);
       setState(deduped.length ? "live" : "empty");
       setRefreshing(false);
-      channel = sb.channel("signals-feed-v10")
+      channel = sb.channel("signals-feed-v12")
         .on("postgres_changes", { event: "INSERT", schema: "public", table: "signals" }, (payload) => {
           const sig = payload.new;
           if (sig?.asset_class !== assetClass) return; // strict mode isolation
-          // A weak incoming signal can still INVALIDATE a shown one (the setup is
-          // gone), but it must never be added as a row of its own.
+          // A weak incoming signal can still supersede a shown one (setup gone),
+          // but never earns a row of its own.
           const strongEnough = (sig.conviction ?? 0) >= thresholdRef.current;
           setRows((prev) => {
             const key = `${sig.symbol}|${sig.interval}`;
-            const nowT = Date.now();
-            let next = prev.map((r) => {
-              if (`${r.symbol}|${r.interval}` !== key) return r;
-              // Same instrument: a new opposite-direction or no-setup signal
-              // INVALIDATES the currently-shown active one (grace before removal).
-              if (isActive(r.status) && !r._invalidatedAt &&
-                  (sig.status === "SCAN" || sig.direction === "NEUTRAL" || sig.direction !== r.direction)) {
-                return { ...r, _invalidatedAt: nowT };
-              }
-              return r;
-            });
-            // Only STRONG signals earn a row. A weak one has already done its job
-            // above (invalidating the stale row) — adding it would just be noise.
+            // V12: a superseding signal now simply DROPS the stale row (no blur/
+            // grace). The cron will mark that row 'invalidated' server-side; here
+            // we optimistically remove it and record it for the learning engine.
+            let next = prev;
+            const superseded = prev.filter((r) =>
+              `${r.symbol}|${r.interval}` === key && isActive(r.status) &&
+              (sig.status === "SCAN" || sig.direction === "NEUTRAL" || sig.direction !== r.direction));
+            if (superseded.length) {
+              superseded.forEach((r) => recordOutcome(r, "invalidated"));
+              next = prev.filter((r) => !superseded.includes(r));
+            }
             if (!strongEnough) return next;
-
-            const supersedesSameDir = next.some((r) => `${r.symbol}|${r.interval}` === key && !r._invalidatedAt && r.direction === sig.direction && isActive(sig.status));
+            // Replace an existing same-direction row for this instrument, else prepend.
+            const has = next.some((r) => `${r.symbol}|${r.interval}` === key && r.direction === sig.direction && isActive(sig.status));
             if (isActive(sig.status)) {
-              // Replace an existing same-direction active row, else prepend.
-              next = supersedesSameDir
-                ? next.map((r) => (`${r.symbol}|${r.interval}` === key && !r._invalidatedAt && r.direction === sig.direction ? { ...sig } : r))
+              next = has
+                ? next.map((r) => (`${r.symbol}|${r.interval}` === key && r.direction === sig.direction ? { ...sig } : r))
                 : [sig, ...next];
             }
             return next.slice(0, 200);
@@ -414,25 +493,36 @@ const SignalFeed = forwardRef(function SignalFeed({ accent = "#00d4aa", T, asset
             });
           }
         })
+        // V12: server-side state transitions (grading). won → keep + mark; lost/
+        // invalidated → remove from the main feed and feed the learning engine.
+        .on("postgres_changes", { event: "UPDATE", schema: "public", table: "signals" }, (payload) => {
+          const sig = payload.new;
+          if (sig?.asset_class !== assetClass) return;
+          setRows((prev) => {
+            if (sig.state === "lost" || sig.state === "invalidated") {
+              const gone = prev.find((r) => r.id === sig.id);
+              if (gone) recordOutcome(gone, sig.state);
+              return prev.filter((r) => r.id !== sig.id);
+            }
+            if (sig.state === "won") {
+              recordOutcome(sig, "won");
+              return prev.map((r) => (r.id === sig.id ? { ...r, state: "won", resolved_at: sig.resolved_at } : r));
+            }
+            return prev.map((r) => (r.id === sig.id ? { ...r, ...sig } : r));
+          });
+        })
         .subscribe();
     })();
     return () => { cancelled = true; if (channel) getSupabase()?.removeChannel(channel); };
   }, [assetClass, reloadKey]);
 
-  // Lifecycle sweep: every 5s, drop rows past the invalidation grace period, and
-  // any that have fallen out of the current/previous trading-day window (which
-  // happens as the day rolls over). Bumps `tick` so ages re-render too.
+  // V12: NO time-based deletion. Signals live until a terminal state (won/lost/
+  // invalidated), which is decided server-side by the cron grader and arrives via
+  // the realtime UPDATE handler above. This interval only bumps a tick so the
+  // relative ages ("3m ago") re-render — it no longer drops any rows.
   const [, setTick] = useState(0);
   useEffect(() => {
-    const t = setInterval(() => {
-      const now = Date.now();
-      const cutoff = tradingDayCutoff();
-      setRows((prev) => prev.filter((r) =>
-        keepSignal(r, cutoff) &&
-        (!r._invalidatedAt || now - r._invalidatedAt < INVALIDATION_GRACE_MS)
-      ));
-      setTick((n) => n + 1);
-    }, 5000);
+    const t = setInterval(() => setTick((n) => n + 1), 5000);
     return () => clearInterval(t);
   }, []);
 
@@ -442,6 +532,8 @@ const SignalFeed = forwardRef(function SignalFeed({ accent = "#00d4aa", T, asset
   const profile = getRiskProfile();
   const tiers = allowedTiers(profile, vix);
   const filtered = rows.filter((r) => {
+    if (dismissed.has(r.id)) return false;                 // user trashed it (local override)
+    if (r.state === "lost" || r.state === "invalidated") return false; // defensive: hide non-terminal-good
     if ((r.conviction ?? 0) < effectiveThreshold) return false;
     if (!cadence.includes("all") && !cadence.includes(INTERVAL_BUCKET[r.interval] || "daily")) return false;
     // A signal the user explicitly searched for bypasses the risk-tier filter —
@@ -520,7 +612,7 @@ const SignalFeed = forwardRef(function SignalFeed({ accent = "#00d4aa", T, asset
             the mode setup (⧉) or Settings.
           </div>
         )}
-        {filtered.map((r) => <FeedRow key={r.id} r={r} T={T} accent={accent} highlight={highlightId === r.id} invalidated={!!r._invalidatedAt} />)}
+        {filtered.map((r) => <FeedRow key={r.id} r={r} T={T} accent={accent} highlight={highlightId === r.id} onDelete={dismissSignal} />)}
       </div>
     </div>
   );

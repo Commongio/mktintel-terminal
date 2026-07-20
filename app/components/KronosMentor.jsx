@@ -23,7 +23,7 @@ export default function KronosMentor({ onClose, accent = "#00d4aa", T }) {
   const panel = T?.panel ?? "#0A1018";
   const border = T?.border ?? "#1A2535";
   const text = T?.text ?? "#E2EDF8";
-  const dim = T?.dim ?? "#7A9AB5";
+  const dim = T?.dim ?? "#9DB4CC";
   const c = MENTOR_CONCEPT;
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 3000, background: "rgba(0,0,0,0.78)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}

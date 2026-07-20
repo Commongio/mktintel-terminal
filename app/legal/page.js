@@ -11,7 +11,7 @@ import { useState } from "react";
 
 const FM = "'JetBrains Mono',monospace";
 const FC = "'Inter',sans-serif";
-const C = { bg: "#05080F", panel: "#0A1018", surface: "#0D1520", border: "#1A2535", text: "#E2EDF8", dim: "#7A9AB5", accent: "#00d4aa", gold: "#f7c948" };
+const C = { bg: "#05080F", panel: "#0A1018", surface: "#0D1520", border: "#1A2535", text: "#E2EDF8", dim: "#9DB4CC", accent: "#00d4aa", gold: "#f7c948" };
 
 const DOCS = [
   { id: "terms", label: "Terms of Service" },

@@ -16,12 +16,33 @@ export const DEFAULT_TERMINAL_LAYOUT = [
 
 export default function GridDock({ layout, onLayoutChange, editMode, items, accent = "#00d4aa", T, collapsed = {}, onToggleCollapse }) {
   const border = T?.border ?? "#1A2535";
-  const dim = T?.dim ?? "#7A9AB5";
-  const { width, containerRef, mounted } = useContainerWidth();
+  const dim = T?.dim ?? "#9DB4CC";
+  const { width } = useContainerWidth();
+
+  // ROBUSTNESS: never gate rendering on the library's internal `mounted` flag or
+  // solely on its measured width. In some environments that measurement doesn't
+  // complete and the WHOLE grid renders zero cards, blanking the Data page. We
+  // measure our OWN outer ref (a guaranteed object ref, unlike the hook's ref
+  // which may be a callback ref with no `.current`), and fall back to a sane
+  // default width so the grid ALWAYS mounts — it self-corrects to the exact
+  // width on the next measure. The hook's `width` is still preferred when present.
+  const outerRef = useRef(null);
+  const [measuredW, setMeasuredW] = useState(0);
+  const effectiveWidth = width || measuredW || 800; // 800 = never-blank fallback
+
+  useEffect(() => {
+    const el = outerRef.current;
+    if (!el) return;
+    const m = () => { const w = el.clientWidth; if (w > 0) setMeasuredW(w); };
+    m();
+    const ro = new ResizeObserver(m);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   // Row height derived from the dock's real rendered height so the default
   // 12-row layout fills exactly one screen (re-measured on window resize).
-  const outerRef = useRef(null);
+  // (outerRef is declared above and shared with the width measurement.)
   const [rowHeight, setRowHeight] = useState(52);
   useEffect(() => {
     const el = outerRef.current;
@@ -50,7 +71,7 @@ export default function GridDock({ layout, onLayoutChange, editMode, items, acce
 
   return (
     <div ref={outerRef} style={{ flex: 1, minHeight: 0, overflow: "hidden", display: "flex" }}>
-    <div ref={containerRef} style={{ flex: 1, overflowY: "auto", overflowX: "hidden" }}>
+    <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden" }}>
       <style>{`
         .react-grid-item.react-grid-placeholder { background: ${accent} !important; opacity: 0.18 !important; border-radius: 12px; }
         .react-grid-item > .react-resizable-handle { z-index: 20; width: 26px !important; height: 26px !important; }
@@ -58,9 +79,9 @@ export default function GridDock({ layout, onLayoutChange, editMode, items, acce
         .react-grid-item > .react-resizable-handle-s { cursor: ns-resize; }
         .react-grid-item > .react-resizable-handle-e { cursor: ew-resize; }
       `}</style>
-      {mounted && <GridLayout
+      {effectiveWidth > 0 && <GridLayout
         className="layout"
-        width={width}
+        width={effectiveWidth}
         layout={fullLayout}
         gridConfig={{ cols: 12, rowHeight, margin: [8, 8], containerPadding: [8, 8] }}
         dragConfig={{ enabled: editMode, handle: editMode ? ".grid-drag-handle" : undefined }}

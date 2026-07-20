@@ -6,7 +6,7 @@ import { getSupabase, supabaseConfigured, getAccessToken } from "../../lib/supab
 
 const FM = "'JetBrains Mono',monospace";
 const FD = "'Fraunces',serif";
-const C = { bg: "#05080F", panel: "#0A1018", surface: "#0D1520", border: "#1A2535", text: "#E2EDF8", dim: "#7A9AB5", accent: "#00d4aa", red: "#ff4d6d", gold: "#f7c948" };
+const C = { bg: "#05080F", panel: "#0A1018", surface: "#0D1520", border: "#1A2535", text: "#E2EDF8", dim: "#9DB4CC", accent: "#00d4aa", red: "#ff4d6d", gold: "#f7c948" };
 
 const statusColor = (s) => (s === "unused" ? C.accent : s === "used" ? C.gold : C.red);
 

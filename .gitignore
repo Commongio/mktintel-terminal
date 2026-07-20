@@ -46,3 +46,8 @@ next-env.d.ts
 # Original (unoptimized) theme videos — kept locally, never committed.
 # The web-optimized versions in public/themes/ are the ones that ship.
 media-source/
+
+# Stray Obsidian vault artifacts that landed in the repo root — not part of the app.
+.obsidian/
+*.canvas
+2026-*.md

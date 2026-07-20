@@ -54,7 +54,7 @@ const CADENCES = [
 ];
 export function ModeSelectPopup({ accent, T, onSelect }) {
   const text = T?.text ?? "#E2EDF8";
-  const dim = T?.dim ?? "#7A9AB5";
+  const dim = T?.dim ?? "#9DB4CC";
   const border = T?.border ?? "#1A2535";
   const [phase, setPhase] = useState("mode");
   const [pendingMode, setPendingMode] = useState(null);
@@ -143,7 +143,7 @@ export function ModeSelectPopup({ accent, T, onSelect }) {
 // ── STEP 2 — BROKER SIDE-BY-SIDE ─────────────────────────────────────────────
 export function BrokerSideBySidePopup({ accent, T, onDone, onSkip }) {
   const text = T?.text ?? "#E2EDF8";
-  const dim = T?.dim ?? "#7A9AB5";
+  const dim = T?.dim ?? "#9DB4CC";
   const surface = T?.surface ?? "#0D1520";
   const border = T?.border ?? "#1A2535";
 

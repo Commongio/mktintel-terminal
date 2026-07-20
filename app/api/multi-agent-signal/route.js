@@ -8,7 +8,7 @@
 // in that one panel. Now any searched signal that clears the user's conviction
 // threshold is written like a cron signal (same dedup), so the feed catches it
 // and it survives a reload.
-import { runSignalEngine, ENGINE_VERSION } from "../../../lib/signalEngine";
+import { runSignalEngine, ENGINE_VERSION, MIN_SURFACE_CONVICTION } from "../../../lib/signalEngine";
 import { getAdmin, serverConfigured, insertSignal } from "../../../lib/supabaseServer";
 
 async function persistIfStrong(sig, { assetClass, symbol, interval, threshold }) {
@@ -63,7 +63,7 @@ export async function GET(request) {
     });
     // Persist gate: the user's own threshold, floored at the feed's 60% minimum
     // (below that the feed would filter it out anyway).
-    const threshold = Math.max(60, Number(minConviction) || 65);
+    const threshold = Math.max(MIN_SURFACE_CONVICTION, Number(minConviction) || 65);
     const persisted = await persistIfStrong(result, { assetClass, symbol, interval: result.interval || interval || "15min", threshold });
     return Response.json({ ...result, persisted });
   } catch (err) {

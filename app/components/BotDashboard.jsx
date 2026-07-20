@@ -6,6 +6,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { KronosOnboarding } from "./KronosOnboarding";
 import BrokerConnect from "./BrokerConnect";
+import BotMiniChart from "./BotMiniChart";
 import PropFirmPanel, { PROP_FIRMS } from "./PropFirmPanel";
 import MultiAgentSignal, { getPaperState, savePaperState } from "./MultiAgentSignal";
 import ShadowAccountPanel, { PaperTradingPanel } from "./ShadowAccountPanel";
@@ -27,7 +28,7 @@ const FC = "'Inter',sans-serif";
 // — the cadence picker offered them and nothing could ever produce them.
 const FULL_LADDER = ["1min", "5min", "15min", "1h", "4h", "1d", "1w", "1mo"];
 const MODE_CONFIG = {
-  futures: { symbols: ["NQ", "MNQ", "ES", "MES", "CL", "GC"], intervals: FULL_LADDER, defaultSymbol: "NQ", defaultInterval: "15min", color: "#7eb8f7" },
+  futures: { symbols: ["NQ", "MNQ", "ES", "MES", "YM", "RTY", "CL", "GC"], intervals: FULL_LADDER, defaultSymbol: "NQ", defaultInterval: "15min", color: "#7eb8f7" },
   // V10.3: options quick-picks are MAJOR INDICES only — any other ticker is
   // reached through the search box, so the row stays clean instead of a wall of
   // arbitrary large caps.
@@ -43,7 +44,7 @@ const INTERVAL_HORIZON = {
   "4h": "SWING", "1d": "DAILY", "1w": "MONTHLY", "1mo": "YEARLY",
 };
 
-const vixColor = (v) => (v == null ? "#7A9AB5" : v < 15 ? "#22d3ee" : v < 20 ? "#a78bfa" : v < 30 ? "#f59e0b" : "#ef4444");
+const vixColor = (v) => (v == null ? "#9DB4CC" : v < 15 ? "#22d3ee" : v < 20 ? "#a78bfa" : v < 30 ? "#f59e0b" : "#ef4444");
 
 // ─── ORB LEGEND TOOLTIP ────────────────────────────────────────────────────────
 function OrbTooltip({ dim, border, surface, text }) {
@@ -166,6 +167,9 @@ function StudioTab({ accent, T, profile, onEditProfile, onOpenBroker, brokerData
             <b style={{ color: text }}>Higher</b> = only the most one-sided, highest-agreement
             setups get through — fewer signals, but each one stronger. <b style={{ color: text }}>Lower</b> = you'll
             see more setups, including ones where the analysis is more mixed or uncertain.
+            <br /><br />
+            Any signal above this level is saved into your <b style={{ color: text }}>Signal Feed</b> —
+            from manual searches, background scans, and news-driven setups alike.
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
             <span style={{ fontFamily: FM, fontSize: 9, color: dim }}>MIN CONVICTION TO FIRE</span>
@@ -495,14 +499,16 @@ export default function BotDashboard({ accent = "#00d4aa", T, botName = "KRONOS"
                 EVAL: {propRules.firmName} {propRules.accountLabel}
               </span>
               {propRules.dailyLossLimit && (
-                <span style={{ fontFamily: FM, fontSize: 8, color: Math.abs(Math.min(0, propRules.dailyLossUsed)) / propRules.dailyLossLimit > 0.5 ? "#ff3d57" : "#7A9AB5" }}>
+                <span style={{ fontFamily: FM, fontSize: 8, color: Math.abs(Math.min(0, propRules.dailyLossUsed)) / propRules.dailyLossLimit > 0.5 ? "#ff3d57" : "#9DB4CC" }}>
                   DL: ${Math.abs(Math.min(0, propRules.dailyLossUsed)).toFixed(0)}/${propRules.dailyLossLimit}
                 </span>
               )}
             </div>
           )}
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0, position: "relative" }}>
+          {/* V12: dedicated bot-side mini chart for the current instrument. */}
+          <BotMiniChart symbol={signalSymbol} T={T} accent={accent} />
           <button onClick={() => setFlowStep("broker")} title="Open broker side-by-side" style={{
             padding: "4px 10px", borderRadius: 7, cursor: "pointer",
             fontFamily: FM, fontSize: 9, fontWeight: 700, letterSpacing: 1,
@@ -668,7 +674,7 @@ export default function BotDashboard({ accent = "#00d4aa", T, botName = "KRONOS"
             {/* Conviction ladder — makes the three orb tiers legible instead of a footnote */}
             <div style={{ ...panelSx, display: "flex", alignItems: "center", gap: 10, position: "relative", zIndex: 1, padding: "6px 12px", borderRadius: 20 }}>
               {[
-                { c: "#7A9AB5", t: "<78% SILENT" },
+                { c: "#9DB4CC", t: "<78% SILENT" },
                 { c: "#f7c948", t: "78–90% PULSE" },
                 { c: "#00e676", t: "90%+ COMET" },
               ].map((x, i) => (
