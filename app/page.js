@@ -1230,17 +1230,25 @@ function ImpactChip({impact,T}){
 // reliably. Saved user layouts may still contain an {i:"options"} entry; GridDock
 // renders only the keys present in `items`, so a stale entry is ignored rather
 // than crashing. It's filtered out on load anyway (see migrateDataLayout).
+// V12.1: keys are namespaced `data_*` so the Data view's collapse + layout state
+// no longer collides with the Terminal view's same-named panels. Both views shared
+// one flat `collapsed` map keyed by panel name, so collapsing `news` in the terminal
+// silently collapsed `news` on the Data page too (and stuck it that way in edit mode).
 const DEFAULT_DATA_LAYOUT=[
-  {i:"news",x:0,y:0,w:4,h:6,minW:2,minH:3},
-  {i:"filings",x:4,y:0,w:4,h:6,minW:2,minH:3},
-  {i:"insiders",x:8,y:0,w:4,h:6,minW:2,minH:3},
-  {i:"desk",x:0,y:6,w:12,h:6,minW:3,minH:3},
+  {i:"data_news",x:0,y:0,w:4,h:6,minW:2,minH:3},
+  {i:"data_filings",x:4,y:0,w:4,h:6,minW:2,minH:3},
+  {i:"data_insiders",x:8,y:0,w:4,h:6,minW:2,minH:3},
+  {i:"data_desk",x:0,y:6,w:12,h:6,minW:3,minH:3},
 ];
 // Strip panels that no longer exist from a persisted layout. (Movers is NOT a
 // grid card — it's a fixed panel at the top of the Data page — so it's absent here.)
-const LIVE_DATA_PANELS=new Set(["news","filings","insiders","desk"]);
+const LIVE_DATA_PANELS=new Set(["data_news","data_filings","data_insiders","data_desk"]);
+// Old saved layouts used bare keys (news/filings/…) — remap them to the namespaced
+// keys so a user's saved arrangement survives the rename instead of being dropped.
+const DATA_KEY_REMAP={news:"data_news",filings:"data_filings",insiders:"data_insiders",desk:"data_desk"};
 export function migrateDataLayout(l){
-  return Array.isArray(l) ? l.filter((p)=>LIVE_DATA_PANELS.has(p.i)) : l;
+  if(!Array.isArray(l)) return l;   // undefined → flex fallback (no forced grid)
+  return l.map((p)=>{const i=DATA_KEY_REMAP[p.i]||p.i;return LIVE_DATA_PANELS.has(i)?{...p,i}:null;}).filter(Boolean);
 }
 function DataPage({news,secData,secLoading,onRefreshAll,onDiveNews,onDiveFiling,onDiveInsider,messages,input,setInput,send,loading,onOpenChat,accent,T,watchlist,gridLayout,onGridChange,editMode,collapsed,onToggleCollapse,onPickTicker}){
   const moversCard=(
@@ -1369,7 +1377,7 @@ function DataPage({news,secData,secLoading,onRefreshAll,onDiveNews,onDiveFiling,
           editMode={editMode}
           accent={accent} T={T}
           collapsed={collapsed} onToggleCollapse={onToggleCollapse}
-          items={{news:newsCard,filings:filingsCard,insiders:insidersCard,desk:deskCard}}
+          items={{data_news:newsCard,data_filings:filingsCard,data_insiders:insidersCard,data_desk:deskCard}}
         />
       ):(
         <div style={{flex:1,overflowY:"auto",padding:"0 22px 20px",minHeight:0}}>

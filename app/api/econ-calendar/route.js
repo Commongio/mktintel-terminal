@@ -69,7 +69,9 @@ export async function GET() {
     date: d, title: "FOMC Rate Decision", impact: "High", folder: "red", time: "2:00p", ffUrl: ffUrl(d),
   }));
 
-  const key = process.env.FRED_API_KEY;
+  // Trim: a key pasted into an env var (esp. via a dashboard) often carries a
+  // stray newline/space/quote — FRED then 400s with "api_key is not registered".
+  const key = (process.env.FRED_API_KEY || "").trim().replace(/^["']|["']$/g, "");
   if (!key) {
     rows.sort(byDate);
     return Response.json({
@@ -77,12 +79,26 @@ export async function GET() {
       note: "Add a free FRED_API_KEY (fred.stlouisfed.org) to show the full US data-release calendar. Showing FOMC only for now.",
     });
   }
+  // FRED keys are exactly 32 lowercase-alphanumeric chars. Fail fast with a clear
+  // message instead of a raw 400 if the value is obviously the wrong string.
+  if (!/^[a-z0-9]{32}$/.test(key)) {
+    rows.sort(byDate);
+    return Response.json({
+      rows, source: "fomc-only",
+      note: `FRED key looks malformed (must be 32 lowercase letters/numbers; got ${key.length} chars). Re-check the value in Vercel. Showing FOMC only.`,
+    });
+  }
 
   try {
     const url = `${FRED}?api_key=${key}&file_type=json&include_release_dates_with_no_data=true`
       + `&realtime_start=${iso(today)}&realtime_end=${iso(end)}&sort_order=asc&limit=1000`;
     const r = await fetch(url, { signal: AbortSignal.timeout(9000) });
-    if (!r.ok) throw new Error(`FRED ${r.status}`);
+    if (!r.ok) {
+      // Surface FRED's real reason (e.g. "api_key is not registered") not just "400".
+      let why = `HTTP ${r.status}`;
+      try { const b = await r.json(); if (b?.error_message) why = b.error_message; } catch {}
+      throw new Error(why);
+    }
     const data = await r.json();
     const seen = new Set();
     for (const rd of data?.release_dates || []) {

@@ -105,7 +105,7 @@ export default function GridDock({ layout, onLayoutChange, editMode, items, acce
                 background: `${accent}10`, borderBottom: isCollapsed ? "none" : `1px solid ${accent}30`,
                 display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8,
               }}>
-                <span style={{ fontFamily: FM, fontSize: 8, fontWeight: 700, letterSpacing: 2, color: accent }}>{editMode ? "⠿ " : ""}{key.toUpperCase()}</span>
+                <span style={{ fontFamily: FM, fontSize: 8, fontWeight: 700, letterSpacing: 2, color: accent }}>{editMode ? "⠿ " : ""}{key.replace(/^data_/, "").toUpperCase()}</span>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   {editMode && !isCollapsed && <span style={{ fontFamily: FM, fontSize: 7, color: accent, opacity: 0.7 }}>DRAG · RESIZE ↘</span>}
                   {onToggleCollapse && (
