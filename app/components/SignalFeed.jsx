@@ -192,7 +192,7 @@ function ReasoningPopup({ r, T, accent, anchorRect, onClose }) {
           time" badges (spec asks for the user's local time here specifically). */}
       {r.created_at && (
         <div style={{ fontFamily: FM, fontSize: 8.5, color: dim, marginBottom: 9 }}>
-          {new Date(r.created_at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short", timeZoneName: "short" })}
+          {new Date(r.created_at).toLocaleString(undefined, { year: "numeric", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short" })}
         </div>
       )}
 
