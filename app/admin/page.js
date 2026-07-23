@@ -97,7 +97,11 @@ export default function AdminCodesPage() {
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: C.bg, padding: "26px 30px", fontFamily: FM }}>
+    // V13.6: globals.css sets html,body{overflow:hidden} (the terminal manages its
+    // own internal scrolling), which killed document scroll on this route — the
+    // brain panel's content below the fold was unreachable. This route owns its
+    // scroll instead: full-viewport height + its own overflow-y:auto.
+    <div style={{ height: "100vh", overflowY: "auto", background: C.bg, padding: "26px 30px", fontFamily: FM }}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@700;800&family=JetBrains+Mono:wght@400;600;700;800&display=swap');
         *{box-sizing:border-box;margin:0;padding:0;} button{cursor:pointer;} input,select{outline:none;}`}</style>
 
@@ -401,6 +405,19 @@ function BrainPanel({ C, FM }) {
           <input value={resetEmail} onChange={(e) => setResetEmail(e.target.value)} placeholder="user@email.com"
             style={{ ...inputSx, flex: 1 }} />
           <button onClick={resetUser} disabled={resetBusy || !resetEmail.trim()} style={btnSx}>RESET FOR USER</button>
+        </div>
+      </div>
+
+      {/* V13.6: dev tools — jump to the bot and fire a Comet so the effect can be
+          verified on a live signal (or a demo if the feed is quiet). */}
+      <div style={boxSx}>
+        <div style={labelSx}>DEV TOOLS</div>
+        <button onClick={() => { try { localStorage.setItem("kronos_dev_comet_test", "1"); } catch {} window.location.href = "/"; }}
+          style={{ ...btnSx, width: "100%" }}>
+          ☄ OPEN BOT & FIRE TEST COMET
+        </button>
+        <div style={{ fontSize: 8.5, color: C.dim, marginTop: 8, lineHeight: 1.5 }}>
+          Opens the KRONOS bot and launches a Comet on the latest live signal (or a demo if none is live), so you can confirm the effect end-to-end.
         </div>
       </div>
     </div>

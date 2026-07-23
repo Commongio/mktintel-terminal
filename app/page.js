@@ -1520,7 +1520,12 @@ export default function MarketTerminal(){
       .catch(() => setAccessState("locked"));
   }, []);
 
-  const[view,setView]=useState("terminal");
+  const[view,setView]=useState(()=>{
+    // V13.6: the dev "test comet" button (on /admin) sets this flag then sends the
+    // user here — open straight into the bot so the comet has an orb to launch on.
+    try{if(localStorage.getItem("kronos_dev_comet_test")==="1")return "bot";}catch{}
+    return "terminal";
+  });
   const[showWelcome,setShowWelcome]=useState(true);
   const[showTour,setShowTour]=useState(false);
   // V10: chart page state survives refresh (bug fix)
@@ -2442,7 +2447,7 @@ export default function MarketTerminal(){
                 gridLayout={migrateDataLayout(layouts?.data)} onGridChange={()=>{}} editMode={false}
                 collapsed={collapsed} onToggleCollapse={toggleCollapse}/>
             )}
-            {mobileTab==="bot"&&<BotDashboard isMobile accent={accent} T={T} botName="KRONOS BOT"/>}
+            {mobileTab==="bot"&&<BotDashboard isMobile accent={accent} T={T} botName="KRONOS BOT" isDev={isDev}/>}
             {view==="overview"&&overviewSymbol&&(
               <TickerOverview symbol={overviewSymbol} T={T} accent={accent}
                 messages={messages} input={input} setInput={setInput} send={send} loading={loading}
@@ -2514,7 +2519,7 @@ export default function MarketTerminal(){
 
           {/* BOT DASHBOARD VIEW */}
 {view==="bot"&&(
-  <BotDashboard accent={accent} T={T} botName="KRONOS BOT" />
+  <BotDashboard accent={accent} T={T} botName="KRONOS BOT" isDev={isDev} />
 )}
 
           {/* V12: PER-TICKER OVERVIEW VIEW */}

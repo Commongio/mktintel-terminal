@@ -234,7 +234,7 @@ function StudioTab({ accent, T, profile, onEditProfile, onOpenBroker, brokerData
 }
 
 // ─── MAIN ──────────────────────────────────────────────────────────────────────
-export default function BotDashboard({ accent = "#00d4aa", T, botName = "KRONOS", isMobile = false }) {
+export default function BotDashboard({ accent = "#00d4aa", T, botName = "KRONOS", isMobile = false, isDev = false }) {
   // V10.5: the bot's own appearance (panel style, text size, grid) — set in the
   // bot-scoped settings panel, live-updates without a reload.
   const botUI = useBotUI();
@@ -432,6 +432,17 @@ export default function BotDashboard({ accent = "#00d4aa", T, botName = "KRONOS"
       plan: null, _test: true,
     });
   }, [handleSignalEvent, modeCfg, assetClass]);
+
+  // V13.6: consume the dev "test comet" flag set on /admin — fire a comet once the
+  // orb + feed refs are mounted (short delay), then clear the flag so it's one-shot.
+  useEffect(() => {
+    let seen = false;
+    try { seen = localStorage.getItem("kronos_dev_comet_test") === "1"; } catch {}
+    if (!seen) return;
+    try { localStorage.removeItem("kronos_dev_comet_test"); } catch {}
+    const t = setTimeout(() => testCue(95), 1600);
+    return () => clearTimeout(t);
+  }, [testCue]);
 
   const bg = T?.bg ?? "#060910";
   const surface = T?.surface ?? "#0b1320";
@@ -654,7 +665,7 @@ export default function BotDashboard({ accent = "#00d4aa", T, botName = "KRONOS"
               {!isMobile && (
                 <button onClick={() => toggleBotCol("feed")} title="Collapse signal feed" style={{ position: "absolute", top: 6, right: 6, zIndex: 10, width: 18, height: 18, borderRadius: 4, background: `${surface}cc`, border: `1px solid ${border}`, color: dim, cursor: "pointer", fontFamily: FM, fontSize: 9, display: "flex", alignItems: "center", justifyContent: "center" }}>◂</button>
               )}
-              <SignalFeed ref={feedRef} accent={accent} T={panelT} assetClass={assetClass} onNewSignal={handleSignalEvent} fill vix={vix} />
+              <SignalFeed ref={feedRef} accent={accent} T={panelT} assetClass={assetClass} onNewSignal={handleSignalEvent} fill vix={vix} isDev={isDev} />
             </div>
           )}
 

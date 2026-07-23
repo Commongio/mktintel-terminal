@@ -6,7 +6,7 @@
 // as the comet landing target.
 import { useState, useEffect, forwardRef, useRef } from "react";
 import { createPortal } from "react-dom";
-import { getSupabase, supabaseConfigured } from "../../lib/supabase";
+import { getSupabase, supabaseConfigured, getAccessToken } from "../../lib/supabase";
 import { symbolTier, allowedTiers, PRIORITY_INDEX_OPTIONS } from "../../lib/universe";
 import { directionLabel, directionColor } from "../../lib/signalLabels";
 
@@ -270,12 +270,13 @@ function ReasoningPopup({ r, T, accent, anchorRect, onClose }) {
   );
 }
 
-function FeedRow({ r, T, accent, highlight, onDelete }) {
+function FeedRow({ r, T, accent, highlight, onDelete, isDev, onDevGrade }) {
   const border = T?.border ?? "#1A2535";
   const text = T?.text ?? "#E2EDF8";
   const dim = T?.dim ?? "#9DB4CC";
   const [open, setOpen] = useState(false);
   const [anchorRect, setAnchorRect] = useState(null);
+  const [devMenu, setDevMenu] = useState(false); // V13.6 dev deletion reason picker
   const rowRef = useRef(null);
   const sc = stColor(r.status);
   const won = r.state === "won"; // only active + won reach this component
@@ -317,10 +318,13 @@ function FeedRow({ r, T, accent, highlight, onDelete }) {
           borderRadius: 4, padding: "2px 6px",
         }}>✓ WON</span>
       )}
-      {/* Manual delete — user override, distinct from the automatic lifecycle. */}
+      {/* Manual delete. For a normal user it's a local per-user hide. For the DEV
+          account (V13.6) it's a graded outcome — a reason picker records WHY
+          (stopped-out / bad R:R) so the deletion feeds the self-learning loop
+          instead of vanishing. */}
       <button
-        onClick={(e) => { e.stopPropagation(); onDelete?.(r); }}
-        title="Delete this signal"
+        onClick={(e) => { e.stopPropagation(); if (isDev) setDevMenu((v) => !v); else onDelete?.(r); }}
+        title={isDev ? "Grade & remove (feeds self-learning)" : "Delete this signal"}
         style={{
           position: "absolute", top: 6, right: 6, zIndex: 4, width: 20, height: 20,
           display: "flex", alignItems: "center", justifyContent: "center",
@@ -328,6 +332,22 @@ function FeedRow({ r, T, accent, highlight, onDelete }) {
           color: dim, fontSize: 11, cursor: "pointer", opacity: 0.55,
         }}
       >🗑</button>
+      {isDev && devMenu && (
+        <div onClick={(e) => e.stopPropagation()} style={{
+          position: "absolute", top: 28, right: 6, zIndex: 6, width: 168,
+          background: T?.panel ?? "#0A1018", border: `1px solid ${border}`, borderRadius: 8,
+          boxShadow: "0 8px 30px rgba(0,0,0,0.6)", padding: 6,
+        }}>
+          <div style={{ fontFamily: FM, fontSize: 7, color: dim, letterSpacing: 1, padding: "3px 6px 5px" }}>WHY REMOVE? (LOGS OUTCOME)</div>
+          {[["stopped_out", "Stopped out", "#ff3d57"], ["bad_rr", "R:R turned negative", "#f7c948"]].map(([reason, label, c]) => (
+            <button key={reason}
+              onClick={() => { setDevMenu(false); onDevGrade?.(r, reason); }}
+              style={{ display: "block", width: "100%", textAlign: "left", padding: "7px 8px", borderRadius: 6, background: "transparent", border: "none", color: c, fontFamily: FM, fontSize: 9.5, fontWeight: 700, cursor: "pointer" }}>
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
       {/* V13.5: the header row reserves its right edge (paddingRight) for the
           absolutely-positioned delete button + WON badge, and the age moved into
           the left cluster — previously the far-right age sat directly under the
@@ -366,13 +386,29 @@ function FeedRow({ r, T, accent, highlight, onDelete }) {
   );
 }
 
-const SignalFeed = forwardRef(function SignalFeed({ accent = "#00d4aa", T, assetClass = "futures", onNewSignal, fill = false, vix = null }, ref) {
+const SignalFeed = forwardRef(function SignalFeed({ accent = "#00d4aa", T, assetClass = "futures", onNewSignal, fill = false, vix = null, isDev = false }, ref) {
   const surface = T?.surface ?? "#0A1018";
   const border = T?.border ?? "#1A2535";
   const text = T?.text ?? "#E2EDF8";
   const dim = T?.dim ?? "#9DB4CC";
 
   const [rows, setRows] = useState([]);
+  // V13.6: broad-market chop state (from /api/market-state). When choppy, the bot
+  // has halted new FIRE signals server-side; we surface a professional stand-down
+  // banner so the user knows WHY the feed is quiet — not a bug, a decision.
+  const [chop, setChop] = useState(null);
+  useEffect(() => {
+    let live = true;
+    const poll = async () => {
+      try {
+        const r = await fetch("/api/market-state");
+        if (r.ok && live) setChop(await r.json());
+      } catch {}
+    };
+    poll();
+    const t = setInterval(poll, 120000);
+    return () => { live = false; clearInterval(t); };
+  }, []);
   // V12: user-dismissed signal ids. The `signals` table is a SHARED standardized
   // feed (one row seen by everyone), so a trash click can't hard-delete the row
   // globally — it's a per-user hide, persisted locally. This is the manual
@@ -386,6 +422,20 @@ const SignalFeed = forwardRef(function SignalFeed({ accent = "#00d4aa", T, asset
       try { localStorage.setItem("kronos_dismissed", JSON.stringify([...next].slice(-500))); } catch {}
       return next;
     });
+  };
+  // V13.6: dev grades a deletion (stopped-out / bad-RR) → records a terminal state
+  // on the shared row so the self-learning loop learns from it, THEN hides it
+  // locally. Falls back to a plain local dismiss if the grade call fails.
+  const devGrade = async (r, reason) => {
+    dismissSignal(r); // hide immediately; the grade is the durable part
+    try {
+      const token = await getAccessToken();
+      await fetch("/api/admin/signal-outcome", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ id: r.id, reason }),
+      });
+    } catch { /* already hidden locally; grading is best-effort */ }
   };
   const [state, setState] = useState(supabaseConfigured() ? "loading" : "unconfigured");
   const [highlightId, setHighlightId] = useState(null);
@@ -607,6 +657,25 @@ const SignalFeed = forwardRef(function SignalFeed({ accent = "#00d4aa", T, asset
       </div>
 
       <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
+        {/* V13.6: market-instability stand-down. When the broad market is in
+            whipsaw the bot halts new FIRE signals — this explains the quiet feed
+            professionally rather than leaving the user guessing. */}
+        {chop?.choppy && (
+          <div style={{
+            display: "flex", alignItems: "flex-start", gap: 9, padding: "10px 13px",
+            borderBottom: `1px solid #f7c94833`, background: "#f7c9480e",
+          }}>
+            <span style={{ fontSize: 12, lineHeight: 1.2, flexShrink: 0 }}>⚠</span>
+            <div>
+              <div style={{ fontFamily: FM, fontSize: 8.5, fontWeight: 800, letterSpacing: 1, color: "#f7c948", marginBottom: 2 }}>
+                UNSTABLE CONDITIONS — SIGNALS ON HOLD
+              </div>
+              <div style={{ fontFamily: FC, fontSize: 10, color: dim, lineHeight: 1.45 }}>
+                The broad market is choppy and directionless right now{chop.ci != null ? ` (choppiness ${chop.ci})` : ""}. KRONOS has paused new actionable setups — these conditions whipsaw traders. It will resume firing as a clean trend re-establishes.
+              </div>
+            </div>
+          </div>
+        )}
         {!marketOpen && state !== "unconfigured" && state !== "error" && (
           <div style={{
             display: "flex", alignItems: "center", gap: 8, padding: "9px 13px",
@@ -644,7 +713,7 @@ const SignalFeed = forwardRef(function SignalFeed({ accent = "#00d4aa", T, asset
             the mode setup (⧉) or Settings.
           </div>
         )}
-        {filtered.map((r) => <FeedRow key={r.id} r={r} T={T} accent={accent} highlight={highlightId === r.id} onDelete={dismissSignal} />)}
+        {filtered.map((r) => <FeedRow key={r.id} r={r} T={T} accent={accent} highlight={highlightId === r.id} onDelete={dismissSignal} isDev={isDev} onDevGrade={devGrade} />)}
       </div>
     </div>
   );

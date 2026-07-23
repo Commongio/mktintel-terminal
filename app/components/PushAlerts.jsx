@@ -40,6 +40,11 @@ export default function PushAlerts({ T, accent, user }) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const [needsInstall, setNeedsInstall] = useState(false);
+  // V13.6: which signals push. 'fire' (default) = only fired/actionable setups;
+  // 'all' also pushes HOLD (forming). Persisted per-device on the subscription.
+  const [notifyLevel, setNotifyLevel] = useState(() => {
+    try { return localStorage.getItem("kronos_notify_level") || "fire"; } catch { return "fire"; }
+  });
 
   useEffect(() => {
     const ok = typeof window !== "undefined" &&
@@ -87,7 +92,7 @@ export default function PushAlerts({ T, accent, user }) {
       const r = await fetch("/api/push/subscribe", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({ subscription: sub.toJSON(), minConviction }),
+        body: JSON.stringify({ subscription: sub.toJSON(), minConviction, notifyLevel }),
       });
       const d = await r.json();
       if (!r.ok) { setMsg(d.error || "Couldn't save subscription."); await sub.unsubscribe(); setBusy(false); return; }
@@ -168,6 +173,32 @@ export default function PushAlerts({ T, accent, user }) {
             threshold — even when the terminal is closed. Uses your current threshold from the
             bot&apos;s Studio tab.
           </div>
+
+          {/* V13.6: notification tier — makes the FIRE-only default EXPLICIT and
+              lets the user opt into forming setups too, instead of silently
+              swallowing everything but FIRE. Changing it while subscribed
+              re-registers the device with the new level. */}
+          <div style={{ marginBottom: 10 }}>
+            <div style={{ fontFamily: FM, fontSize: 8, color: dim, letterSpacing: 1.5, marginBottom: 6 }}>NOTIFY ME ON</div>
+            <div style={{ display: "flex", gap: 6 }}>
+              {[["fire", "FIRE only", "Actionable setups"], ["all", "FIRE + forming", "Also HOLD setups"]].map(([lvl, label, hint]) => (
+                <button key={lvl}
+                  onClick={async () => { setNotifyLevel(lvl); try { localStorage.setItem("kronos_notify_level", lvl); } catch {} if (subscribed) { setTimeout(enable, 0); } }}
+                  title={hint}
+                  style={{
+                    flex: 1, padding: "8px 6px", borderRadius: 7, cursor: "pointer",
+                    fontFamily: FM, fontSize: 9, fontWeight: 700, letterSpacing: 0.5,
+                    color: notifyLevel === lvl ? accent : dim,
+                    background: notifyLevel === lvl ? `${accent}12` : "transparent",
+                    border: `1px solid ${notifyLevel === lvl ? `${accent}35` : border}`,
+                  }}>{label}</button>
+              ))}
+            </div>
+            <div style={{ ...note, fontSize: 9, marginTop: 6 }}>
+              By design, push fires on <b style={{ color: text }}>FIRE</b> signals only — HOLD/SCAN are context, not calls to action. Switch to <b style={{ color: text }}>FIRE + forming</b> if you want the earlier heads-up too.
+            </div>
+          </div>
+
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             <button onClick={subscribed ? disable : enable} disabled={busy}
               style={{

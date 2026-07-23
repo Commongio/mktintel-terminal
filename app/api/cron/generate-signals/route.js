@@ -20,6 +20,7 @@ import { getAdmin, serverConfigured, insertSignal } from "../../../../lib/supaba
 import { sendSignalPush } from "../../../../lib/push";
 import { gradeSignalLifecycle } from "../../../../lib/signalLifecycle";
 import { buildSignalStats, applyAggregateGate } from "../../../../lib/signalStats";
+import { marketRegime } from "../../../../lib/chop";
 import { scanUniverse, fetchMostActives, FULL_UNIVERSE, BUCKET_SIZE, ROTATING_PER_RUN, rotationLength, CURATED, intervalAllowed } from "../../../../lib/universe";
 
 export const maxDuration = 60;
@@ -55,8 +56,18 @@ const PORTFOLIO_UNIVERSE = {
 // Roughly-every-N-minutes gate using wall-clock minutes (no state to persist).
 const everyNMinutes = (n) => new Date().getMinutes() % n < 2;
 
-async function writeIfChanged(admin, { assetClass, symbol, interval }, buckets, stats) {
+async function writeIfChanged(admin, { assetClass, symbol, interval }, buckets, stats, choppy) {
   const raw = await runSignalEngine({ assetClass, symbol, interval });
+
+  // ── V13.6 CHOP HALT ─────────────────────────────────────────────────────────
+  // When the broad market is in whipsaw, halt NEW actionable signals: any FIRE is
+  // demoted to HOLD so nothing new is presented as tradeable. The setup is still
+  // recorded (as forming) — we're not blind during chop, we just don't tell the
+  // user to act. The UI shows the stand-down banner from /api/market-state.
+  if (choppy && raw.status === "FIRE") {
+    raw.status = "HOLD";
+    buckets.halted.push(`${assetClass}:${symbol}:${interval}`);
+  }
 
   // ── V13.5 BOT ↔ TERMINAL BRAIN SYNC ────────────────────────────────────────
   // Before a signal is handed to users, the terminal's aggregate self-learning
@@ -100,9 +111,11 @@ async function writeIfChanged(admin, { assetClass, symbol, interval }, buckets, 
   // their phone every half hour for a signal they've already seen, which is how
   // people turn notifications off and never turn them back on.
   //
-  // FIRE only. HOLD/SCAN are context, not a call to action, and don't earn an
-  // interruption. Per-device conviction filtering happens in sendSignalPush.
-  if (sig.status === "FIRE" && changed) {
+  // V13.6: fan out both FIRE and HOLD when changed — sendSignalPush filters PER
+  // DEVICE by notify_level (FIRE always; HOLD only for devices set to 'all') and
+  // by conviction. This replaces the old hardcoded FIRE-only gate, which silently
+  // dropped everything else with no way for a user to opt into more.
+  if ((sig.status === "FIRE" || sig.status === "HOLD") && changed) {
     try {
       const res = await sendSignalPush({
         asset_class: assetClass, symbol, interval,
@@ -127,7 +140,7 @@ export async function GET(request) {
     return Response.json({ error: "Supabase not configured — signal feed disabled" }, { status: 503 });
   }
   const admin = getAdmin();
-  const buckets = { written: [], skipped: [], failed: [], pushed: [], pushFailed: [], demoted: [] };
+  const buckets = { written: [], skipped: [], failed: [], pushed: [], pushFailed: [], demoted: [], halted: [] };
 
   // V13.5: build the aggregate self-learning snapshot ONCE per run (reading the
   // shared signals table's own won/lost lifecycle), then every writeIfChanged
@@ -135,6 +148,14 @@ export async function GET(request) {
   let stats = { available: false };
   try { stats = await buildSignalStats(admin, { lookbackDays: 30 }); }
   catch { /* aggregate gate simply doesn't apply this run */ }
+
+  // V13.6: read the broad-market chop verdict ONCE. If the market is in whipsaw,
+  // every FIRE this run is demoted to HOLD (see writeIfChanged) — the bot halts
+  // new actionable signals rather than feeding the user into a chop-shredder.
+  let regime = { choppy: false };
+  try { regime = await marketRegime(); }
+  catch { /* if regime is unknowable, don't halt */ }
+  const choppy = Boolean(regime.choppy);
 
   // V10.3: the day's most-actives are PINNED into every run (movers are never
   // missed); the rest of the run is a rotating slice of the full universe.
@@ -154,7 +175,7 @@ export async function GET(request) {
     const universe = scanUniverse(assetClass, assetClass === "options" ? mostActives : [], cursor);
     for (const symbol of universe) {
       if (!timeLeft()) { ranOutOfTime = true; break; }
-      try { await writeIfChanged(admin, { assetClass, symbol, interval }, buckets, stats); }
+      try { await writeIfChanged(admin, { assetClass, symbol, interval }, buckets, stats, choppy); }
       catch (e) { buckets.failed.push({ symbol: `${assetClass}:${symbol}`, error: String(e.message) }); }
     }
     if (ranOutOfTime) break;
@@ -174,7 +195,7 @@ export async function GET(request) {
       if (!intervalAllowed(assetClass, interval)) continue;
       for (const symbol of PORTFOLIO_UNIVERSE[assetClass]) {
         if (!timeLeft()) { ranOutOfTime = true; return; }
-        try { await writeIfChanged(admin, { assetClass, symbol, interval }, buckets, stats); portfolio[flag] = true; }
+        try { await writeIfChanged(admin, { assetClass, symbol, interval }, buckets, stats, choppy); portfolio[flag] = true; }
         catch (e) { buckets.failed.push({ symbol: `${assetClass}:${symbol}:${interval}`, error: String(e.message) }); }
       }
     }
@@ -203,6 +224,9 @@ export async function GET(request) {
     // history it had to work with, so the sync is auditable.
     demoted: buckets.demoted,
     aggregateStats: { available: stats.available, sampleSize: stats.sampleSize ?? 0, overallWinRate: stats.overall?.winRate ?? null },
+    // V13.6: chop halt — the market-regime verdict + which FIREs were suppressed.
+    marketRegime: { choppy: regime.choppy, ci: regime.ci ?? null, label: regime.label ?? null },
+    halted: buckets.halted,
     lifecycle,
     mostActives: mostActives.length,
     portfolioSweeps: portfolio,

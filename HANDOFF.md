@@ -353,4 +353,44 @@ those in his real browser.
 
 **Migrations still to run in Supabase** (in order): 006 (signal state — needed for the loss log +
 brain sync to have data), 007 (brain_config), 008 (equity asset_class).
+
+---
+
+## 13. V13.6 (BUILT 2026-07-23) — 7 items from Gio + a crash hotfix
+
+**Crash hotfix first** (commit `8f578e6`, already on main): the V13 signal-popup timestamp used
+`toLocaleString({dateStyle,timeStyle,timeZoneName})` — illegal combo, throws, crashed the page on
+every signal click. Fixed with explicit component options. Shipped before the V13.6 batch.
+
+New libs: `lib/chop.js` (choppiness index + market regime). New routes: `/api/market-state`
+(public chop read), `/api/admin/signal-outcome` (owner-gated dev grading). New migration:
+`009_push_notify_level.sql`.
+
+1. **Short-dated options** — `contractGuidance` (signalEngine.js) reworked from "2–4 weeks out" to
+   "this week's expiry (0–5 DTE), ~0.45–0.55 delta near-the-money". The chain already read the
+   nearest expiry; only the guidance string was misleading. Daily-tradeable now.
+2. **Signal quality** — **pushed back on any win-rate guarantee** (no engine can promise one).
+   Built a **confirmation gate** (`confirmationGate` in signalEngine.js): FIRE now needs
+   above-average volume AND (momentum thrust OR MSS/liquidity-sweep). Weaker setups stay HOLD.
+   Reserves FIRE for confirmed breakouts and feeds cleaner data to the V13.5 self-learning loop —
+   that loop is what actually moves win-rate over time, not a hardcoded number.
+3. **Dev page** — already had alter-AI (addendum/flags) + settings (flags/loss-log). Added a DEV
+   TOOLS button that fires a live Comet: sets `localStorage.kronos_dev_comet_test`, routes to `/`,
+   page.js opens into bot view, BotDashboard consumes the flag and fires `testCue(95)`.
+4. **/admin scroll** — globals.css `html,body{overflow:hidden}` killed document scroll on /admin;
+   made the admin root its own scroll container (`height:100vh; overflowY:auto`).
+5. **Chop detection / halt** (major) — `lib/chop.js` (Choppiness Index) + `/api/market-state`. The
+   cron reads the regime once/run and **demotes every FIRE to HOLD during whipsaw** (halted[] +
+   marketRegime in the response). SignalFeed polls the endpoint and shows an "UNSTABLE CONDITIONS
+   — SIGNALS ON HOLD" stand-down banner.
+6. **Dev deletion reasons** — dev trash → reason picker (stopped-out / bad-RR) →
+   `/api/admin/signal-outcome` sets the shared row's state (lost / invalidated), feeding the
+   self-learning loss log. Non-dev users keep the local per-user hide.
+7. **Push scoping** — diagnosed: cron only pushed FIRE (hardcoded), silently dropping HOLD/SCAN.
+   Made it a per-device `notify_level` (migration 009): 'fire' default vs 'all'. Per-device filter
+   moved into `sendSignalPush`; cron gate widened to FIRE+HOLD; PushAlerts UI exposes the toggle +
+   explains the FIRE-only default. (A *separate* VAPID-mismatch delivery bug, if any, is answered
+   by the V13.5 TEST button / `GET /api/push/test` — needs Gio's device.)
+
+**Migrations now (in order): 006, 007, 008, 009.** 009 adds `push_subscriptions.notify_level`.
 ```

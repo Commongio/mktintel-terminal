@@ -25,20 +25,28 @@ export async function POST(request) {
   }
 
   const minConviction = Math.max(50, Math.min(95, Number(body.minConviction) || 65));
-  const assetClass = ["futures", "options"].includes(body.assetClass) ? body.assetClass : null;
+  const assetClass = ["futures", "options", "equity"].includes(body.assetClass) ? body.assetClass : null;
+  const notifyLevel = body.notifyLevel === "all" ? "all" : "fire"; // V13.6
 
   // Upsert on `endpoint`: re-subscribing the same device must update, not
   // duplicate — duplicates would double-notify.
-  const { error } = await getAdmin().from("push_subscriptions").upsert({
+  const row = {
     user_id: user.id,
     endpoint, p256dh, auth,
     min_conviction: minConviction,
     asset_class: assetClass,
+    notify_level: notifyLevel,
     user_agent: (request.headers.get("user-agent") || "").slice(0, 200),
-  }, { onConflict: "endpoint" });
+  };
+  let { error } = await getAdmin().from("push_subscriptions").upsert(row, { onConflict: "endpoint" });
+  // Degrade gracefully if migration 009 (notify_level) hasn't run yet.
+  if (error && (error.code === "42703" || /notify_level/.test(error.message || ""))) {
+    delete row.notify_level;
+    ({ error } = await getAdmin().from("push_subscriptions").upsert(row, { onConflict: "endpoint" }));
+  }
 
   if (error) return Response.json({ error: error.message }, { status: 500 });
-  return Response.json({ ok: true, minConviction, assetClass });
+  return Response.json({ ok: true, minConviction, assetClass, notifyLevel });
 }
 
 export async function DELETE(request) {
