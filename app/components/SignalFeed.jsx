@@ -409,6 +409,18 @@ const SignalFeed = forwardRef(function SignalFeed({ accent = "#00d4aa", T, asset
     const t = setInterval(poll, 120000);
     return () => { live = false; clearInterval(t); };
   }, []);
+  // V13.6: dev-only preview of the chop stand-down banner (set on /admin DEV TOOLS)
+  // so it can be verified without waiting for a real whipsaw. Dismissible.
+  const [devChopPreview, setDevChopPreview] = useState(false);
+  useEffect(() => {
+    if (!isDev) return;
+    try { if (localStorage.getItem("kronos_dev_test_chop") === "1") setDevChopPreview(true); } catch {}
+  }, [isDev]);
+  const dismissChopPreview = () => {
+    setDevChopPreview(false);
+    try { localStorage.removeItem("kronos_dev_test_chop"); } catch {}
+  };
+  const showChopBanner = Boolean(chop?.choppy) || devChopPreview;
   // V12: user-dismissed signal ids. The `signals` table is a SHARED standardized
   // feed (one row seen by everyone), so a trash click can't hard-delete the row
   // globally — it's a per-user hide, persisted locally. This is the manual
@@ -660,19 +672,30 @@ const SignalFeed = forwardRef(function SignalFeed({ accent = "#00d4aa", T, asset
         {/* V13.6: market-instability stand-down. When the broad market is in
             whipsaw the bot halts new FIRE signals — this explains the quiet feed
             professionally rather than leaving the user guessing. */}
-        {chop?.choppy && (
+        {showChopBanner && (
           <div style={{
             display: "flex", alignItems: "flex-start", gap: 9, padding: "10px 13px",
             borderBottom: `1px solid #f7c94833`, background: "#f7c9480e",
           }}>
             <span style={{ fontSize: 12, lineHeight: 1.2, flexShrink: 0 }}>⚠</span>
-            <div>
-              <div style={{ fontFamily: FM, fontSize: 8.5, fontWeight: 800, letterSpacing: 1, color: "#f7c948", marginBottom: 2 }}>
-                UNSTABLE CONDITIONS — SIGNALS ON HOLD
+            <div style={{ flex: 1 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                <span style={{ fontFamily: FM, fontSize: 8.5, fontWeight: 800, letterSpacing: 1, color: "#f7c948" }}>
+                  UNSTABLE CONDITIONS — SIGNALS ON HOLD
+                </span>
+                {devChopPreview && !chop?.choppy && (
+                  <span style={{ fontFamily: FM, fontSize: 6.5, fontWeight: 800, letterSpacing: 1, color: dim, border: `1px solid ${dim}55`, borderRadius: 3, padding: "1px 4px" }}>DEV PREVIEW</span>
+                )}
               </div>
               <div style={{ fontFamily: FC, fontSize: 10, color: dim, lineHeight: 1.45 }}>
-                The broad market is choppy and directionless right now{chop.ci != null ? ` (choppiness ${chop.ci})` : ""}. KRONOS has paused new actionable setups — these conditions whipsaw traders. It will resume firing as a clean trend re-establishes.
+                The broad market is choppy and directionless right now{chop?.ci != null ? ` (choppiness ${chop.ci})` : ""}. KRONOS has paused new actionable setups — these conditions whipsaw traders. It will resume firing as a clean trend re-establishes.
               </div>
+              {devChopPreview && !chop?.choppy && (
+                <button onClick={dismissChopPreview}
+                  style={{ marginTop: 6, fontFamily: FM, fontSize: 8, fontWeight: 700, letterSpacing: 1, color: dim, background: "transparent", border: `1px solid ${border}`, borderRadius: 5, padding: "3px 8px", cursor: "pointer" }}>
+                  ✕ DISMISS PREVIEW
+                </button>
+              )}
             </div>
           </div>
         )}

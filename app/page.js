@@ -1521,9 +1521,10 @@ export default function MarketTerminal(){
   }, []);
 
   const[view,setView]=useState(()=>{
-    // V13.6: the dev "test comet" button (on /admin) sets this flag then sends the
-    // user here — open straight into the bot so the comet has an orb to launch on.
-    try{if(localStorage.getItem("kronos_dev_comet_test")==="1")return "bot";}catch{}
+    // V13.6: the dev "test comet" / "preview chop banner" buttons (on /admin) set a
+    // flag then send the user here — open straight into the bot so the comet has an
+    // orb to launch on and the chop banner has a feed to render in.
+    try{if(localStorage.getItem("kronos_dev_comet_test")==="1"||localStorage.getItem("kronos_dev_test_chop")==="1")return "bot";}catch{}
     return "terminal";
   });
   const[showWelcome,setShowWelcome]=useState(true);

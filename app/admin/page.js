@@ -416,8 +416,15 @@ function BrainPanel({ C, FM }) {
           style={{ ...btnSx, width: "100%" }}>
           ☄ OPEN BOT & FIRE TEST COMET
         </button>
-        <div style={{ fontSize: 8.5, color: C.dim, marginTop: 8, lineHeight: 1.5 }}>
+        <div style={{ fontSize: 8.5, color: C.dim, margin: "8px 0 14px", lineHeight: 1.5 }}>
           Opens the KRONOS bot and launches a Comet on the latest live signal (or a demo if none is live), so you can confirm the effect end-to-end.
+        </div>
+        <button onClick={() => { try { localStorage.setItem("kronos_dev_test_chop", "1"); } catch {} window.location.href = "/"; }}
+          style={{ ...btnSx, width: "100%", background: "rgba(247,201,72,0.1)", border: "1px solid rgba(247,201,72,0.35)", color: C.gold }}>
+          ⚠ OPEN BOT & PREVIEW CHOP BANNER
+        </button>
+        <div style={{ fontSize: 8.5, color: C.dim, marginTop: 8, lineHeight: 1.5 }}>
+          Opens the bot and forces the &quot;unstable conditions&quot; stand-down banner on the signal feed, so you can confirm it renders without waiting for a real whipsaw. Dismiss it from the banner itself.
         </div>
       </div>
     </div>
