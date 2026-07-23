@@ -14,9 +14,8 @@ export const metadata = {
     title: "KRONOS",
     statusBarStyle: "black-translucent",
   },
-  icons: {
-    apple: "/icons/apple-touch-icon.png",
-  },
+  // V13.7: icons come from the Next file conventions — app/icon.png (favicon) and
+  // app/apple-icon.png (iOS home-screen touch icon = the new TK-monogram logo).
   formatDetection: {
     // Stop iOS auto-linking numbers as phone calls — a trading terminal is full
     // of prices and strikes that would become blue tap-to-call links.

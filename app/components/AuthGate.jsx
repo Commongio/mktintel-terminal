@@ -70,24 +70,40 @@ function GalaxyBackdrop() {
 // oversized watermark behind the card and as a small mark under the wordmark.
 const KRONOS_GREEK = "ΚΡΟΝΟΣ";
 
-function Field({ label, type = "text", value, onChange, placeholder, autoFocus, onEnter }) {
+// V13.7 login palette — steel/sky blue to match the reference (the in-app accent
+// stays teal; the login is its own surface).
+const LOGIN_BLUE = "#6d8fb8";
+const LOGIN_BLUE_BRIGHT = "#5b9bd5";
+
+const IconPerson = ({ c = "#8ba0b8" }) => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <circle cx="12" cy="8" r="3.6" /><path d="M5 20c0-3.5 3.1-5.5 7-5.5s7 2 7 5.5" />
+  </svg>
+);
+const IconLock = ({ c = "#8ba0b8" }) => (
+  <svg width="15" height="16" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <rect x="5" y="11" width="14" height="9.5" rx="2" /><path d="M8 11V7.5a4 4 0 0 1 8 0V11" />
+  </svg>
+);
+
+function Field({ label, type = "text", value, onChange, placeholder, autoFocus, onEnter, icon }) {
   const [focused, setFocused] = useState(false);
   return (
-    <div style={{ marginBottom: 10 }}>
-      <div style={{ fontFamily: FM, fontSize: 7, letterSpacing: 3, color: "#2a3a4a", fontWeight: 700, marginBottom: 5 }}>{label}</div>
+    <div style={{ marginBottom: 12 }}>
+      <div style={{ fontFamily: FM, fontSize: 8, letterSpacing: 2.5, color: "#7d90a6", fontWeight: 700, marginBottom: 6 }}>{label}</div>
       <div style={{
-        display: "flex", alignItems: "center", gap: 10, background: "#060910",
-        border: `1px solid ${focused ? "rgba(0,212,170,0.3)" : "#16253a"}`,
-        borderRadius: 9, padding: "11px 14px", transition: "border-color 0.15s",
+        display: "flex", alignItems: "center", gap: 11, background: "rgba(4,8,16,0.55)",
+        border: `1px solid ${focused ? `${LOGIN_BLUE_BRIGHT}66` : "rgba(120,145,180,0.18)"}`,
+        borderRadius: 10, padding: "12px 14px", transition: "border-color 0.15s",
       }}>
-        <span style={{ color: "#00d4aa", fontSize: 12, flexShrink: 0 }}>▸</span>
+        <span style={{ flexShrink: 0, display: "flex" }}>{icon || <IconPerson />}</span>
         <input
           type={type} value={value} autoFocus={autoFocus}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter" && onEnter) onEnter(); }}
           onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
           placeholder={placeholder}
-          style={{ flex: 1, background: "transparent", border: "none", color: "#c8d8e8", fontFamily: FM, fontSize: 13, fontWeight: 600, letterSpacing: 1, width: "100%" }}
+          style={{ flex: 1, background: "transparent", border: "none", color: "#dbe6f2", fontFamily: FM, fontSize: 13, fontWeight: 500, letterSpacing: 0.5, width: "100%" }}
         />
       </div>
     </div>
@@ -146,88 +162,102 @@ function SupabaseGate({ onAccess }) {
   const submit = tab === "login" ? doLogin : doSignup;
   const canSubmit = email.trim() && password.length >= (tab === "signup" ? 8 : 1) && (tab === "login" || regCode.trim());
 
+  const active = (k) => tab === k;
   return (
-    <div style={{ position: "fixed", inset: 0, background: "radial-gradient(ellipse at 70% 20%, #0a1420 0%, #05080f 60%, #03050a 100%)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: FM, zIndex: 9999, overflow: "hidden" }}>
+    // V13.7: matches the reference — teal-navy (top) → purple (bottom) gradient,
+    // starfield, giant faint outlined ΚΡΟΝΟΣ watermark bleeding off both edges,
+    // ringed-planet-with-constellation mark, frosted card, steel-blue controls.
+    <div style={{ position: "fixed", inset: 0, background: "linear-gradient(168deg, #0d2c3c 0%, #12253b 40%, #1b1840 72%, #2a1748 100%)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: FM, zIndex: 9999, overflow: "hidden" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@700;800&family=JetBrains+Mono:wght@400;600;700;800&display=swap');
-        @keyframes ag-pulse { 0%,100%{opacity:0.55;} 50%{opacity:1;} }
         @keyframes ag-appear { from{opacity:0;transform:translateY(12px);} to{opacity:1;transform:translateY(0);} }
-        @keyframes ag-drift { 0%,100%{opacity:0.05;} 50%{opacity:0.11;} }
+        @keyframes ag-drift { 0%,100%{opacity:0.06;} 50%{opacity:0.10;} }
+        @keyframes ag-spin { from{transform:rotate(0deg);} to{transform:rotate(360deg);} }
       `}</style>
 
       <GalaxyBackdrop />
 
-      {/* Oversized Greek KRONOS watermark — a quiet nod to the titan, well behind
-          the card so it never competes with the form. */}
+      {/* Giant faint OUTLINED Greek ΚΡΟΝΟΣ watermark, bleeding off both edges,
+          behind the card. Transparent fill + faint stroke = the outlined look. */}
       <div aria-hidden="true" style={{
         position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
-        pointerEvents: "none", fontFamily: FD, fontWeight: 800, letterSpacing: 8,
-        fontSize: "clamp(60px, 16vw, 190px)", color: "#00d4aa", whiteSpace: "nowrap",
-        animation: "ag-drift 7s ease-in-out infinite", userSelect: "none",
+        pointerEvents: "none", fontFamily: FD, fontWeight: 800, letterSpacing: 18,
+        fontSize: "clamp(120px, 30vw, 380px)", color: "transparent",
+        WebkitTextStroke: "1.5px rgba(150,175,215,0.16)", whiteSpace: "nowrap",
+        animation: "ag-drift 8s ease-in-out infinite", userSelect: "none",
       }}>{KRONOS_GREEK}</div>
 
-      <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", gap: 22, width: "100%", maxWidth: 430, padding: "0 24px", animation: "ag-appear 0.5s ease" }}>
-        <div style={{ position: "relative", width: 74, height: 74, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div style={{ position: "absolute", width: 74, height: 74, borderRadius: "50%", border: "1px solid #00d4aa1c", animation: "ag-pulse 2.4s ease-in-out infinite" }} />
-          <div style={{ position: "absolute", width: 52, height: 52, borderRadius: "50%", background: "radial-gradient(circle at 36% 32%,#00d4aa55,#00d4aa1a 55%,transparent 78%)", animation: "ag-pulse 2.8s ease-in-out infinite" }} />
-          <div style={{ width: 24, height: 24, borderRadius: "50%", background: "radial-gradient(circle at 34% 30%,#ffffff,#00d4aaee 42%,#00d4aa88 68%,transparent)", boxShadow: "0 0 16px #00d4aa70" }} />
-        </div>
-        <div style={{ textAlign: "center" }}>
-          <div style={{ fontFamily: FD, fontSize: 32, fontWeight: 800, color: "#e6f0f8", letterSpacing: 3, marginBottom: 5 }}>KRONOS</div>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-            <span style={{ height: 1, width: 22, background: "linear-gradient(90deg,transparent,#00d4aa66)" }} />
-            <span style={{ fontFamily: FM, fontSize: 8, color: "#5b7085", letterSpacing: 4, fontWeight: 700 }}>{KRONOS_GREEK}</span>
-            <span style={{ height: 1, width: 22, background: "linear-gradient(90deg,#00d4aa66,transparent)" }} />
-          </div>
-          <div style={{ fontFamily: FM, fontSize: 7.5, color: "#33475a", letterSpacing: 4, fontWeight: 700, marginTop: 6 }}>TRADING INTELLIGENCE TERMINAL</div>
+      <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", gap: 18, width: "100%", maxWidth: 440, padding: "0 22px", animation: "ag-appear 0.5s ease" }}>
+        {/* Ringed planet with a small constellation traced inside. */}
+        <svg width="92" height="92" viewBox="0 0 100 100" fill="none" aria-hidden="true">
+          <ellipse cx="50" cy="52" rx="42" ry="15" transform="rotate(-22 50 52)" stroke="#9db3cc" strokeWidth="1.4" opacity="0.85" />
+          <circle cx="50" cy="47" r="21" stroke="#c3d3e6" strokeWidth="1.6" />
+          <g stroke="#aebfd4" strokeWidth="1" opacity="0.9">
+            <path d="M41 42 L51 38 L58 49 L47 54 Z" fill="none" opacity="0.5" />
+          </g>
+          {[[41, 42], [51, 38], [58, 49], [47, 54]].map(([x, y], i) => (
+            <circle key={i} cx={x} cy={y} r="1.7" fill="#e2ecf7" />
+          ))}
+        </svg>
+
+        <div style={{ textAlign: "center", marginTop: -2 }}>
+          <div style={{ fontFamily: FD, fontSize: 42, fontWeight: 800, color: "#eef4fb", letterSpacing: 6, lineHeight: 1 }}>KRONOS</div>
+          <div style={{ fontFamily: FM, fontSize: 11, color: "#8095ab", letterSpacing: 5, fontWeight: 600, marginTop: 12 }}>TRADING INTELLIGENCE TERMINAL</div>
         </div>
 
-        {/* Glassmorphic card — soft edge, blur, subtle top highlight. */}
-        <div style={{ width: "100%", padding: "24px 28px", background: "rgba(9,15,24,0.72)", border: "1px solid rgba(0,212,170,0.14)", borderRadius: 18, backdropFilter: "blur(16px) saturate(1.1)", WebkitBackdropFilter: "blur(16px) saturate(1.1)", boxShadow: "0 24px 70px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.04)" }}>
-          {/* Tabs */}
-          <div style={{ display: "flex", gap: 6, marginBottom: 18 }}>
+        {/* Frosted-glass card. */}
+        <div style={{ width: "100%", marginTop: 6, padding: "20px 22px", background: "rgba(24,38,56,0.42)", border: "1px solid rgba(140,165,200,0.18)", borderRadius: 20, backdropFilter: "blur(18px) saturate(1.1)", WebkitBackdropFilter: "blur(18px) saturate(1.1)", boxShadow: "0 26px 70px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05)" }}>
+          {/* Segmented tabs — active fill + brighter blue underline. */}
+          <div style={{ display: "flex", background: "rgba(6,12,22,0.4)", border: "1px solid rgba(140,165,200,0.14)", borderRadius: 11, overflow: "hidden", marginBottom: 18 }}>
             {[["login", "SIGN IN"], ["signup", "CREATE ACCOUNT"]].map(([k, label]) => (
               <button key={k} onClick={() => { setTab(k); setError(""); setNotice(""); }} style={{
-                flex: 1, padding: "9px 0", fontFamily: FM, fontSize: 9, fontWeight: 700, letterSpacing: 2,
-                color: tab === k ? "#00d4aa" : "#2a3a4a",
-                background: tab === k ? "rgba(0,212,170,0.08)" : "transparent",
-                border: `1px solid ${tab === k ? "rgba(0,212,170,0.3)" : "#16253a"}`,
-                borderRadius: 7, cursor: "pointer",
+                flex: 1, padding: "12px 0", fontFamily: FM, fontSize: 10.5, fontWeight: 700, letterSpacing: 1.5,
+                color: active(k) ? "#eef4fb" : "#6a7d93",
+                background: active(k) ? "linear-gradient(180deg, rgba(91,155,213,0.28), rgba(91,155,213,0.14))" : "transparent",
+                borderBottom: `2px solid ${active(k) ? LOGIN_BLUE_BRIGHT : "transparent"}`,
+                border: "none", borderRadius: 0, cursor: "pointer", transition: "all 0.15s",
               }}>{label}</button>
             ))}
           </div>
 
-          <Field label="EMAIL" value={email} onChange={setEmail} placeholder="you@example.com" autoFocus onEnter={submit} />
-          <Field label="PASSWORD" type="password" value={password} onChange={setPassword} placeholder={tab === "signup" ? "min. 8 characters" : "••••••••"} onEnter={submit} />
+          <Field label="EMAIL" value={email} onChange={setEmail} placeholder="you@example.com" autoFocus onEnter={submit} icon={<IconPerson />} />
+          <Field label="PASSWORD" type="password" value={password} onChange={setPassword} placeholder={tab === "signup" ? "min. 8 characters" : "••••••••••••"} onEnter={submit} icon={<IconLock />} />
           {tab === "signup" && (
             <Field label="REGISTRATION CODE (ONE-TIME USE)" value={regCode}
               onChange={(v) => setRegCode(v.toUpperCase().replace(/[^A-Z0-9-]/g, ""))}
-              placeholder="KRN-XXXXXX" onEnter={submit} />
+              placeholder="KRN-XXXXXX" onEnter={submit} icon={<span style={{ color: "#8ba0b8", fontSize: 12 }}>#</span>} />
           )}
 
-          {error && <div style={{ fontFamily: FM, fontSize: 9, color: "#ff4d6d", letterSpacing: 1, margin: "6px 0 10px", textAlign: "center", lineHeight: 1.5 }}>⚠ {error}</div>}
-          {notice && <div style={{ fontFamily: FM, fontSize: 9, color: "#00d4aa", letterSpacing: 1, margin: "6px 0 10px", textAlign: "center" }}>{notice}</div>}
+          {error && <div style={{ fontFamily: FM, fontSize: 9.5, color: "#ff6b81", letterSpacing: 0.5, margin: "8px 0 10px", textAlign: "center", lineHeight: 1.5 }}>⚠ {error}</div>}
+          {notice && <div style={{ fontFamily: FM, fontSize: 9.5, color: LOGIN_BLUE_BRIGHT, letterSpacing: 0.5, margin: "8px 0 10px", textAlign: "center" }}>{notice}</div>}
 
           <button onClick={submit} disabled={!canSubmit || loading} style={{
-            width: "100%", padding: "13px 0", marginTop: 4,
-            background: canSubmit && !loading ? "linear-gradient(135deg,rgba(0,212,170,0.16),rgba(0,212,170,0.07))" : "transparent",
-            border: `1px solid ${canSubmit && !loading ? "rgba(0,212,170,0.38)" : "#16253a"}`,
-            borderRadius: 8, color: canSubmit && !loading ? "#00d4aa" : "#2a3a4a",
-            fontFamily: FM, fontSize: 11, fontWeight: 700, letterSpacing: 3,
+            width: "100%", padding: "14px 0", marginTop: 8,
+            background: canSubmit && !loading ? "linear-gradient(180deg, #7a97b5, #5c7994)" : "rgba(90,110,135,0.25)",
+            border: "none", borderRadius: 11,
+            color: canSubmit && !loading ? "#ffffff" : "#7d90a6",
+            fontFamily: FM, fontSize: 12, fontWeight: 700, letterSpacing: 3,
             cursor: canSubmit && !loading ? "pointer" : "default",
+            boxShadow: canSubmit && !loading ? "0 8px 24px rgba(91,155,213,0.25)" : "none",
+            transition: "all 0.15s",
           }}>
             {loading ? "WORKING..." : tab === "login" ? "SIGN IN" : "CREATE ACCOUNT"}
           </button>
           {tab === "signup" && (
-            <div style={{ fontFamily: FM, fontSize: 7.5, color: "#2a3a4a", letterSpacing: 1, marginTop: 10, textAlign: "center", lineHeight: 1.6 }}>
+            <div style={{ fontFamily: FM, fontSize: 8, color: "#5f7288", letterSpacing: 0.5, marginTop: 11, textAlign: "center", lineHeight: 1.6 }}>
               Each registration code works exactly once and is tied to your account.
             </div>
           )}
         </div>
-        <div style={{ fontFamily: FM, fontSize: 7, color: "#141e2a", letterSpacing: 3, textAlign: "center" }}>
-          UNAUTHORIZED ACCESS IS MONITORED AND PROHIBITED
+        <div style={{ fontFamily: FM, fontSize: 8.5, color: "#5f7492", letterSpacing: 2, textAlign: "center", opacity: 0.75 }}>
+          # UNAUTHORIZED ACCESS IS MONITORED AND PROHIBITED
         </div>
       </div>
+
+      {/* Four-point sparkle accent, bottom-right. */}
+      <svg width="30" height="30" viewBox="0 0 24 24" aria-hidden="true" style={{ position: "absolute", right: 30, bottom: 34, pointerEvents: "none" }}>
+        <path d="M12 1 L14 10 L23 12 L14 14 L12 23 L10 14 L1 12 L10 10 Z" fill="#8aa0bd" opacity="0.75" />
+      </svg>
     </div>
   );
 }
