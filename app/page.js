@@ -22,6 +22,8 @@ import TickerLogo from "./components/TickerLogo";
 import TourGuide from "./components/TourGuide";
 import KronosMentor from "./components/KronosMentor";
 import { CollapsedRail } from "./components/CollapseRail";
+import V13Popup from "./components/V13Popup";
+import { COMPANY_NAMES } from "../lib/companyNames";
 import { vixFilter } from "../lib/vixColor";
 import { getSupabase, supabaseConfigured, getAccessToken } from "../lib/supabase";
 
@@ -76,7 +78,6 @@ const ACCENTS={teal:"#00d4aa",blue:"#7eb8f7",purple:"#a78bfa",orange:"#ff6b35",g
 const THEME_DEFAULTS={mainBg:DEFAULT_BG,mainText:DEFAULT_TEXT,leftBg:DEFAULT_BG,leftText:DEFAULT_TEXT,rightBg:DEFAULT_BG,rightText:DEFAULT_TEXT,accent:"teal",density:"comfortable",leftWidth:290,rightWidth:310,chartRightWidth:340};
 const TRUMP_RE=/trump|truth social|tariff|executive order|maga|mar-a-lago|president trump|trade war/i;
 const QUICK_CHART_SYMS=["SPY","QQQ","NVDA","AAPL","TSLA","META","AMD","MSFT","PLTR","MSTR","AMZN","GOOGL"];
-const COMPANY_NAMES={NVDA:"NVIDIA Corp",AAPL:"Apple Inc",MSFT:"Microsoft Corp",GOOGL:"Alphabet Inc",AMZN:"Amazon.com Inc",META:"Meta Platforms",TSLA:"Tesla Inc",AMD:"Advanced Micro Devices",JPM:"JPMorgan Chase",V:"Visa Inc",UNH:"UnitedHealth Group",LLY:"Eli Lilly",XOM:"Exxon Mobil",BA:"Boeing Co",WMT:"Walmart Inc",COST:"Costco Wholesale",NKE:"Nike Inc",DIS:"Walt Disney Co",PLTR:"Palantir Technologies",RKLB:"Rocket Lab",IONQ:"IonQ Inc",SMCI:"Super Micro Computer",GME:"GameStop Corp",MSTR:"MicroStrategy",SPY:"S&P 500 ETF",QQQ:"Nasdaq 100 ETF",IWM:"Russell 2000 ETF",DIA:"Dow Jones ETF",COIN:"Coinbase Global",RIOT:"Riot Platforms",MARA:"Marathon Digital",CLSK:"CleanSpark",ADBE:"Adobe Inc",CRM:"Salesforce Inc",ORCL:"Oracle Corp",INTC:"Intel Corp",QCOM:"Qualcomm Inc",PYPL:"PayPal Holdings",SQ:"Block Inc",SHOP:"Shopify Inc",UBER:"Uber Technologies",SBUX:"Starbucks Corp",MCD:"McDonald's Corp",TGT:"Target Corp",HD:"Home Depot",CAT:"Caterpillar Inc",GE:"General Electric",RTX:"RTX Corp",KO:"Coca-Cola Co",PEP:"PepsiCo Inc",PG:"Procter & Gamble",JNJ:"Johnson & Johnson",T:"AT&T Inc",VZ:"Verizon Communications",C:"Citigroup Inc",WFC:"Wells Fargo",GS:"Goldman Sachs",MS:"Morgan Stanley",BAC:"Bank of America",AVGO:"Broadcom Inc",NFLX:"Netflix Inc"};
 const DEFAULT_WATCHLIST=["NVDA","AAPL","MSFT","GOOGL","AMZN","META","TSLA","AMD","JPM","V","UNH","LLY","XOM","BA","WMT","COST","NKE","DIS","PLTR","RKLB","IONQ","SMCI","GME","MSTR","SPY","QQQ"];
 const POPULAR_PICKS=["ADBE","CRM","ORCL","INTC","QCOM","PYPL","SQ","SHOP","UBER","SBUX","MCD","TGT","HD","CAT","GE","RTX","KO","PEP","PG","JNJ","T","VZ","C","WFC","GS","MS","BAC","AVGO","NFLX","COIN","RIOT","MARA","CLSK","IWM","DIA"];
 function buildDefaultMeta(){const m={};DEFAULT_WATCHLIST.forEach(s=>{m[s]=COMPANY_NAMES[s]||s;});return m;}
@@ -170,8 +171,8 @@ function MobileTabBar({active,onSelect,accent,T,alertCount=0}){
 
 const QA_GROUPS=[
   {label:"📰 NEWS",color:"#f7c948",actions:[
-    {label:"Breaking market news now",prompt:"Give me the most important breaking market news RIGHT NOW using live context. For each catalyst: direction, exact options play with strike/expiry, IV rank, entry/target/stop. 🔥/⚡/👀 every setup."},
-    {label:"Trump / Truth Social now",prompt:"Search Trump's latest Truth Social posts and statements RIGHT NOW. Sectors impacted? For each: tickers, exact options play, IV rank, entry/target/stop. 🔥/⚡/👀."},
+    {label:"Breaking market news now",prompt:"Give me the most important breaking market news RIGHT NOW using live context. For each catalyst: direction, exact options play with strike/expiry, IV rank, entry/target/stop. Grade every setup A/B/C."},
+    {label:"Trump / Truth Social now",prompt:"Search Trump's latest Truth Social posts and statements RIGHT NOW. Sectors impacted? For each: tickers, exact options play, IV rank, entry/target/stop."},
     {label:"Fed & macro today",prompt:"Latest Fed news, CPI, jobs, rate decisions. What matters most right now? IV rank on every setup."},
     {label:"Earnings today",prompt:"Companies reporting today or after-hours? Beats or misses? Best remaining options plays. IV rank for each."},
   ]},
@@ -188,7 +189,7 @@ const QA_GROUPS=[
     {label:"Dark pool prints",prompt:"Biggest dark pool prints today. Bullish vs bearish? Small/mid caps that haven't reacted yet."},
   ]},
   {label:"📊 ANALYSIS",color:"#7eb8f7",actions:[
-    {label:"Full market scan",prompt:"Complete market scan. Top CALLs, Top PUTs, hidden gems, whale summary, sector rotation, macro risks. IV rank. 🔥/⚡/👀."},
+    {label:"Full market scan",prompt:"Complete market scan. Top CALLs, Top PUTs, hidden gems, whale summary, sector rotation, macro risks. IV rank."},
     {label:"Best options this week",prompt:"Best options plays for this week. Conviction ranked. Catalyst, exact strike/expiry, entry, target, stop, IV rank."},
     {label:"Sector rotation",prompt:"Which sectors seeing rotation today? Money flowing IN and OUT. Specific ETFs, tickers, options plays both directions."},
     {label:"Best LEAPS now",prompt:"Best LEAPS for 3-12 month holds. Specific strikes, expiry, entry zone, thesis for each."},
@@ -330,19 +331,40 @@ function QuickActions({onAction,accent,T}){
   );
 }
 
+// V13.5 perf: technicals are fetched per watchlist row, but the same symbol
+// recurs across the watchlist, ticker tape and quick-chart AND every row
+// remounts on a view switch — so without a cache the app re-fetches the same
+// RSI/MACD dozens of times. A tiny module-level TTL cache (and in-flight promise
+// dedupe) collapses those into one request per symbol per 60s.
+const _techCache=new Map(); // symbol -> { at, data }
+const _techInflight=new Map(); // symbol -> Promise
+const TECH_TTL=60_000;
+async function getTechnicals(symbol){
+  const hit=_techCache.get(symbol);
+  if(hit&&Date.now()-hit.at<TECH_TTL)return hit.data;
+  if(_techInflight.has(symbol))return _techInflight.get(symbol);
+  const p=(async()=>{
+    try{
+      const r=await fetch(`/api/technicals?symbol=${symbol}`);
+      const d=await r.json();
+      _techCache.set(symbol,{at:Date.now(),data:d});
+      return d;
+    }catch{return null;}
+    finally{_techInflight.delete(symbol);}
+  })();
+  _techInflight.set(symbol,p);
+  return p;
+}
+
 const WatchlistRow=memo(function WatchlistRow({symbol,quote,name,onClick,T,density}){
   const [techData,setTechData]=useState({});
   const pad=density==="compact"?"6px 9px":"8px 10px";
 
-  const fetchTechnicals=async(symbolKey)=>{
-    try{
-      const r=await fetch(`/api/technicals?symbol=${symbolKey}`);
-      const d=await r.json();
-      setTechData(prev=>({...prev,[symbolKey]:d}));
-    }catch{}
-  };
-
-  useEffect(()=>{fetchTechnicals(symbol);},[symbol]);
+  useEffect(()=>{
+    let live=true;
+    getTechnicals(symbol).then(d=>{if(live&&d)setTechData(prev=>({...prev,[symbol]:d}));});
+    return()=>{live=false;};
+  },[symbol]);
   if(!quote) return <div style={{padding:pad,borderRadius:7,marginBottom:5,background:T.surface,border:`1px solid ${T.border}`}}><span style={{fontFamily:FONT_MONO,fontSize:10,color:T.dim}}>{symbol} loading...</span></div>;
   if(quote.error) return <div style={{padding:pad,borderRadius:7,marginBottom:5,background:T.surface,border:`1px solid ${T.border}`}}><span style={{fontFamily:FONT_MONO,fontSize:10,color:"#ff4d6d"}}>{symbol} — unavailable</span></div>;
   const up=(quote.changePercent??0)>=0,clr=up?"#00d4aa":"#ff4d6d";
@@ -623,7 +645,8 @@ function DataSyncStatus({user,T,accent}){
 }
 
 function SettingsPanel(props){
-  const{onClose,mainBg,setMainBg,mainText,setMainText,leftBg,setLeftBg,leftText,setLeftText,rightBg,setRightBg,rightText,setRightText,accentKey,setAccentKey,density,setDensity,leftWidth,setLeftWidth,rightWidth,setRightWidth,chartRightWidth,setChartRightWidth,onResetAll,T,accent,fontSize,setFontSize,chatStyle,setChatStyle,bgImage,setBgImage,user,onSignOut,themeSel,setThemeSel,sidePanels,setSidePanels,chatFont,setChatFont,onStartTour,bgVideo,onPickVideo,onRemoveVideo}=props;
+  const{onClose,mainBg,setMainBg,mainText,setMainText,leftBg,setLeftBg,leftText,setLeftText,rightBg,setRightBg,rightText,setRightText,accentKey,setAccentKey,density,setDensity,leftWidth,setLeftWidth,rightWidth,setRightWidth,chartRightWidth,setChartRightWidth,onResetAll,T,accent,fontSize,setFontSize,chatStyle,setChatStyle,bgImage,setBgImage,user,onSignOut,themeSel,setThemeSel,sidePanels,setSidePanels,chatFont,setChatFont,onStartTour,bgVideo,onPickVideo,onRemoveVideo,displayName,setDisplayName,chatAutoDelete,setChatAutoDelete,onClearChatHistory,isDev,onPreviewV13Popup}=props;
+  const[confirmClear,setConfirmClear]=useState(false);
   const[tab,setTab]=useState("themes");
   const[uploadErr,setUploadErr]=useState("");
   const[videoErr,setVideoErr]=useState("");
@@ -850,9 +873,52 @@ function SettingsPanel(props){
                 DataSyncStatus below for the exact list and the local-only exceptions. */}
             <DataSyncStatus user={user} T={T} accent={accent}/>
 
+            {/* V13: PROFILE — name is remembered and follows the account. */}
+            <div style={{marginBottom:18}}>
+              <div style={{fontFamily:FONT_MONO,fontSize:9,color:T.dim,letterSpacing:2,fontWeight:700,marginBottom:9}}>PROFILE</div>
+              <label style={{display:"block",fontFamily:FONT_MONO,fontSize:9,color:T.dim,letterSpacing:1,marginBottom:6}}>DISPLAY NAME</label>
+              <input type="text" value={displayName||""} maxLength={40} placeholder="What should we call you?"
+                onChange={e=>setDisplayName(e.target.value)}
+                style={{width:"100%",padding:"9px 10px",borderRadius:7,background:T.surface,border:`1px solid ${T.border}`,color:T.text,fontFamily:FONT_MONO,fontSize:11}}/>
+              {isDev&&(
+                <>
+                  <a href="/admin" style={{display:"block",marginTop:10,padding:"9px",borderRadius:7,textAlign:"center",textDecoration:"none",background:`${accent}10`,border:`1px solid ${accent}30`,color:accent,fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1.5}}>
+                    ⚙ DEVELOPER BRAIN ACCESS
+                  </a>
+                  <button onClick={onPreviewV13Popup}
+                    style={{width:"100%",marginTop:7,padding:"9px",borderRadius:7,background:"transparent",border:`1px solid ${T.border}`,color:T.dim,fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1.5,cursor:"pointer"}}>
+                    ✦ PREVIEW V13 POPUP
+                  </button>
+                </>
+              )}
+            </div>
+
             {/* V11 M3: signal push alerts — the reason mobile matters for a
                 signals product. Self-gates on platform support + sign-in. */}
             <PushAlerts T={T} accent={accent} user={user}/>
+
+            {/* V13: CHAT HISTORY — delete on demand + an auto-delete cadence. */}
+            <div style={{marginBottom:18,paddingTop:14,borderTop:`1px solid ${T.border}`}}>
+              <div style={{fontFamily:FONT_MONO,fontSize:9,color:T.dim,letterSpacing:2,fontWeight:700,marginBottom:9}}>CHAT HISTORY</div>
+              <label style={{display:"block",fontFamily:FONT_MONO,fontSize:9,color:T.dim,letterSpacing:1,marginBottom:6}}>AUTO-DELETE</label>
+              <select value={chatAutoDelete||"never"} onChange={e=>setChatAutoDelete(e.target.value)}
+                style={{width:"100%",padding:"9px 10px",borderRadius:7,background:T.surface,border:`1px solid ${T.border}`,color:T.text,fontFamily:FONT_MONO,fontSize:10,marginBottom:10}}>
+                {[["never","Never"],["session","Every session"],["daily","Daily"],["weekly","Weekly"],["monthly","Monthly"]].map(([v,l])=>(
+                  <option key={v} value={v}>{l}</option>
+                ))}
+              </select>
+              {confirmClear?(
+                <div style={{display:"flex",gap:6}}>
+                  <button onClick={()=>{onClearChatHistory?.();setConfirmClear(false);}}
+                    style={{flex:1,padding:"9px",borderRadius:7,background:"rgba(255,77,109,0.12)",border:"1px solid rgba(255,77,109,0.35)",color:"#ff4d6d",fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,cursor:"pointer"}}>CONFIRM DELETE</button>
+                  <button onClick={()=>setConfirmClear(false)}
+                    style={{flex:1,padding:"9px",borderRadius:7,background:"transparent",border:`1px solid ${T.border}`,color:T.dim,fontFamily:FONT_MONO,fontSize:9,letterSpacing:1,cursor:"pointer"}}>CANCEL</button>
+                </div>
+              ):(
+                <button onClick={()=>setConfirmClear(true)}
+                  style={{width:"100%",padding:"9px",borderRadius:7,background:"rgba(255,77,109,0.08)",border:"1px solid rgba(255,77,109,0.25)",color:"#ff4d6d",fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,cursor:"pointer"}}>DELETE CHAT HISTORY</button>
+              )}
+            </div>
 
             {/* ACCOUNT */}
             {user&&(
@@ -1094,9 +1160,17 @@ export function migrateChartInterval(iv){
 }
 function ChartPage({symbol,onSymbolChange,interval="1d",onIntervalChange,annotations,onClearAnnotations,messages,input,setInput,fontSize=14,send,loading,onButton,accent,T,TR,chartRightWidth,onStartResizeRight,isMobile=false}){
   const chatEndRef=useRef(null);
+  const chatScrollRef=useRef(null);
+  const[atBottom,setAtBottom]=useState(true);
   const[symInput,setSymInput]=useState(symbol);
   const isDark=luminance(TR.bg)<=0.55;
-  useEffect(()=>{chatEndRef.current?.scrollIntoView({behavior:"smooth"});},[messages,loading]);
+  // V13: only auto-scroll on a new message if the user was already at the
+  // bottom — otherwise a reply mid-scrollback would yank them back down.
+  useEffect(()=>{if(atBottom)chatEndRef.current?.scrollIntoView({behavior:"smooth"});},[messages,loading]);
+  const onChatScroll=useCallback((e)=>{
+    const el=e.currentTarget;
+    setAtBottom(el.scrollHeight-el.scrollTop-el.clientHeight<40);
+  },[]);
   useEffect(()=>setSymInput(symbol),[symbol]);
   const handleSymKey=(e)=>{if(e.key==="Enter"&&symInput.trim())onSymbolChange(symInput.trim().toUpperCase());};
   const handleKey=(e)=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send();}};
@@ -1151,10 +1225,17 @@ function ChartPage({symbol,onSymbolChange,interval="1d",onIntervalChange,annotat
           <div style={{width:7,height:7,borderRadius:"50%",background:accent,boxShadow:`0 0 8px ${accent}`}}/>
           <span style={{fontFamily:FONT_MONO,fontSize:10,fontWeight:700,color:accent,letterSpacing:2}}>AI DESK</span>
         </div>
-        <div style={{flex:1,overflowY:"auto",padding:"12px 12px"}}>
-          {messages.slice(-30).map((msg,i)=><ChatMessage key={i} msg={msg} accent={accent} T={TR} fontSize={fontSize} onButton={onButton}/>)}
-          {loading&&<TypingIndicator accent={accent}/>}
-          <div ref={chatEndRef}/>
+        <div style={{flex:1,minHeight:0,position:"relative"}}>
+          <div ref={chatScrollRef} onScroll={onChatScroll} style={{height:"100%",overflowY:"auto",padding:"12px 12px"}}>
+            {messages.slice(-30).map((msg,i)=><ChatMessage key={i} msg={msg} accent={accent} T={TR} fontSize={fontSize} onButton={onButton}/>)}
+            {loading&&<TypingIndicator accent={accent}/>}
+            <div ref={chatEndRef}/>
+          </div>
+          {!atBottom&&(
+            <button onClick={()=>{chatEndRef.current?.scrollIntoView({behavior:"smooth"});setAtBottom(true);}}
+              title="Scroll to bottom"
+              style={{position:"absolute",bottom:10,right:14,width:30,height:30,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,color:accent,background:TR.panel,border:`1px solid ${accent}40`,boxShadow:"0 4px 14px rgba(0,0,0,0.35)",cursor:"pointer"}}>↓</button>
+          )}
         </div>
         <div style={{padding:"8px 12px 14px",borderTop:`1px solid ${TR.border}`,flexShrink:0}}>
           <div style={{display:"flex",alignItems:"flex-end",gap:7,background:TR.surface,border:`1px solid ${TR.border}`,borderRadius:9,padding:"7px 10px"}}
@@ -1509,6 +1590,18 @@ export default function MarketTerminal(){
   const[layoutEdit,setLayoutEdit]=useState(false);
   const[notes,setNotes]=useState([]);              // [{id,text}] free note panels
   const settingsLoadedRef=useRef(false);
+  // V13: profile fields — name, interaction mode, dev flag, popup/chat-retention prefs.
+  const[displayName,setDisplayName]=useState("");
+  const[interactionMode,setInteractionMode]=useState("chatty"); // "chatty" | "command"
+  const[isDev,setIsDev]=useState(false); // server-derived (OWNER_EMAILS); never sent on save
+  const[hasSeenV13Popup,setHasSeenV13Popup]=useState(()=>{
+    try{return localStorage.getItem("kronos_v13_popup_seen")==="1";}catch{return false;}
+  });
+  const[settingsReady,setSettingsReady]=useState(false); // gates the V13 popup so it never flashes before we know
+  const[v13PopupContent,setV13PopupContent]=useState(null); // dev-editable copy from brain_config, via /api/settings
+  const[v13PopupPreview,setV13PopupPreview]=useState(false); // dev-only manual preview, doesn't touch hasSeenV13Popup
+  const[chatAutoDelete,setChatAutoDelete]=useState("never"); // daily|weekly|monthly|session|never
+  const[chatHistoryClearedAt,setChatHistoryClearedAt]=useState(null);
   const[watchlist,setWatchlist]=useState(DEFAULT_WATCHLIST);
   const[watchlistMeta,setWatchlistMeta]=useState(buildDefaultMeta());
   const[showWL,setShowWL]=useState(false);
@@ -1530,6 +1623,11 @@ export default function MarketTerminal(){
   const[lastUpd,setLastUpd]=useState(null);
   const[dataErr,setDataErr]=useState(null);
   const chatEndRef=useRef(null);
+  const[desktopChatAtBottom,setDesktopChatAtBottom]=useState(true);
+  const onDesktopChatScroll=useCallback((e)=>{
+    const el=e.currentTarget;
+    setDesktopChatAtBottom(el.scrollHeight-el.scrollTop-el.clientHeight<40);
+  },[]);
   const resizeState=useRef({active:false,type:null,startX:0,startWidth:0});
 
   const T=useMemo(()=>deriveTheme(mainBg,mainText),[mainBg,mainText]);
@@ -1583,8 +1681,8 @@ export default function MarketTerminal(){
   useEffect(()=>{try{localStorage.setItem("mktintel_w",JSON.stringify(watchlist));}catch{}},[watchlist]);
   useEffect(()=>{try{localStorage.setItem("mktintel_wm",JSON.stringify(watchlistMeta));}catch{}},[watchlistMeta]);
   // V9/V10: local persistence for personalization/layouts (works with or without accounts)
-  useEffect(()=>{try{const s=localStorage.getItem("kronos_personal");if(s){const p=JSON.parse(s);if(p.chatStyle)setChatStyle(p.chatStyle);if(p.bgImage)setBgImage(prev=>({...prev,...p.bgImage}));if(p.bgVideo)setBgVideo(prev=>({...prev,...p.bgVideo}));if(p.layouts)setLayouts(p.layouts);if(p.collapsed)setCollapsed(p.collapsed);if(p.notes)setNotes(p.notes);if(p.themeSel)setThemeSel(migrateTheme(p.themeSel));if(p.sidePanels)setSidePanels(p.sidePanels);if(p.chatFont)setChatFont(p.chatFont);}}catch{}},[]);
-  useEffect(()=>{try{localStorage.setItem("kronos_personal",JSON.stringify({chatStyle,bgImage,bgVideo,layouts,collapsed,notes,themeSel,sidePanels,chatFont}));}catch{}},[chatStyle,bgImage,bgVideo,layouts,collapsed,notes,themeSel,sidePanels,chatFont]);
+  useEffect(()=>{try{const s=localStorage.getItem("kronos_personal");if(s){const p=JSON.parse(s);if(p.chatStyle)setChatStyle(p.chatStyle);if(p.bgImage)setBgImage(prev=>({...prev,...p.bgImage}));if(p.bgVideo)setBgVideo(prev=>({...prev,...p.bgVideo}));if(p.layouts)setLayouts(p.layouts);if(p.collapsed)setCollapsed(p.collapsed);if(p.notes)setNotes(p.notes);if(p.themeSel)setThemeSel(migrateTheme(p.themeSel));if(p.sidePanels)setSidePanels(p.sidePanels);if(p.chatFont)setChatFont(p.chatFont);if(p.interactionMode)setInteractionMode(p.interactionMode);if(p.displayName)setDisplayName(p.displayName);}}catch{}},[]);
+  useEffect(()=>{try{localStorage.setItem("kronos_personal",JSON.stringify({chatStyle,bgImage,bgVideo,layouts,collapsed,notes,themeSel,sidePanels,chatFont,interactionMode,displayName}));}catch{}},[chatStyle,bgImage,bgVideo,layouts,collapsed,notes,themeSel,sidePanels,chatFont,interactionMode,displayName]);
 
   // Rehydrate the background video blob from IndexedDB into an object URL.
   // (The blob is device-local; only the {enabled,name} metadata is persisted.)
@@ -1610,12 +1708,39 @@ export default function MarketTerminal(){
     setBgVideoUrl("");
   },[]);
 
+  // V13: chat history deletion — resets to the seed welcome message and stamps
+  // when it happened (chatAutoDelete schedules compare elapsed time against this).
+  const clearChatHistory=useCallback(()=>{
+    setMessages([{role:"assistant",content:"TRADING TERMINAL DESK ONLINE.\n\nYou have full access to a proprietary hedge fund intelligence system. This desk identifies edge, timing, and high-probability setups with precision.\n\nThis is not financial advice — this is your asymmetric edge.\n\nClick \"Chart\" to open the live TradingView chart. Click \"Data\" for the intelligence dashboard."}]);
+    setChatHistoryClearedAt(Date.now());
+  },[]);
+
+  // V13: auto-delete schedule — runs once on mount/login, compares elapsed time
+  // since the last clear against the chosen cadence. "session" always clears (a
+  // fresh page load IS the new session); "never" is a no-op.
+  useEffect(()=>{
+    if(!settingsReady)return;
+    if(chatAutoDelete==="never")return;
+    if(chatAutoDelete==="session"){clearChatHistory();return;}
+    const THRESHOLDS={daily:24*60*60*1000,weekly:7*24*60*60*1000,monthly:30*24*60*60*1000};
+    const ms=THRESHOLDS[chatAutoDelete];
+    if(!ms)return;
+    if(!chatHistoryClearedAt||Date.now()-chatHistoryClearedAt>ms)clearChatHistory();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[settingsReady]);
+
   // ── V9 SERVER SETTINGS SYNC (per-account, only when signed in via Supabase) ──
   // NOTE: kronos_broker_creds is deliberately EXCLUDED — it holds a live broker API
   // token/account ID (see BrokerConnect.jsx). Syncing it would copy a plaintext
   // secret into the settings JSON server-side, compounding an existing local risk
   // rather than fixing it. Flagged separately; not a V10-scoped fix.
   const KRONOS_LS_KEYS=["kronos_botmode","kronos_flow_done","kronos_broker_url","kronos_broker_preset","kronos_broker","kronos_papermode","kronos_profile","kronos_propfirm","kronos_font_size","kronos_tape","kronos_studio_config","kronos_tour_seen","kronos_cadence","kronos_min_conviction","kronos_chart_state","kronos_terminal_chart_symbol","kronos_shadow","kronos_paper_futures","kronos_paper_options","kronos_bot_ui","kronos_bot_collapsed","kronos_chart_annotations"];
+  // No-account mode (legacy code gate, OR the dev auth bypass which grants
+  // access with a null user even when Supabase IS configured — see
+  // AuthGate.jsx's DEV_AUTH_BYPASS): there's no server profile to ever wait
+  // on, so the V13 popup gate is ready immediately once access is settled,
+  // driven purely by the localStorage mirror.
+  useEffect(()=>{if(accessState==="granted"&&!user)setSettingsReady(true);},[accessState,user]);
   useEffect(()=>{
     if(!user||!supabaseConfigured())return;
     (async()=>{
@@ -1623,7 +1748,9 @@ export default function MarketTerminal(){
         const token=await getAccessToken();if(!token)return;
         const r=await fetch("/api/settings",{headers:{Authorization:`Bearer ${token}`}});
         if(!r.ok)return;
-        const{settings:s}=await r.json();
+        const{settings:s,isDev:dev,v13Popup}=await r.json();
+        setIsDev(Boolean(dev));
+        if(v13Popup)setV13PopupContent(v13Popup);
         if(s&&typeof s==="object"){
           if(s.theme){const p=s.theme;setMainBg(p.mainBg||DEFAULT_BG);setMainText(p.mainText||DEFAULT_TEXT);setLeftBg(p.leftBg||DEFAULT_BG);setLeftText(p.leftText||DEFAULT_TEXT);setRightBg(p.rightBg||DEFAULT_BG);setRightText(p.rightText||DEFAULT_TEXT);setAccentKey(p.accent||"teal");setDensity(p.density||"comfortable");setLeftWidth(p.leftWidth||290);setRightWidth(p.rightWidth||310);setChartRightWidth(p.chartRightWidth||340);}
           if(s.fontSize)setFontSize(Number(s.fontSize)||14);
@@ -1640,9 +1767,20 @@ export default function MarketTerminal(){
           // V10: per-account AI chat history — your desk conversation follows you.
           if(Array.isArray(s.chatHistory)&&s.chatHistory.length)setMessages(s.chatHistory);
           if(s.kronosLocal)try{Object.entries(s.kronosLocal).forEach(([k,v])=>{if(KRONOS_LS_KEYS.includes(k)&&v!=null)localStorage.setItem(k,v);});}catch{}
+          // V13 profile fields.
+          if(s.displayName)setDisplayName(s.displayName);
+          if(s.interactionMode)setInteractionMode(s.interactionMode);
+          if(s.chatAutoDelete)setChatAutoDelete(s.chatAutoDelete);
+          if(s.chatHistoryClearedAt)setChatHistoryClearedAt(s.chatHistoryClearedAt);
+          // Server is authoritative once logged in (lets a dev's "reset popup" reach the
+          // user on next load even if their local mirror still says "seen").
+          if(typeof s.hasSeenV13Popup==="boolean"){
+            setHasSeenV13Popup(s.hasSeenV13Popup);
+            try{localStorage.setItem("kronos_v13_popup_seen",s.hasSeenV13Popup?"1":"0");}catch{}
+          }
         }
       }catch{}
-      finally{settingsLoadedRef.current=true;}
+      finally{settingsLoadedRef.current=true;setSettingsReady(true);}
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   },[user]);
@@ -1658,6 +1796,7 @@ export default function MarketTerminal(){
         const base={
           theme:{mainBg,mainText,leftBg,leftText,rightBg,rightText,accent:accentKey,density,leftWidth,rightWidth,chartRightWidth},
           fontSize,watchlist,watchlistMeta,chatStyle,bgImage,layouts,collapsed,notes,themeSel,sidePanels,chatFont,kronosLocal,
+          displayName,interactionMode,hasSeenV13Popup,chatAutoDelete,chatHistoryClearedAt,
         };
         const putSettings=(settings)=>fetch("/api/settings",{method:"PUT",headers:{"Content-Type":"application/json",Authorization:`Bearer ${token}`},body:JSON.stringify({settings})});
         let r=await putSettings({...base,chatHistory:messages.slice(-80)});
@@ -1670,8 +1809,8 @@ export default function MarketTerminal(){
     },2000);
     return()=>clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  },[user,mainBg,mainText,leftBg,leftText,rightBg,rightText,accentKey,density,leftWidth,rightWidth,chartRightWidth,fontSize,watchlist,watchlistMeta,chatStyle,bgImage,layouts,notes,themeSel,sidePanels,chatFont,messages]);
-  useEffect(()=>{chatEndRef.current?.scrollIntoView({behavior:"smooth"});},[messages,loading]);
+  },[user,mainBg,mainText,leftBg,leftText,rightBg,rightText,accentKey,density,leftWidth,rightWidth,chartRightWidth,fontSize,watchlist,watchlistMeta,chatStyle,bgImage,layouts,notes,themeSel,sidePanels,chatFont,messages,displayName,interactionMode,hasSeenV13Popup,chatAutoDelete,chatHistoryClearedAt]);
+  useEffect(()=>{if(desktopChatAtBottom)chatEndRef.current?.scrollIntoView({behavior:"smooth"});},[messages,loading]);
 
   const fetchQuotes=useCallback(async()=>{
     if(!watchlist.length)return;
@@ -1860,7 +1999,7 @@ export default function MarketTerminal(){
     const setupP=findActiveSetupInText(prompt).catch(()=>null);
     try{
       const history=(curMsgs||messages).map(m=>({role:m.role,content:m.content}));
-      const r=await fetch("/api/scan",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({messages:history,prompt,marketContext:ctx()})});
+      const r=await fetch("/api/scan",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({messages:history,prompt,marketContext:ctx(),interactionMode})});
       const d=await r.json();
       // Execute any terminal actions the AI requested, then show its reply.
       let actionNote="";
@@ -1910,7 +2049,7 @@ export default function MarketTerminal(){
     // just loads the symbol there.
     if(view==="chart"){setChartSymbol(q.symbol);return;}
     setOverviewSymbol(q.symbol);setView("overview");return;
-    const prompt=`DEEP DIVE — ${q.symbol} (${q.name||q.symbol})\nLive: $${q.price?.toFixed(2)}, ${q.changePercent?.toFixed(2)}% today, H$${q.high?.toFixed(2)} L$${q.low?.toFixed(2)}\n\n▸ CATALYST\n▸ LEVELS — exact support and resistance\n▸ OPTIONS LANDSCAPE — IV rank\n▸ DIRECTION — CALL or PUT\n▸ PLAY — exact strike and expiry\n▸ ENTRY / TARGET / STOP\n▸ TIMEFRAME\n▸ SYMPATHY PLAYS\n▸ RISK\n▸ VERDICT — 🔥/⚡/👀`;
+    const prompt=`DEEP DIVE — ${q.symbol} (${q.name||q.symbol})\nLive: $${q.price?.toFixed(2)}, ${q.changePercent?.toFixed(2)}% today, H$${q.high?.toFixed(2)} L$${q.low?.toFixed(2)}\n\n▸ CATALYST\n▸ LEVELS — exact support and resistance\n▸ OPTIONS LANDSCAPE — IV rank\n▸ DIRECTION — CALL or PUT\n▸ PLAY — exact strike and expiry\n▸ ENTRY / TARGET / STOP\n▸ TIMEFRAME\n▸ SYMPATHY PLAYS\n▸ RISK\n▸ VERDICT — grade A/B/C`;
     const nm=[...messages,{role:"user",content:`🔍 Deep dive: ${q.symbol} — $${q.price?.toFixed(2)} (${q.changePercent?.toFixed(2)}%)`}];
     setMessages(nm);await callAPI(prompt,true,nm);
   },[loading,callAPI,messages,view]);
@@ -1919,7 +2058,7 @@ export default function MarketTerminal(){
     if(loading)return;
     const isTrumpSearch=item.isTrumpSearch;
     const prompt=isTrumpSearch
-      ?`Search Trump's latest Truth Social posts and statements RIGHT NOW — last 24 hours. Which sectors and tickers impacted? For each: exact tickers, direction, options play with exact strike/expiry, IV rank, entry/target/stop. 🔥/⚡/👀.`
+      ?`Search Trump's latest Truth Social posts and statements RIGHT NOW — last 24 hours. Which sectors and tickers impacted? For each: exact tickers, direction, options play with exact strike/expiry, IV rank, entry/target/stop.`
       :`Analyze this news:\n"${item.headline}"\nSource: ${item.source}\n\nDirectly affected tickers? Sympathy plays? Priced in or still edge? Exact options plays with strike/expiry, IV rank, entry/target/stop.`;
     const label=isTrumpSearch?"Ⓣ AI: Search Trump Truth Social now":`📰 ${item.headline?.slice(0,65)}...`;
     const nm=[...messages,{role:"user",content:label}];
@@ -1988,10 +2127,17 @@ export default function MarketTerminal(){
     // V10 item 5: the console column scrolls — chat on top, big chart below the fold.
     <div style={{height:"100%",display:"flex",flexDirection:"column",overflowY:"auto",overflowX:"hidden",minWidth:0,minHeight:0}}>
       <TickerTape accent={accent} T={T} speed={55}/>
-      <div style={{minHeight:"44vh",maxHeight:"60vh",overflowY:"auto",padding:"14px 18px",flexShrink:0,...chatBgStyle}}>
-        {messages.map((msg,i)=><ChatMessage key={i} msg={msg} accent={accent} T={T} fontSize={fontSize} onButton={onButton}/>)}
-        {loading&&<TypingIndicator accent={accent}/>}
-        <div ref={chatEndRef}/>
+      <div style={{position:"relative",flexShrink:0}}>
+        <div onScroll={onDesktopChatScroll} style={{minHeight:"44vh",maxHeight:"60vh",overflowY:"auto",padding:"14px 18px",...chatBgStyle}}>
+          {messages.map((msg,i)=><ChatMessage key={i} msg={msg} accent={accent} T={T} fontSize={fontSize} onButton={onButton}/>)}
+          {loading&&<TypingIndicator accent={accent}/>}
+          <div ref={chatEndRef}/>
+        </div>
+        {!desktopChatAtBottom&&(
+          <button onClick={()=>{chatEndRef.current?.scrollIntoView({behavior:"smooth"});setDesktopChatAtBottom(true);}}
+            title="Scroll to bottom"
+            style={{position:"absolute",bottom:10,right:16,width:32,height:32,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,color:accent,background:T.panel,border:`1px solid ${accent}40`,boxShadow:"0 4px 14px rgba(0,0,0,0.35)",cursor:"pointer",zIndex:3}}>↓</button>
+        )}
       </div>
       <QuickActions onAction={handleQuick} accent={accent} T={T}/>
       <div style={{padding:"7px 18px 13px",borderTop:`1px solid ${T.border}`,flexShrink:0}}>
@@ -2126,8 +2272,17 @@ export default function MarketTerminal(){
             @media(prefers-reduced-motion:reduce){
               *{animation-duration:0.01ms!important;animation-iteration-count:1!important;transition-duration:0.01ms!important;}
             }
+
+            /* ── V13: COMMAND PALETTE MODE — flat, institutional, zero glow ──
+               Chatty mode is untouched (the existing soft-glow look). Command
+               mode kills box/text-shadow globally and desaturates (not to full
+               grayscale — long/short color coding still has to read at a glance)
+               rather than re-deriving every component's inline style by hand. */
+            [data-mode="command"] *{box-shadow:none!important;text-shadow:none!important;}
+            [data-mode="command"] [data-animated]{animation:none!important;}
+            [data-mode="command"]{filter:saturate(0.55);}
           `}</style>
-          <div className="kronos-shell" style={{
+          <div className="kronos-shell" data-mode={interactionMode} style={{
             display:"flex",flexDirection:"column",
             backgroundColor:T.bg,
             fontFamily:FONT_CHOICES.find(f=>f.id===chatFont)?.stack||FONT_CHAT,
@@ -2149,12 +2304,21 @@ export default function MarketTerminal(){
               </div>
             )}
             {/* Animated theme backdrop (a photo or video takes precedence when set) */}
-            {!bgImage?.dataUrl&&!bgVideoUrl&&<ThemeBackdrop theme={themeSel?.id||"none"} accent={accent} filter={`hue-rotate(${themeSel?.hue||0}deg) saturate(${themeSel?.sat??1}) brightness(${themeSel?.bri??1})`} tint={themeSel?.tint||""} tintStrength={themeSel?.tintStrength??0.5}/>}
+            {/* V13: Command Palette mode drops the decorative animated backdrop
+                entirely — that's the single biggest "vibe-coded" tell, and a
+                flat institutional look has no backdrop at all. */}
+            {!bgImage?.dataUrl&&!bgVideoUrl&&interactionMode!=="command"&&<ThemeBackdrop theme={themeSel?.id||"none"} accent={accent} filter={`hue-rotate(${themeSel?.hue||0}deg) saturate(${themeSel?.sat??1}) brightness(${themeSel?.bri??1})`} tint={themeSel?.tint||""} tintStrength={themeSel?.tintStrength??0.5}/>}
             {showWelcome&&<WelcomePopup
               onClose={()=>{setShowWelcome(false);try{if(localStorage.getItem("kronos_tour_seen")!=="1")setShowTour(true);}catch{}}}
               onTour={()=>{setShowWelcome(false);setShowTour(true);}}
               accent={accent} T={T}/>}
             {showTour&&<TourGuide accent={accent} T={T} onClose={()=>setShowTour(false)} onSwitchView={(v)=>setView(v)}/>}
+            {/* V13: one-time "what's new" popup — waits for settings to load (no
+                flash) and for the welcome/tour modals to clear (no stacking). */}
+            {settingsReady&&!showWelcome&&!showTour&&!hasSeenV13Popup&&(
+              <V13Popup content={v13PopupContent} accent={accent} T={T} onClose={()=>{setHasSeenV13Popup(true);try{localStorage.setItem("kronos_v13_popup_seen","1");}catch{}}}/>
+            )}
+            {v13PopupPreview&&<V13Popup content={v13PopupContent} accent={accent} T={T} onClose={()=>setV13PopupPreview(false)}/>}
         {showWL&&<WatchlistModal onClose={()=>setShowWL(false)} watchlist={watchlist} onAdd={addWL} onRemove={rmWL} onReset={resetWL} accent={accent} T={TL}/>}
         {showIndicatorInfo&&<IndicatorInfoModal onClose={()=>setShowIndicatorInfo(false)} accent={accent} T={T}/>}
         {showMentor&&<KronosMentor onClose={()=>setShowMentor(false)} accent={accent} T={T}/>}
@@ -2162,7 +2326,7 @@ export default function MarketTerminal(){
             appearance settings — showing watchlist widths and terminal themes there
             was noise, since none of it is visible from the bot. */}
         {showSettings&&view==="bot"&&<BotSettings onClose={()=>setShowSettings(false)} T={T} accent={accent}/>}
-        {showSettings&&view!=="bot"&&<SettingsPanel onClose={()=>setShowSettings(false)} mainBg={mainBg} setMainBg={setMainBg} mainText={mainText} setMainText={setMainText} leftBg={leftBg} setLeftBg={setLeftBg} leftText={leftText} setLeftText={setLeftText} rightBg={rightBg} setRightBg={setRightBg} rightText={rightText} setRightText={setRightText} accentKey={accentKey} setAccentKey={setAccentKey} density={density} setDensity={setDensity} leftWidth={leftWidth} setLeftWidth={setLeftWidth} rightWidth={rightWidth} setRightWidth={setRightWidth} chartRightWidth={chartRightWidth} setChartRightWidth={setChartRightWidth} onResetAll={resetAll} T={T} accent={accent} fontSize={fontSize} setFontSize={setFontSize} chatStyle={chatStyle} setChatStyle={setChatStyle} bgImage={bgImage} setBgImage={setBgImage} bgVideo={bgVideo} onPickVideo={handlePickVideo} onRemoveVideo={handleRemoveVideo} themeSel={themeSel} setThemeSel={setThemeSel} sidePanels={sidePanels} setSidePanels={setSidePanels} chatFont={chatFont} setChatFont={setChatFont} onStartTour={()=>setShowTour(true)} user={user} onSignOut={async()=>{try{await getSupabase()?.auth.signOut();}catch{}window.location.reload();}}/>}
+        {showSettings&&view!=="bot"&&<SettingsPanel onClose={()=>setShowSettings(false)} mainBg={mainBg} setMainBg={setMainBg} mainText={mainText} setMainText={setMainText} leftBg={leftBg} setLeftBg={setLeftBg} leftText={leftText} setLeftText={setLeftText} rightBg={rightBg} setRightBg={setRightBg} rightText={rightText} setRightText={setRightText} accentKey={accentKey} setAccentKey={setAccentKey} density={density} setDensity={setDensity} leftWidth={leftWidth} setLeftWidth={setLeftWidth} rightWidth={rightWidth} setRightWidth={setRightWidth} chartRightWidth={chartRightWidth} setChartRightWidth={setChartRightWidth} onResetAll={resetAll} T={T} accent={accent} fontSize={fontSize} setFontSize={setFontSize} chatStyle={chatStyle} setChatStyle={setChatStyle} bgImage={bgImage} setBgImage={setBgImage} bgVideo={bgVideo} onPickVideo={handlePickVideo} onRemoveVideo={handleRemoveVideo} themeSel={themeSel} setThemeSel={setThemeSel} sidePanels={sidePanels} setSidePanels={setSidePanels} chatFont={chatFont} setChatFont={setChatFont} onStartTour={()=>setShowTour(true)} user={user} onSignOut={async()=>{try{await getSupabase()?.auth.signOut();}catch{}window.location.reload();}} displayName={displayName} setDisplayName={setDisplayName} chatAutoDelete={chatAutoDelete} setChatAutoDelete={setChatAutoDelete} onClearChatHistory={clearChatHistory} isDev={isDev} onPreviewV13Popup={()=>{setShowSettings(false);setV13PopupPreview(true);}}/>}
 
         {/* HEADER — on mobile this condenses to wordmark + market badge + gear.
             The page-name row and the ⇄ bot flip are redundant on a phone: the
@@ -2231,6 +2395,16 @@ export default function MarketTerminal(){
                   style={{padding:"5px 10px",borderRadius:7,fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,color:T.dim,background:T.surface,border:`1px solid ${T.border}`,cursor:"pointer"}}>🔓 LAYOUT</button>
               )
             )}
+            {/* V13: interaction-mode switcher — Chatty AI (conversational) vs
+                Command Palette (terse/strict). Pure client state, no reload. */}
+            <button onClick={()=>setInteractionMode(m=>m==="command"?"chatty":"command")}
+              title={interactionMode==="command"?"Command Palette — click for Chatty AI":"Chatty AI — click for Command Palette"}
+              style={{width:32,height:32,borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,
+                color:interactionMode==="command"?T.text:accent,
+                background:interactionMode==="command"?T.surface:`${accent}0e`,
+                border:`1px solid ${interactionMode==="command"?T.border:`${accent}30`}`,cursor:"pointer"}}>
+              {interactionMode==="command"?"⌘":"💬"}
+            </button>
             <MarketStatusBadge accent={accent} T={T}/>
             {/* V10.2: Kronos Mentor (coming soon) */}
             <button onClick={()=>setShowMentor(true)} title="Kronos Mentor" style={{width:32,height:32,borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,color:accent,background:`${accent}0e`,border:`1px solid ${accent}30`,cursor:"pointer"}}>🤖</button>

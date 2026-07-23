@@ -7,8 +7,14 @@
 import { useState, useEffect, forwardRef, useRef } from "react";
 import { createPortal } from "react-dom";
 import { getSupabase, supabaseConfigured } from "../../lib/supabase";
-import { symbolTier, allowedTiers } from "../../lib/universe";
-import { getMarketStatus } from "./MarketStatusBadge";
+import { symbolTier, allowedTiers, PRIORITY_INDEX_OPTIONS } from "../../lib/universe";
+import { directionLabel, directionColor } from "../../lib/signalLabels";
+
+// V13: "prioritized but not fully prioritized" — major index options get a
+// badge + sorted-to-top display treatment, but conviction itself is untouched
+// (see universe.js's scanUniverse for the always-scan side of this).
+const isPriorityIndex = (sym) => PRIORITY_INDEX_OPTIONS.includes(String(sym || "").toUpperCase());
+import { getMarketStatus, getFuturesSessionStatus } from "./MarketStatusBadge";
 import TickerLogo from "./TickerLogo";
 import { makeLevel, loadAnnotations, saveAnnotations } from "../../lib/chartAnnotations";
 
@@ -45,7 +51,7 @@ function showTradeOnChart(r) {
     const all = loadAnnotations().filter((a) => a.symbol !== sym); // clear old lines for this symbol
     const p = r.plan || {};
     const add = (price, kind, label) => { const lv = makeLevel({ symbol: sym, price, kind, label }); if (lv) all.push(lv); };
-    add(p.entry, "entry", `ENTRY ${r.direction}`);
+    add(p.entry, "entry", `ENTRY ${directionLabel(r.direction, r.asset_class)}`);
     add(p.stop, "sl", "STOP");
     add(p.t1, "tp", "TP1");
     add(p.t2, "tp", "TP2");
@@ -173,13 +179,22 @@ function ReasoningPopup({ r, T, accent, anchorRect, onClose }) {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 9 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <TickerLogo symbol={r.symbol} size={16} />
-          <span style={{ fontFamily: FM, fontSize: 12, fontWeight: 800, color: dirColor(r.direction) }}>
-            {r.direction !== "NEUTRAL" ? `${r.direction} ` : ""}{r.symbol}
+          <span style={{ fontFamily: FM, fontSize: 12, fontWeight: 800, color: directionColor(r.direction, r.asset_class) }}>
+            {r.direction !== "NEUTRAL" ? `${directionLabel(r.direction, r.asset_class)} ` : ""}{r.symbol}
           </span>
           <span style={{ fontFamily: FM, fontSize: 7.5, fontWeight: 800, color: sc, letterSpacing: 1, border: `1px solid ${sc}40`, borderRadius: 4, padding: "1px 5px" }}>{r.status}</span>
         </div>
         <button onClick={onClose} style={{ background: "none", border: "none", color: dim, cursor: "pointer", fontSize: 13, lineHeight: 1 }}>✕</button>
       </div>
+
+      {/* V13: absolute timestamp, rendered in the VIEWER's own local timezone —
+          deliberately NOT the ET-locale convention used elsewhere for "market
+          time" badges (spec asks for the user's local time here specifically). */}
+      {r.created_at && (
+        <div style={{ fontFamily: FM, fontSize: 8.5, color: dim, marginBottom: 9 }}>
+          {new Date(r.created_at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short", timeZoneName: "short" })}
+        </div>
+      )}
 
       {/* THE WHY */}
       <div style={{ fontFamily: FM, fontSize: 7, color: dim, letterSpacing: 2, fontWeight: 700, marginBottom: 5 }}>WHY THIS SIGNAL</div>
@@ -313,18 +328,28 @@ function FeedRow({ r, T, accent, highlight, onDelete }) {
           color: dim, fontSize: 11, cursor: "pointer", opacity: 0.55,
         }}
       >🗑</button>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 5 }}>
+      {/* V13.5: the header row reserves its right edge (paddingRight) for the
+          absolutely-positioned delete button + WON badge, and the age moved into
+          the left cluster — previously the far-right age sat directly under the
+          trash icon and was covered by it. */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 5, paddingRight: won ? 60 : 22 }}>
         <div style={{ display: "flex", gap: 7, alignItems: "center", minWidth: 0 }}>
           <span style={{ fontFamily: FM, fontSize: 8, fontWeight: 800, color: sc, letterSpacing: 1, flexShrink: 0 }}>
             {r.status === "FIRE" ? "⚡ SETUP" : r.status === "HOLD" ? "FORMING" : "NO SETUP"}
           </span>
           <TickerLogo symbol={r.symbol} size={16} />
-          <span style={{ fontFamily: FM, fontSize: 12, fontWeight: 800, color: dirColor(r.direction) }}>
-            {r.direction !== "NEUTRAL" ? `${r.direction} ` : ""}{r.symbol}
+          <span style={{ fontFamily: FM, fontSize: 12, fontWeight: 800, color: directionColor(r.direction, r.asset_class) }}>
+            {r.direction !== "NEUTRAL" ? `${directionLabel(r.direction, r.asset_class)} ` : ""}{r.symbol}
           </span>
-          <span style={{ fontFamily: FM, fontSize: 8, color: dim }}>{r.interval}</span>
+          {isPriorityIndex(r.symbol) && (
+            <span title="Major index option — always scanned every run"
+              style={{ fontFamily: FM, fontSize: 6.5, fontWeight: 800, letterSpacing: 1, color: accent, background: `${accent}14`, border: `1px solid ${accent}40`, borderRadius: 4, padding: "2px 4px", flexShrink: 0 }}>
+              INDEX
+            </span>
+          )}
+          <span style={{ fontFamily: FM, fontSize: 8, color: dim, flexShrink: 0 }}>{r.interval}</span>
+          <span style={{ fontFamily: FM, fontSize: 8, color: dim, flexShrink: 0 }}>· {ago(r.created_at)}</span>
         </div>
-        <span style={{ fontFamily: FM, fontSize: 8, color: dim, flexShrink: 0 }}>{ago(r.created_at)}</span>
       </div>
 
       {/* conviction bar */}
@@ -541,13 +566,16 @@ const SignalFeed = forwardRef(function SignalFeed({ accent = "#00d4aa", T, asset
     // ticker the user themselves typed in and got a real setup on.
     if (r.source === "manual") return true;
     return tiers.includes(symbolTier(r.symbol));
-  });
+  }).sort((a, b) => (isPriorityIndex(b.symbol) ? 1 : 0) - (isPriorityIndex(a.symbol) ? 1 : 0)); // stable: priority indices float to top, order otherwise unchanged
 
-  // The signal engine only scans during US market hours, so outside them the feed
-  // is quiet by design — say so instead of leaving a bare "waiting" state.
+  // The equity engine only scans during US market hours, so outside them the feed
+  // is quiet by design — say so instead of leaving a bare "waiting" state. Futures
+  // scan nearly around the clock (CME Globex), so they get their own session
+  // status instead of inheriting the equity one — showing "MARKET CLOSED" here for
+  // a funded-futures trader at 9PM would wrongly imply the bot stopped scanning.
   // (Recomputed on each 5s lifecycle tick above, so it stays current.)
-  const market = getMarketStatus();
-  const marketOpen = market.label === "MARKET OPEN";
+  const market = assetClass === "futures" ? getFuturesSessionStatus() : getMarketStatus();
+  const marketOpen = assetClass === "futures" ? market.label === "GLOBEX ACTIVE" : market.label === "MARKET OPEN";
 
   return (
     <div ref={ref} style={{
@@ -587,9 +615,13 @@ const SignalFeed = forwardRef(function SignalFeed({ accent = "#00d4aa", T, asset
             <span style={{ width: 7, height: 7, borderRadius: "50%", background: market.color, boxShadow: `0 0 7px ${market.color}`, flexShrink: 0 }} />
             <span style={{ fontFamily: FM, fontSize: 8.5, fontWeight: 800, letterSpacing: 1, color: market.color }}>{market.label}</span>
             <span style={{ fontFamily: FC, fontSize: 10, color: dim, lineHeight: 1.4 }}>
-              {market.label === "PRE-MARKET" || market.label === "AFTER-HOURS"
-                ? "Thin liquidity — the engine resumes full scanning at the 9:30 ET open."
-                : "The engine scans during US market hours. New signals resume next session."}
+              {assetClass === "futures"
+                ? (market.label === "DAILY BREAK"
+                    ? "CME daily maintenance break — the engine resumes at the 6PM ET reopen."
+                    : (market.sub || "Globex is closed."))
+                : (market.label === "PRE-MARKET" || market.label === "AFTER-HOURS"
+                    ? "Thin liquidity — the engine resumes full scanning at the 9:30 ET open."
+                    : "The engine scans during US market hours. New signals resume next session.")}
             </span>
           </div>
         )}

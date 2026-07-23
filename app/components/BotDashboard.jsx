@@ -10,12 +10,15 @@ import BotMiniChart from "./BotMiniChart";
 import PropFirmPanel, { PROP_FIRMS } from "./PropFirmPanel";
 import MultiAgentSignal, { getPaperState, savePaperState } from "./MultiAgentSignal";
 import ShadowAccountPanel, { PaperTradingPanel } from "./ShadowAccountPanel";
-import { ModeSelectPopup, BrokerSideBySidePopup } from "./BotFlowPopups";
+import { ModeSelectPopup, BrokerSideBySidePopup, BotEntryWarning, BOT_WARNING_KEY } from "./BotFlowPopups";
 import SignalFeed from "./SignalFeed";
 import GalaxyOrb, { CometLayer, Starfield, activeSessions, vixLabel } from "./GalaxyOrb";
 import { CollapsedRail } from "./CollapseRail";
 import TickerLogo from "./TickerLogo";
 import { useBotUI, botPanelStyle, botTabStyle, isFloatingStyle } from "./BotSettings";
+import { FuturesSessionBadge } from "./MarketStatusBadge";
+import { directionLabel } from "../../lib/signalLabels";
+import { ALLOWED_INTERVALS } from "../../lib/universe";
 
 const FM = "'JetBrains Mono',monospace";
 const FD = "'Fraunces',serif";
@@ -23,16 +26,19 @@ const FC = "'Inter',sans-serif";
 
 // Per-mode instrument lists + interval defaults (mode-aware engine).
 //
-// V10.5b: FUTURES now carries the full ladder too. It was capped at 1h, so the
-// daily/weekly/monthly/yearly horizons were literally unreachable in futures mode
-// — the cadence picker offered them and nothing could ever produce them.
-const FULL_LADDER = ["1min", "5min", "15min", "1h", "4h", "1d", "1w", "1mo"];
+// V13.5: interval ladders are now CAPPED per asset class (ALLOWED_INTERVALS in
+// lib/universe.js — one source of truth shared with the server cron):
+//   futures → intraday only (<= 1 day): funded-account day-trading timeframes.
+//   options → up to ~2-week swing: high-risk, so no month+/year horizons.
+//   equity  → daily / weekly / monthly: long-horizon portfolio growth.
 const MODE_CONFIG = {
-  futures: { symbols: ["NQ", "MNQ", "ES", "MES", "YM", "RTY", "CL", "GC"], intervals: FULL_LADDER, defaultSymbol: "NQ", defaultInterval: "15min", color: "#7eb8f7" },
+  futures: { symbols: ["NQ", "MNQ", "ES", "MES", "YM", "RTY", "CL", "GC"], intervals: ALLOWED_INTERVALS.futures, defaultSymbol: "NQ", defaultInterval: "15min", color: "#7eb8f7" },
   // V10.3: options quick-picks are MAJOR INDICES only — any other ticker is
   // reached through the search box, so the row stays clean instead of a wall of
   // arbitrary large caps.
-  options: { symbols: ["SPY", "QQQ"], intervals: FULL_LADDER, defaultSymbol: "SPY", defaultInterval: "1h", color: "#a78bfa" },
+  options: { symbols: ["SPY", "QQQ"], intervals: ALLOWED_INTERVALS.options, defaultSymbol: "SPY", defaultInterval: "1h", color: "#a78bfa" },
+  // V13.5: INVEST — grow-the-portfolio mode. Buy/Hold/Sell on large caps.
+  equity:  { symbols: ["AAPL", "MSFT", "NVDA", "AMZN"], intervals: ALLOWED_INTERVALS.equity, defaultSymbol: "AAPL", defaultInterval: "1d", color: "#34d399" },
 };
 
 // The interval buttons used to be raw codes ("1w", "1mo"), which don't tell you
@@ -283,6 +289,23 @@ export default function BotDashboard({ accent = "#00d4aa", T, botName = "KRONOS"
     window.dispatchEvent(new Event("kronos-minconviction-change"));
   }, [minConviction]);
 
+  // V13.5: one-time risk-acknowledgment gate. Blocks the mode/broker flow until
+  // acknowledged; the flag lives in localStorage and is reviewable from Bot
+  // Settings. `reviewWarning` re-opens it on demand without touching the flag.
+  const [showEntryWarning, setShowEntryWarning] = useState(() => {
+    try { return localStorage.getItem(BOT_WARNING_KEY) !== "1"; } catch { return true; }
+  });
+  const [reviewWarning, setReviewWarning] = useState(false);
+  const acknowledgeWarning = () => {
+    try { localStorage.setItem(BOT_WARNING_KEY, "1"); } catch {}
+    setShowEntryWarning(false);
+  };
+  useEffect(() => {
+    const onReview = () => setReviewWarning(true);
+    window.addEventListener("kronos-bot-review-warning", onReview);
+    return () => window.removeEventListener("kronos-bot-review-warning", onReview);
+  }, []);
+
   // Mode + entry flow
   const [botMode, setBotMode] = useState(() => {
     try { return localStorage.getItem("kronos_botmode") || null; } catch { return null; }
@@ -293,7 +316,7 @@ export default function BotDashboard({ accent = "#00d4aa", T, botName = "KRONOS"
       return localStorage.getItem("kronos_flow_done") === "1" ? "done" : "broker";
     } catch { return "mode"; }
   });
-  const assetClass = botMode === "options" ? "options" : "futures";
+  const assetClass = botMode === "options" ? "options" : botMode === "equity" ? "equity" : "futures";
   const modeCfg = MODE_CONFIG[assetClass];
 
   // Mode switch resets the scanned instrument. The ticker search lets ANY symbol
@@ -316,14 +339,16 @@ export default function BotDashboard({ accent = "#00d4aa", T, botName = "KRONOS"
     setLatestSignal(null);
     setFlowStep((prev) => (prev === "mode" ? "broker" : prev));
   };
-  const toggleMode = () => {
-    const next = assetClass === "futures" ? "options" : "futures";
+  // V13.5: switch to a SPECIFIC mode (3 modes now: futures / options / equity),
+  // rather than the old 2-way flip. The segmented toggle calls this directly.
+  const switchMode = (next) => {
+    if (!MODE_CONFIG[next] || next === assetClass) return;
     setBotMode(next);
     try { localStorage.setItem("kronos_botmode", next); } catch {}
     const cfg = MODE_CONFIG[next];
     setSignalSymbol(cfg.defaultSymbol);
     setSignalInterval(cfg.defaultInterval);
-    setLatestSignal(null); // item 9: nothing carries across modes
+    setLatestSignal(null); // nothing carries across modes
   };
 
   const [paperMode, setPaperMode] = useState(() => {
@@ -398,6 +423,16 @@ export default function BotDashboard({ accent = "#00d4aa", T, botName = "KRONOS"
     }
   }, []);
 
+  // V13.5: fire a demo signal through the SAME cue path a real signal uses, so a
+  // test genuinely exercises pulse()/launch() rather than a separate mock.
+  const testCue = useCallback((conviction) => {
+    handleSignalEvent({
+      id: `test-${Date.now()}`, symbol: modeCfg.defaultSymbol, asset_class: assetClass,
+      status: "FIRE", direction: "LONG", conviction, interval: modeCfg.defaultInterval,
+      plan: null, _test: true,
+    });
+  }, [handleSignalEvent, modeCfg, assetClass]);
+
   const bg = T?.bg ?? "#060910";
   const surface = T?.surface ?? "#0b1320";
   const border = T?.border ?? "#172030";
@@ -438,8 +473,16 @@ export default function BotDashboard({ accent = "#00d4aa", T, botName = "KRONOS"
       {showBroker && (
         <BrokerConnect accent={accent} T={T} onClose={() => { setShowBroker(false); refreshBrokerFromStorage(); }} />
       )}
-      {flowStep === "mode" && !showOnboarding && <ModeSelectPopup accent={accent} T={T} onSelect={selectMode} />}
-      {flowStep === "broker" && !showOnboarding && (
+      {/* V13.5: risk warning gates the whole entry flow — mode/broker popups wait
+          until it's acknowledged (or already seen on a prior visit). */}
+      {showEntryWarning && !showOnboarding && (
+        <BotEntryWarning accent={accent} T={T} onAcknowledge={acknowledgeWarning} />
+      )}
+      {reviewWarning && (
+        <BotEntryWarning accent={accent} T={T} reviewMode onAcknowledge={() => setReviewWarning(false)} />
+      )}
+      {!showEntryWarning && flowStep === "mode" && !showOnboarding && <ModeSelectPopup accent={accent} T={T} onSelect={selectMode} />}
+      {!showEntryWarning && flowStep === "broker" && !showOnboarding && (
         <BrokerSideBySidePopup accent={accent} T={T} onDone={() => setFlowStep("done")} onSkip={() => setFlowStep("done")} />
       )}
 
@@ -515,17 +558,20 @@ export default function BotDashboard({ accent = "#00d4aa", T, botName = "KRONOS"
             color: dim, background: "transparent", border: `1px solid ${border}`,
           }}>⧉ BROKER</button>
           <div style={{ display: "flex", borderRadius: 8, overflow: "hidden", border: `1px solid ${border}` }}>
-            {[["futures", "FUT"], ["options", "OPT"]].map(([m, label]) => (
-              <button key={m} onClick={() => { if (assetClass !== m) toggleMode(); }} style={{
+            {[["futures", "FUT"], ["options", "OPT"], ["equity", "INVEST"]].map(([m, label], i) => (
+              <button key={m} onClick={() => switchMode(m)} style={{
                 padding: "5px 12px", cursor: "pointer",
                 fontFamily: FM, fontSize: 9, fontWeight: 800, letterSpacing: 2,
                 color: assetClass === m ? MODE_CONFIG[m].color : dim,
                 background: assetClass === m ? `${MODE_CONFIG[m].color}16` : "transparent",
                 border: "none",
-                borderRight: m === "futures" ? `1px solid ${border}` : "none",
+                borderRight: i < 2 ? `1px solid ${border}` : "none",
               }}>{label}</button>
             ))}
           </div>
+          {/* V13: futures scan around the clock (Globex, not equity hours) — show
+              THAT session instead of implying the bot is idle overnight. */}
+          {assetClass === "futures" && <FuturesSessionBadge T={T} />}
           <div style={{ fontFamily: FM, fontSize: 12, color: dim, letterSpacing: 1, fontVariantNumeric: "tabular-nums" }}>{etTime}</div>
         </div>
       </div>
@@ -658,7 +704,7 @@ export default function BotDashboard({ accent = "#00d4aa", T, botName = "KRONOS"
             <div style={{ display: "flex", gap: 8, position: "relative", zIndex: 1 }}>
               {[
                 { label: "MODE", value: assetClass.toUpperCase(), color: modeCfg.color },
-                { label: "LAST SIGNAL", value: latestSignal ? `${latestSignal.direction ?? ""} ${latestSignal.symbol ?? ""}`.trim() || "—" : "—", color: latestSignal?.direction === "SHORT" ? "#ff3d57" : "#00e676" },
+                { label: "LAST SIGNAL", value: latestSignal ? `${latestSignal.direction ? directionLabel(latestSignal.direction, assetClass) : ""} ${latestSignal.symbol ?? ""}`.trim() || "—" : "—", color: latestSignal?.direction === "SHORT" ? "#ff3d57" : "#00e676" },
                 { label: "CONVICTION", value: latestSignal?.conviction != null ? `${latestSignal.conviction}%` : "—", color: accent },
               ].map((s) => (
                 <div key={s.label} style={{
@@ -671,17 +717,23 @@ export default function BotDashboard({ accent = "#00d4aa", T, botName = "KRONOS"
               ))}
             </div>
 
-            {/* Conviction ladder — makes the three orb tiers legible instead of a footnote */}
+            {/* Conviction ladder — makes the three orb tiers legible instead of a
+                footnote. V13.5: each tier is now a TEST TRIGGER — click PULSE or
+                COMET to fire that cue with a demo signal so users (and dev) can
+                confirm the orb effects work. */}
             <div style={{ ...panelSx, display: "flex", alignItems: "center", gap: 10, position: "relative", zIndex: 1, padding: "6px 12px", borderRadius: 20 }}>
               {[
-                { c: "#9DB4CC", t: "<78% SILENT" },
-                { c: "#f7c948", t: "78–90% PULSE" },
-                { c: "#00e676", t: "90%+ COMET" },
+                { c: "#9DB4CC", t: "<78% SILENT", conv: null },
+                { c: "#f7c948", t: "78–90% PULSE", conv: 85 },
+                { c: "#00e676", t: "90%+ COMET", conv: 95 },
               ].map((x, i) => (
-                <div key={x.t} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <div key={x.t}
+                  onClick={x.conv ? () => testCue(x.conv) : undefined}
+                  title={x.conv ? "Click to test this orb cue" : "Below 78% the signal lands silently"}
+                  style={{ display: "flex", alignItems: "center", gap: 6, cursor: x.conv ? "pointer" : "default" }}>
                   {i > 0 && <span style={{ color: border, fontSize: 8 }}>│</span>}
                   <span style={{ width: 5, height: 5, borderRadius: "50%", background: x.c, boxShadow: `0 0 6px ${x.c}` }} />
-                  <span style={{ fontFamily: FM, fontSize: 7.5, color: dim, letterSpacing: 1 }}>{x.t}</span>
+                  <span style={{ fontFamily: FM, fontSize: 7.5, color: dim, letterSpacing: 1 }}>{x.t}{x.conv ? " ▸" : ""}</span>
                 </div>
               ))}
             </div>
@@ -704,7 +756,7 @@ export default function BotDashboard({ accent = "#00d4aa", T, botName = "KRONOS"
             )}
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, paddingLeft: isMobile ? 0 : 20 }}>
               <span style={{ fontFamily: FM, fontSize: 8, fontWeight: 800, letterSpacing: 2, color: modeCfg.color }}>
-                {assetClass === "options" ? "🎯 OPTIONS MODE" : "📈 FUTURES MODE"}
+                {assetClass === "options" ? "🎯 OPTIONS MODE" : assetClass === "equity" ? "📊 INVEST MODE" : "📈 FUTURES MODE"}
               </span>
             </div>
             {/* Quick-picks: major indices only */}

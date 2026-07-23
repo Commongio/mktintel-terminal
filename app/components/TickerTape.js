@@ -1,7 +1,10 @@
 "use client";
 import { useState, useEffect, useRef, useCallback } from "react";
+import TickerLogo from "./TickerLogo";
+import { COMPANY_NAMES } from "../../lib/companyNames";
 
 const FM = "'JetBrains Mono',monospace";
+const FC = "'Inter',sans-serif";
 
 const DEFAULT_TAPE = ["SPY","QQQ","NVDA","AAPL","TSLA","META","AMD","MSFT","JPM","AMZN","GOOGL","PLTR","MSTR","BTC-USD","GC=F","CL=F"];
 
@@ -132,10 +135,7 @@ export default function TickerTape({ accent = "#00d4aa", T, speed = 60 }) {
   const lastRef = useRef(null);
 
   const border = T?.border ?? "#1A2535";
-  const surface = T?.surface ?? "#0A1018";
-  const text = T?.text ?? "#E2EDF8";
   const dim = T?.dim ?? "#9DB4CC";
-  const textDim = T?.textDim ?? "#9DB4CC";
 
   const fetchQuotes = useCallback(async () => {
     if (!symbols.length) return;
@@ -144,7 +144,10 @@ export default function TickerTape({ accent = "#00d4aa", T, speed = 60 }) {
     for (let i = 0; i < symbols.length; i += BATCH) {
       const batch = symbols.slice(i, i + BATCH);
       try {
-        const r = await fetch(`/api/quote?symbols=${batch.join(",")}`);
+        // V13: yf-quotes (not the Finnhub-only /api/quote) — it's the redundant
+        // multi-provider layer AND the only one that carries a company `name`,
+        // which the new LED-strip layout needs next to every symbol.
+        const r = await fetch(`/api/yf-quotes?symbols=${batch.join(",")}`);
         if (r.ok) {
           const d = await r.json();
           (d.data || []).forEach((q) => {
@@ -204,55 +207,75 @@ export default function TickerTape({ accent = "#00d4aa", T, speed = 60 }) {
         <TapeEditModal onClose={() => setShowEdit(false)} symbols={symbols} setSymbols={setSymbols} accent={accent} T={T} />
       )}
 
+      {/* V13: LED trading-floor ticker strip — one unbroken illuminated tape.
+          Deliberately near-black regardless of the app theme (that's the point
+          of the reference look), no per-item border/background, so entries
+          read as a single continuous strip instead of segmented cards. */}
       <div
         style={{
-          height: 46,
+          height: 56,
           flexShrink: 0,
           borderBottom: `1px solid ${border}`,
-          backgroundColor: tickerBg || surface,
+          backgroundColor: "#05070a",
+          backgroundImage: tickerBg && tickerBg !== "transparent" ? `linear-gradient(${tickerBg}, ${tickerBg})` : "none",
           display: "flex",
           alignItems: "center",
           overflow: "hidden",
-          transition: "background-color 1.5s ease",
+          transition: "background-image 1.5s ease",
           position: "relative",
         }}
       >
         <div ref={trackRef} style={{ display: "inline-flex", alignItems: "center", height: "100%", willChange: "transform" }}>
           {items.map((sym, i) => {
             const q = quotes[sym];
-            const up = q && (q.changePercent ?? 0) >= 0;
-            const clr = up ? "#00d4aa" : "#ff4d6d";
+            const up = q && (q.change ?? q.changePercent ?? 0) >= 0;
+            const clr = up ? "#00e676" : "#ff3d57";
+            // Live provider name first (Yahoo shortName/longName); if the quote
+            // hasn't loaded yet or a failover provider degraded to name===symbol
+            // (common from datacenter IPs — see lib/marketData.js), fall back to
+            // the curated static map rather than showing a blank/duplicate name.
+            const name = (q?.name && q.name !== sym ? q.name : null) || COMPANY_NAMES[sym] || null;
             return (
               <div
                 key={`${sym}-${i}`}
                 style={{
                   display: "flex",
                   alignItems: "center",
-                  gap: 7,
-                  padding: "0 20px",
-                  borderRight: `1px solid ${border}`,
+                  gap: 10,
+                  padding: "0 24px",
                   height: "100%",
                   whiteSpace: "nowrap",
                   flexShrink: 0,
                 }}
               >
-                <span style={{ fontFamily: FM, fontSize: 12, fontWeight: 700, color: textDim, letterSpacing: 1.5 }}>
-                  {sym}
-                </span>
-                {q?.price != null ? (
-                  <>
-                    <span style={{ fontFamily: FM, fontSize: 12, color: text, fontWeight: 500 }}>
-                      ${Number(q.price).toFixed(2)}
+                <TickerLogo symbol={sym} size={26} />
+                <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", gap: 3, lineHeight: 1 }}>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 7 }}>
+                    <span style={{ fontFamily: FM, fontSize: 12.5, fontWeight: 800, color: "#fff", letterSpacing: 0.5 }}>
+                      {sym}
                     </span>
-                    {q.changePercent != null && (
-                      <span style={{ fontFamily: FM, fontSize: 11, fontWeight: 700, color: clr }}>
-                        {up ? "▲" : "▼"} {Math.abs(q.changePercent).toFixed(2)}%
+                    {name && (
+                      <span style={{ fontFamily: FC, fontSize: 9.5, color: "#8a97a8", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 130 }}>
+                        {name}
                       </span>
                     )}
-                  </>
-                ) : (
-                  <span style={{ fontFamily: FM, fontSize: 11, color: dim }}>—</span>
-                )}
+                  </div>
+                  {q?.price != null ? (
+                    <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                      <span style={{ fontFamily: FM, fontSize: 15, fontWeight: 800, color: clr }}>
+                        {Number(q.price).toFixed(2)}
+                      </span>
+                      {q.change != null && (
+                        <span style={{ fontFamily: FM, fontSize: 10.5, fontWeight: 700, color: clr }}>
+                          {q.change >= 0 ? "+" : ""}{Number(q.change).toFixed(2)}
+                          {q.changePercent != null && <>&nbsp; {q.change >= 0 ? "+" : ""}{Number(q.changePercent).toFixed(2)}%</>}
+                        </span>
+                      )}
+                    </div>
+                  ) : (
+                    <span style={{ fontFamily: FM, fontSize: 11, color: dim }}>—</span>
+                  )}
+                </div>
               </div>
             );
           })}
@@ -270,7 +293,7 @@ export default function TickerTape({ accent = "#00d4aa", T, speed = 60 }) {
             fontSize: 8,
             color: dim,
             letterSpacing: 1,
-            background: surface,
+            background: "#05070a",
             border: "none",
             borderLeft: `1px solid ${border}`,
             cursor: "pointer",

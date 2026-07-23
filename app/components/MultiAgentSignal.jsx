@@ -6,6 +6,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import TickerLogo from "./TickerLogo";
+import { directionLabel, directionColor } from "../../lib/signalLabels";
 
 const FM = "'JetBrains Mono',monospace";
 const FC = "'Inter',sans-serif";
@@ -243,7 +244,7 @@ export default function MultiAgentSignal({ accent = "#00d4aa", T, symbol = "NQ",
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
               <span style={{ fontFamily: FM, fontSize: 7.5, color: dim, letterSpacing: 2 }}>SIGNAL STATUS</span>
               <span style={{ fontFamily: FM, fontSize: 14, fontWeight: 900, color: statusColor(st), letterSpacing: 0.5, textAlign: "right" }}>
-                {st === "FIRE" ? `⚡ FIRE — ${data.direction}` : st === "HOLD" ? `HOLD — ${data.direction} forming` : "SCANNING"}
+                {st === "FIRE" ? `⚡ FIRE — ${directionLabel(data.direction, assetClass)}` : st === "HOLD" ? `HOLD — ${directionLabel(data.direction, assetClass)} forming` : "SCANNING"}
               </span>
             </div>
           </div>

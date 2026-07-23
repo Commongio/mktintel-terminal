@@ -19,7 +19,8 @@ import { runSignalEngine, MODE_DEFAULT_INTERVAL, ENGINE_VERSION, MIN_SURFACE_CON
 import { getAdmin, serverConfigured, insertSignal } from "../../../../lib/supabaseServer";
 import { sendSignalPush } from "../../../../lib/push";
 import { gradeSignalLifecycle } from "../../../../lib/signalLifecycle";
-import { scanUniverse, fetchMostActives, FULL_UNIVERSE, BUCKET_SIZE, ROTATING_PER_RUN, rotationLength, CURATED } from "../../../../lib/universe";
+import { buildSignalStats, applyAggregateGate } from "../../../../lib/signalStats";
+import { scanUniverse, fetchMostActives, FULL_UNIVERSE, BUCKET_SIZE, ROTATING_PER_RUN, rotationLength, CURATED, intervalAllowed } from "../../../../lib/universe";
 
 export const maxDuration = 60;
 
@@ -43,16 +44,29 @@ function clockCursor() {
 // V10.5b: futures are included now. Previously all three portfolio sweeps were
 // hardcoded to assetClass "options", so futures mode could never show a
 // weekly/monthly/yearly signal no matter what cadence the user picked.
+// V13.5: equity is the LONG-horizon portfolio-growth class, so it lives here
+// (in the daily/weekly/monthly sweeps) rather than the intraday loop.
 const PORTFOLIO_UNIVERSE = {
   options: CURATED.large.slice(0, 12),
   futures: ["NQ", "ES", "CL", "GC"],
+  equity:  CURATED.large.slice(0, 12),
 };
 
 // Roughly-every-N-minutes gate using wall-clock minutes (no state to persist).
 const everyNMinutes = (n) => new Date().getMinutes() % n < 2;
 
-async function writeIfChanged(admin, { assetClass, symbol, interval }, buckets) {
-  const sig = await runSignalEngine({ assetClass, symbol, interval });
+async function writeIfChanged(admin, { assetClass, symbol, interval }, buckets, stats) {
+  const raw = await runSignalEngine({ assetClass, symbol, interval });
+
+  // ── V13.5 BOT ↔ TERMINAL BRAIN SYNC ────────────────────────────────────────
+  // Before a signal is handed to users, the terminal's aggregate self-learning
+  // memory validates it: a setup signature that's been LOSING recently gets its
+  // conviction cut and can be demoted FIRE → HOLD. Downgrade-only + evidence-
+  // gated (see lib/signalStats). This is the "both systems validate each other"
+  // check — the engine (bot) proposes, the aggregate memory (terminal brain)
+  // confirms or vetoes. The reason rides along on the row for auditability.
+  const { sig, demoted } = applyAggregateGate(raw, stats);
+  if (demoted) buckets.demoted.push(`${assetClass}:${symbol}:${interval}:${raw.conviction}->${sig.conviction}`);
 
   // V12: only surface setups at or above the hard floor. Previously the cron
   // wrote any changed/stale verdict regardless of conviction, so sub-45% SCAN
@@ -113,7 +127,14 @@ export async function GET(request) {
     return Response.json({ error: "Supabase not configured — signal feed disabled" }, { status: 503 });
   }
   const admin = getAdmin();
-  const buckets = { written: [], skipped: [], failed: [], pushed: [], pushFailed: [] };
+  const buckets = { written: [], skipped: [], failed: [], pushed: [], pushFailed: [], demoted: [] };
+
+  // V13.5: build the aggregate self-learning snapshot ONCE per run (reading the
+  // shared signals table's own won/lost lifecycle), then every writeIfChanged
+  // validates its FIRE against it. Best-effort — if it fails, the gate no-ops.
+  let stats = { available: false };
+  try { stats = await buildSignalStats(admin, { lookbackDays: 30 }); }
+  catch { /* aggregate gate simply doesn't apply this run */ }
 
   // V10.3: the day's most-actives are PINNED into every run (movers are never
   // missed); the rest of the run is a rotating slice of the full universe.
@@ -133,7 +154,7 @@ export async function GET(request) {
     const universe = scanUniverse(assetClass, assetClass === "options" ? mostActives : [], cursor);
     for (const symbol of universe) {
       if (!timeLeft()) { ranOutOfTime = true; break; }
-      try { await writeIfChanged(admin, { assetClass, symbol, interval }, buckets); }
+      try { await writeIfChanged(admin, { assetClass, symbol, interval }, buckets, stats); }
       catch (e) { buckets.failed.push({ symbol: `${assetClass}:${symbol}`, error: String(e.message) }); }
     }
     if (ranOutOfTime) break;
@@ -145,10 +166,15 @@ export async function GET(request) {
   // a long-horizon setup does not change on a 2-minute timescale.
   const portfolio = { weekly: false, monthly: false, yearly: false };
   const sweep = async (interval, flag) => {
-    for (const assetClass of ["futures", "options"]) {
+    for (const assetClass of ["futures", "options", "equity"]) {
+      // V13.5 interval caps: a sweep only runs for asset classes whose max
+      // timeframe permits it — futures (max 1 day) get NO multi-day sweeps,
+      // options (max 2 weeks) get the weekly "1d" sweep but not month/year,
+      // equity gets all of them. Single source of truth: intervalAllowed().
+      if (!intervalAllowed(assetClass, interval)) continue;
       for (const symbol of PORTFOLIO_UNIVERSE[assetClass]) {
         if (!timeLeft()) { ranOutOfTime = true; return; }
-        try { await writeIfChanged(admin, { assetClass, symbol, interval }, buckets); portfolio[flag] = true; }
+        try { await writeIfChanged(admin, { assetClass, symbol, interval }, buckets, stats); portfolio[flag] = true; }
         catch (e) { buckets.failed.push({ symbol: `${assetClass}:${symbol}:${interval}`, error: String(e.message) }); }
       }
     }
@@ -173,6 +199,10 @@ export async function GET(request) {
   return Response.json({
     ok: true,
     written: buckets.written, skipped: buckets.skipped, failed: buckets.failed,
+    // V13.5: FIRE→HOLD demotions from the aggregate self-learning gate + how much
+    // history it had to work with, so the sync is auditable.
+    demoted: buckets.demoted,
+    aggregateStats: { available: stats.available, sampleSize: stats.sampleSize ?? 0, overallWinRate: stats.overall?.winRate ?? null },
     lifecycle,
     mostActives: mostActives.length,
     portfolioSweeps: portfolio,

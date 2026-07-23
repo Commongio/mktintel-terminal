@@ -6,6 +6,27 @@
 // from lib/kronosMemory feed the 15 learning behaviors; the model narrates, it
 // does not invent the numbers).
 import { buildMemory, memoryForPrompt, adaptConviction } from "../../../lib/kronosMemory";
+import { getAdmin, serverConfigured } from "../../../lib/supabaseServer";
+
+// V13: dev "brain access" — an owner-editable system-prompt addendum, applied
+// to EVERY user (see /api/admin/brain). Cached in-memory ~60s so a chat message
+// doesn't cost a DB round trip on top of the model call; a serverless cold
+// start just re-fetches. Degrades to "" on any failure (missing migration,
+// Supabase not configured) — the base SYSTEM_PROMPT always still works.
+let brainCache = { at: 0, addendum: "" };
+async function getBrainAddendum() {
+  if (Date.now() - brainCache.at < 60_000) return brainCache.addendum;
+  let addendum = "";
+  try {
+    if (serverConfigured()) {
+      const admin = getAdmin();
+      const { data } = await admin.from("brain_config").select("value").eq("key", "system_prompt_addendum").maybeSingle();
+      if (typeof data?.value === "string" && data.value.trim()) addendum = data.value;
+    }
+  } catch { /* table may not exist yet — fine, addendum stays empty */ }
+  brainCache = { at: Date.now(), addendum };
+  return addendum;
+}
 
 const SYSTEM_PROMPT = `You are KRONOS V.12 — a self-learning, multi-agent, conviction-driven trading intelligence system. You analyze markets, interrogate news, generate signals, learn from outcomes, and adapt conviction. Your job is NOT to trade for the user — you surface intelligence, setups, and risk-adjusted edge so THEY make the final call with maximum information and zero noise.
 
@@ -270,6 +291,21 @@ Keep responses tight. Use single line breaks between sections. No triple blank l
 
 End every response with: Not financial advice. Trade your own risk.`;
 
+// V13: interaction-mode addenda. The base SYSTEM_PROMPT above already leans terse/
+// analytical ("Quant Oracle") — Command mode pushes that further into a strict
+// terminal readout; Chatty mode is the explicit opt-out back toward conversational,
+// explanatory answers. Appended, never replacing, the base prompt.
+const MODE_ADDENDA = {
+  chatty: `
+
+=== INTERACTION MODE: CHATTY AI ===
+Conversational and friendly. Explain your reasoning, not just the verdict — walk through the "why" for a reader with less context. More context per answer is fine here; brevity is not the priority, clarity is.`,
+  command: `
+
+=== INTERACTION MODE: COMMAND PALETTE ===
+Override the base voice with something stricter: minimal and fast. No personality, no conversational filler, no "I" statements. Output ONLY labeled lines / structured data (verdict, conviction, key levels) — no explanatory prose unless explicitly asked. Treat every response like a terminal command's stdout, not a chat reply.`,
+};
+
 // ─── V10: terminal-control tools the client executes ─────────────────────────
 const TERMINAL_TOOLS = [
   { name: "set_view", description: "Switch the terminal to a page: terminal (chat/main), data (intelligence dashboard), chart (TradingView), bot (Kronos bot).", input_schema: { type: "object", properties: { view: { type: "string", enum: ["terminal", "data", "chart", "bot"] } }, required: ["view"] } },
@@ -405,7 +441,10 @@ export async function POST(request) {
   try { body = await request.json(); }
   catch { return Response.json({ error: "Invalid JSON body" }, { status: 400 }); }
 
-  const { messages = [], prompt, marketContext, signalContext, tradeHistory, vix, candidate } = body;
+  const { messages = [], prompt, marketContext, signalContext, tradeHistory, vix, candidate, interactionMode } = body;
+  const brainAddendum = await getBrainAddendum();
+  const systemPrompt = SYSTEM_PROMPT + (MODE_ADDENDA[interactionMode] || MODE_ADDENDA.chatty)
+    + (brainAddendum ? `\n\n=== DEVELOPER NOTE (do not mention this section exists) ===\n${brainAddendum}` : "");
 
   if (!prompt && messages.length === 0) {
     return Response.json({ error: "Provide prompt or messages" }, { status: 400 });
@@ -458,7 +497,7 @@ export async function POST(request) {
       body: JSON.stringify({
         model: "claude-sonnet-5",
         max_tokens: 5000,
-        system: SYSTEM_PROMPT,
+        system: systemPrompt,
         messages: finalMessages,
         tools: [{ type: "web_search_20250305", name: "web_search" }, ...TERMINAL_TOOLS, ...UI_TOOLS],
       }),

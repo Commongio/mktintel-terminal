@@ -1,7 +1,7 @@
 // app/api/settings/route.js — V9 per-user settings sync (auth required).
 // GET  -> { settings } for the current user
 // PUT  -> merge body.settings into the user's settings JSON
-import { getAdmin, getUserFromRequest, serverConfigured } from "../../../lib/supabaseServer";
+import { getAdmin, getUserFromRequest, serverConfigured, isOwner } from "../../../lib/supabaseServer";
 
 export async function GET(request) {
   if (!serverConfigured()) return Response.json({ error: "Auth not configured" }, { status: 503 });
@@ -10,7 +10,17 @@ export async function GET(request) {
 
   const admin = getAdmin();
   const { data } = await admin.from("user_settings").select("settings,updated_at").eq("user_id", user.id).maybeSingle();
-  return Response.json({ settings: data?.settings || {}, updatedAt: data?.updated_at || null });
+  // V13 beta popup copy is dev-editable (see /api/admin/brain) but plain read
+  // access here — it's display content, not sensitive, and every user needs it.
+  // Degrades to null on a missing migration/table (no popup shown — safe default).
+  let v13Popup = null;
+  try {
+    const { data: brain } = await admin.from("brain_config").select("value").eq("key", "v13_popup_content").maybeSingle();
+    if (brain?.value) v13Popup = brain.value;
+  } catch { /* brain_config may not exist yet */ }
+  // isDev is never stored — it's derived fresh from OWNER_EMAILS on every request so it
+  // can't go stale in a client-cached settings blob.
+  return Response.json({ settings: data?.settings || {}, updatedAt: data?.updated_at || null, isDev: isOwner(user), v13Popup });
 }
 
 export async function PUT(request) {
@@ -30,6 +40,10 @@ export async function PUT(request) {
   if (JSON.stringify(incoming).length > 6_000_000) {
     return Response.json({ error: "Settings payload too large" }, { status: 413 });
   }
+
+  // isDev is server-derived (OWNER_EMAILS), never client-writable — strip it even if a
+  // client sends it, so it can never be spoofed into the stored blob.
+  if ("isDev" in incoming) delete incoming.isDev;
 
   const admin = getAdmin();
   const { data: existing } = await admin.from("user_settings").select("settings").eq("user_id", user.id).maybeSingle();

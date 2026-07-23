@@ -127,7 +127,14 @@ export default function PushAlerts({ T, accent, user }) {
         headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       });
       const d = await r.json();
-      setMsg(r.ok ? `Test sent to ${d.sent} device${d.sent === 1 ? "" : "s"}.` : (d.error || "Test failed."));
+      if (!r.ok) { setMsg(d.error || "Test failed."); setBusy(false); return; }
+      // V13.5: surface the real reason a send failed (VAPID mismatch, expired
+      // sub) instead of a bare "sent to 0 devices" — that's the whole point of
+      // the mobile-push diagnosis.
+      if (d.sent > 0) setMsg(`Test sent to ${d.sent} device${d.sent === 1 ? "" : "s"}.${d.pruned ? ` (${d.pruned} stale removed.)` : ""}`);
+      else if (d.hint) setMsg(d.hint);
+      else if (d.failures?.length) setMsg(`Send failed (HTTP ${d.failures[0].statusCode || "?"}). ${d.failures[0].body || ""}`);
+      else setMsg(`No devices received it (${d.devices} subscribed).`);
     } catch (e) { setMsg(`Test failed: ${e.message}`); }
     setBusy(false);
   }, []);

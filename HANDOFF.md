@@ -231,4 +231,126 @@ PLAN_V10.md                     V10 master list. PLAN_MOBILE_FUTURE.md  PLAN_V9.
 3. Decide the BrokerConnect plaintext-credential flag (§8).
 4. Confirm migration 002 + cron-job.org 2-min job are in place.
 5. Await Gio's next green-flagged batch. (Mobile is the obvious big-ticket remaining item.)
+
+---
+
+## 11. V13 (BUILT 2026-07-22)
+
+**Note:** this file wasn't updated for V11 (mobile/PWA) or V12 (Quant Oracle AI, self-learning
+memory, news intel, lifecycle) before this session — those landed per git log (`e5cb248`,
+`3a184f9`, `1b6c65f`) but aren't documented here. The persistent agent memory
+(`project-kronos-terminal-roadmap.md`) has the fuller history; this section only covers V13.
+
+Built from Gio's full V13 spec (10 items). All items shipped this session **except** the HD/4K
+video-upload pipeline, which was deliberately deferred (see decision note below) — only its
+beta-popup half shipped.
+
+1. **Profile fields** — `displayName`, `interactionMode`, `hasSeenV13Popup`, `chatAutoDelete`,
+   `chatHistoryClearedAt` added to the existing `user_settings.settings` jsonb (no migration —
+   `PUT /api/settings` already shallow-merges new keys). `isDev` is derived fresh from
+   `OWNER_EMAILS` on every `GET /api/settings`, never stored/client-writable.
+2. **Interaction mode selector** — 💬/⌘ toggle in the header (top-right), reusing the OPT/FUT
+   toggle pattern. Persisted to `kronos_personal` localStorage + account settings. Behavior split
+   in `app/api/scan/route.js` (`MODE_ADDENDA` appended to `SYSTEM_PROMPT`); visuals via a global
+   `[data-mode="command"]` CSS rule (kills box/text-shadow, desaturates to 0.55) + dropping
+   `ThemeBackdrop` entirely in Command mode.
+3. **SPX/major index prioritization** — `lib/universe.js`'s `PRIORITY_INDEX_OPTIONS` (`^SPX`,
+   `^NDX`, `^RUT`, `^VIX`) get an always-scanned slot in `scanUniverse()` (options mode) + sort to
+   the top of `SignalFeed` with an "INDEX" badge. Conviction math in `signalEngine.js` is
+   deliberately untouched (compliance — see decision note).
+4. **After-hours futures** — confirmed the scan code already has zero market-hours gating; the
+   real fix was `MarketStatusBadge.jsx`'s new `getFuturesSessionStatus()`/`FuturesSessionBadge`
+   (CME Globex hours), shown instead of the equity badge in Futures mode (`BotDashboard.jsx`), and
+   `SignalFeed.jsx`'s "quiet outside market hours" banner now branches by `assetClass` instead of
+   always assuming equity hours.
+5. **Signal Info timestamp** — `SignalFeed.jsx`'s `ReasoningPopup` now shows an absolute
+   timestamp in the viewer's own local timezone (`toLocaleString` with no explicit `timeZone`).
+6. **Chat convenience** — scroll-to-bottom tracking + floating ↓ button (both chat render sites:
+   `ChartPage`'s side panel and the main `consoleInner` column/mobile tab), delete-history button,
+   and an auto-delete schedule (`daily|weekly|monthly|session|never`) in Settings → Personal.
+7. **Developer brain access** — new `brain_config` table (migration `007_brain_config.sql`),
+   `/api/admin/brain` (GET/PUT/POST, `isOwner()`-gated like `/api/admin/codes`), a new "BRAIN
+   ACCESS" tab in `/admin`: system-prompt addendum textarea, feature-flag toggles, V13 popup
+   content editor + reset controls. `/api/scan` fetches the addendum (60s in-memory cache).
+8. **Premium UI pass** — scoped narrowly: Command Palette mode does the structural work; also
+   removed leftover 🔥/⚡/👀 emoji-instructions from `QUICK_ACTIONS` prompts in `page.js` that
+   directly contradicted the system prompt's own "no emojis, ever" rule.
+9. **V13 beta popup** — `app/components/V13Popup.jsx`, shows once (`hasSeenV13Popup`), content
+   editable via the brain panel (`v13_popup_content`), dev controls to reset for all/one user or
+   preview manually (Settings → Personal, dev-only).
+10. **HD/4K video theme uploads — DEFERRED.** Only the popup (#9) shipped. The upload/storage
+    pipeline (Supabase Storage bucket, validation, preview, mobile downscaling) is its own future
+    session — do not bundle with anything else.
+11. **LED-style continuous ticker bar** (added mid-session) — `app/components/TickerTape.js`
+    rebuilt: removed the per-item `borderRight` divider (was making it look like segmented
+    cards), fixed near-black background (`#05070a`, intentionally independent of the app theme —
+    that's the LED-strip look), two-line stacked layout per entry (logo + symbol + company name /
+    price + change + %change, green/red). Switched its quote fetch from `/api/quote` (Finnhub-only,
+    no name field) to `/api/yf-quotes` (existing multi-provider layer, has `name`); extracted the
+    page.js-local `COMPANY_NAMES` map into `lib/companyNames.js` as a shared fallback for when a
+    live provider degrades `name` to the bare symbol. The scroll mechanism itself (rAF-driven
+    `translateX`, `TickerTape.js`) was NOT touched — it already scrolled as one continuous strip,
+    it just looked segmented due to the old divider/card styling.
+
+**Bug found + fixed during verification**: the dev auth bypass (`AuthGate.jsx`'s
+`DEV_AUTH_BYPASS`) grants access with a null `user` even when Supabase IS configured — the V13
+popup's `settingsReady` gate (originally keyed only on `!supabaseConfigured()`) never flipped true
+in that mode. Fixed by keying it on `accessState==="granted" && !user` instead.
+
+**Verification caveat**: same sandbox limitation as V10.2 (§6) — this session ALSO hit a stale
+`getComputedStyle`/DOM-mutation read after a long run of Fast Refresh edits (the Command-mode CSS
+filter and a scroll-container height override both read back unchanged despite being applied
+correctly). A full page reload each time resolved it and confirmed the underlying code is correct.
+If this recurs, don't chase it as a code bug — reload and recheck first.
+
+Decision rationale (storage backend choice, why conviction wasn't touched for index priority, why
+brain access is scoped to prompt+flags not code) is recorded in the Obsidian vault:
+`work/decisions/mktintel — V13 Build.md`.
+
+---
+
+## 12. V13.5 (BUILT 2026-07-22, same session as V13)
+
+Ten more items, all built + clean `npm run build`. New shared libs: `lib/signalLabels.js`
+(asset-class label translation), `lib/signalStats.js` (server-side aggregate self-learning),
+`lib/companyNames.js` (extracted in V13). New migrations: `007_brain_config.sql` (V13),
+`008_equity_asset_class.sql` (V13.5 — **must run before the cron can write equity rows**).
+
+1. **Signal labeling** — `signalLabels.js`: one internal engine vocab (LONG/SHORT/NEUTRAL) →
+   per-class display: options **CALLS/PUTS**, futures **LONG/SHORT**, equity **BUY/HOLD/SELL**.
+   Applied in `SignalFeed`, `MultiAgentSignal`, `BotDashboard`, push copy. Engine untouched.
+2. **Equity/INVEST mode** (Gio wants portfolio growth too) — new `asset_class: "equity"` (migration
+   008), third Bot mode (FUT/OPT/INVEST via new `switchMode`), reuses the existing engine on daily
+   candles, generated by the cron's portfolio sweeps. Paper key `kronos_paper_equity` is automatic.
+3. **Interval caps** — `ALLOWED_INTERVALS` in `universe.js` (one source of truth for the Bot ladder
+   UI + cron sweeps): futures ≤1 day, options ≤~2 weeks, equity daily/weekly/monthly. `sweep()`
+   gated by `intervalAllowed()`.
+4. **Bot↔terminal brain sync** — `signalStats.js`: aggregate win/loss from the shared signals
+   table's own lifecycle; the cron's `applyAggregateGate()` cuts conviction / demotes FIRE→HOLD on
+   setup signatures that have been losing (downgrade-only, bounded). Response now reports `demoted`.
+5. **Admin loss log** — `/api/admin/brain?view=losslog` (owner-gated) + a panel section in `/admin`.
+6. **Bot entry warning** — `BotEntryWarning` (BotFlowPopups.jsx), one-time gate + "I Understand",
+   flag `kronos_bot_warning_seen`, reviewable from Bot Settings → RISK.
+7. **Pulse/comet test** — the orb conviction-ladder legend is clickable; fires a demo signal through
+   the real `handleSignalEvent` path.
+8. **Trash-icon fix** — SignalFeed age moved into the left cluster; header reserves right padding for
+   the delete button + WON badge (they no longer overlap).
+9. **Login redesign** — canvas starfield + faint ΚΡΟΝΟΣ Greek watermark + glassmorphic card
+   (`AuthGate.jsx`). **NEEDS Gio's real-browser check** — the dev bypass skips the login gate so it
+   can't be verified in-sandbox.
+10. **Mobile push** — real bug per Gio (installed PWA/Android). Root cause needs his device data, but
+    the pipeline **swallowed** non-404/410 errors (a 403 VAPID mismatch showed as "sent 0"). Now
+    `/api/push/test` + `sendSignalPush` return failure reasons; a `GET /api/push/test` gives on-phone
+    config diagnostics; PushAlerts shows the fix hint. **Most likely cause: VAPID keys in Vercel prod
+    differ from what the device subscribed with → turn alerts OFF then ON to re-subscribe.**
+11. **Perf** — TTL cache + in-flight dedupe on `/api/technicals` (was re-fetched per row per remount).
+
+**Verification note**: V13.5 UI was build-verified (clean compile, no console errors, no crash) but
+the bot-internal popups (3-mode toggle, entry warning, pulse/comet) and the redesigned login could
+not be click-verified in-sandbox this session — Gio's own `next dev` was already on :3000 and its
+welcome modal + the dev-bypass-skips-login behavior blocked a clean walk-through. Gio should eyeball
+those in his real browser.
+
+**Migrations still to run in Supabase** (in order): 006 (signal state — needed for the loss log +
+brain sync to have data), 007 (brain_config), 008 (equity asset_class).
 ```

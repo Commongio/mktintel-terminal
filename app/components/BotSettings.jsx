@@ -313,6 +313,15 @@ export default function BotSettings({ onClose, T, accent }) {
           </button>
         </Section>
 
+        {/* V13.5: re-open the one-time risk warning on demand. */}
+        <Section title="RISK">
+          <button onClick={() => { try { window.dispatchEvent(new Event("kronos-bot-review-warning")); } catch {} onClose?.(); }}
+            style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 12px", borderRadius: 8, cursor: "pointer", background: "transparent", border: `1px solid ${border}` }}>
+            <span style={{ fontFamily: FM, fontSize: 10, fontWeight: 700, letterSpacing: 1, color: dim }}>⚠️ REVIEW RISK WARNING</span>
+            <span style={{ fontFamily: FM, fontSize: 9, color: dim }}>OPEN</span>
+          </button>
+        </Section>
+
         <button onClick={() => { const d = { ...BOT_UI_DEFAULT }; setUI(d); saveBotUI(d); }}
           style={{ width: "100%", padding: "9px", borderRadius: 7, background: "transparent", border: `1px solid ${border}`, color: dim, fontFamily: FM, fontSize: 10, fontWeight: 700, letterSpacing: 1, cursor: "pointer" }}>
           RESET BOT APPEARANCE

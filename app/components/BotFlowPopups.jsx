@@ -44,6 +44,46 @@ function Shell({ children, accent, T, onClose }) {
   );
 }
 
+// ── V13.5: ENTRY WARNING — risk acknowledgment before the bot ─────────────────
+// Shows ONCE (flag stored in kronos_bot_ui via the caller), with an explicit
+// "I Understand" gate. Reviewable again from Bot Settings. This is a real-money
+// tool aimed at beginners — the difference between day-trading leverage and
+// investing has to be stated plainly before anyone acts on a signal.
+export const BOT_WARNING_KEY = "kronos_bot_warning_seen";
+export function BotEntryWarning({ accent, T, onAcknowledge, reviewMode = false }) {
+  const text = T?.text ?? "#E2EDF8";
+  const dim = T?.dim ?? "#9DB4CC";
+  const border = T?.border ?? "#1A2535";
+  const surface = T?.surface ?? "#0D1520";
+  return (
+    <Shell accent={accent} T={T} onClose={reviewMode ? onAcknowledge : undefined}>
+      <div style={{ textAlign: "center", marginBottom: 16 }}>
+        <div style={{ fontSize: 30, marginBottom: 8 }}>⚠️</div>
+        <div style={{ fontFamily: FD, fontSize: 21, fontWeight: 800, color: text, letterSpacing: 0.5 }}>BEFORE YOU ENTER KRONOS BOT</div>
+        <div style={{ fontFamily: FM, fontSize: 8, color: dim, letterSpacing: 2, marginTop: 6 }}>READ THIS ONCE · REVIEWABLE ANYTIME IN BOT SETTINGS</div>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 18 }}>
+        {[
+          ["What this is", "KRONOS surfaces multi-agent trade intelligence — structure, technicals, sentiment, options flow — with a conviction score and a risk gate. It does NOT place trades. Every entry is your decision."],
+          ["Day trading ≠ investing", "Options and futures signals are for SHORT-horizon active trading (intraday to ~2 weeks). They use leverage and decay fast. This is high-risk and most day traders lose money. It is fundamentally different from buying and holding to grow a portfolio over years."],
+          ["Options / Futures risk", "Options can expire worthless — you can lose 100% of the premium. Futures are leveraged — losses can exceed your initial margin. Only risk capital you can afford to lose entirely."],
+          ["Investing (INVEST mode)", "The BUY / HOLD / SELL signals are longer-horizon, for growing a portfolio — lower-risk than day trading, but still not guaranteed. Nothing here is financial advice."],
+        ].map(([h, b]) => (
+          <div key={h} style={{ padding: "11px 13px", borderRadius: 9, background: surface, border: `1px solid ${border}` }}>
+            <div style={{ fontFamily: FM, fontSize: 9, fontWeight: 800, letterSpacing: 1, color: accent, marginBottom: 4 }}>{h.toUpperCase()}</div>
+            <div style={{ fontFamily: FC, fontSize: 11, color: dim, lineHeight: 1.55 }}>{b}</div>
+          </div>
+        ))}
+      </div>
+      <button onClick={onAcknowledge} style={{
+        width: "100%", padding: "13px 0", borderRadius: 10,
+        background: `linear-gradient(135deg,${accent}28,${accent}12)`, border: `1px solid ${accent}50`,
+        color: accent, fontFamily: FM, fontSize: 11, fontWeight: 800, letterSpacing: 3, cursor: "pointer",
+      }}>{reviewMode ? "CLOSE" : "I UNDERSTAND"}</button>
+    </Shell>
+  );
+}
+
 // ── STEP 1 — MODE SELECT + SIGNAL CADENCE (V10) ───────────────────────────────
 const CADENCES = [
   { id: "daily", label: "DAILY", hint: "intraday setups (1m–1h)" },
@@ -62,8 +102,9 @@ export function ModeSelectPopup({ accent, T, onSelect }) {
     try { return JSON.parse(localStorage.getItem("kronos_cadence") || '["all"]'); } catch { return ["all"]; }
   });
   const MODES = [
-    { id: "futures", icon: "📈", title: "FUTURES", desc: "NQ · MNQ · ES · CL · GC — Kronos Map structure + technicals + news sentiment on futures candles.", color: "#7eb8f7" },
-    { id: "options", icon: "🎯", title: "OPTIONS", desc: "SPY · QQQ · NVDA · AAPL + more — underlying structure + live options flow (put/call, unusual activity, IV).", color: "#a78bfa" },
+    { id: "futures", icon: "📈", title: "FUTURES", desc: "NQ · MNQ · ES · CL · GC — Kronos Map structure + technicals + news sentiment on futures candles. Intraday (≤1 day) — LONG / SHORT.", color: "#7eb8f7" },
+    { id: "options", icon: "🎯", title: "OPTIONS", desc: "SPY · QQQ · NVDA · AAPL + more — underlying structure + live options flow (put/call, unusual activity, IV). Up to ~2 weeks — CALLS / PUTS.", color: "#a78bfa" },
+    { id: "equity", icon: "📊", title: "INVEST", desc: "AAPL · MSFT · NVDA + large caps — the same multi-agent engine on daily/weekly candles for portfolio growth. BUY / HOLD / SELL.", color: "#34d399" },
   ];
 
   const toggleCadence = (id) => {
