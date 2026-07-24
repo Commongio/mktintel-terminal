@@ -35,9 +35,13 @@ export function openBrokerWindow(url) {
 
 function Shell({ children, accent, T, onClose }) {
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.82)", zIndex: 2500, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
+    // kronos-modal-backdrop / -card: the mobile sizing (viewport cap, internal
+    // scroll, and bottom clearance for the tab bar + home indicator) lives in the
+    // global stylesheet in page.js so a tall card's action button is always
+    // reachable on a phone instead of hiding under the bottom nav.
+    <div className="kronos-modal-backdrop" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.82)", zIndex: 2500, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
       onClick={(e) => { if (e.target === e.currentTarget && onClose) onClose(); }}>
-      <div style={{ width: "100%", maxWidth: 520, background: T?.panel ?? "#0A1018", border: `1px solid ${accent}40`, borderRadius: 18, padding: "26px 28px", boxShadow: `0 0 80px ${accent}20` }}>
+      <div className="kronos-modal-card" style={{ width: "100%", maxWidth: 520, maxHeight: "calc(100dvh - 40px)", overflowY: "auto", WebkitOverflowScrolling: "touch", boxSizing: "border-box", background: T?.panel ?? "#0A1018", border: `1px solid ${accent}40`, borderRadius: 18, padding: "26px 28px", boxShadow: `0 0 80px ${accent}20` }}>
         {children}
       </div>
     </div>

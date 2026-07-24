@@ -2386,6 +2386,15 @@ export default function MarketTerminal(){
                  ✕ is actually reachable. */
               .kronos-settings-sheet{width:100vw;max-width:100vw;padding-top:calc(22px + env(safe-area-inset-top, 0px))!important;padding-bottom:calc(22px + env(safe-area-inset-bottom, 0px))!important;}
             }
+            /* Bot-flow modals (entry warning, mode select, broker): on a phone a
+               tall card's action button was landing under the bottom tab bar +
+               home indicator. Pin the card to the top of a scrollable backdrop and
+               reserve bottom room so "I UNDERSTAND"/"CONTINUE" always clears the
+               nav. Desktop keeps the centered dialog. */
+            @media (max-width:767px){
+              .kronos-modal-backdrop{align-items:flex-start!important;padding:14px 12px calc(84px + env(safe-area-inset-bottom, 0px))!important;overflow-y:auto;}
+              .kronos-modal-card{max-height:none!important;margin:auto;}
+            }
             /* Nothing may scroll the page sideways on a phone. Panels scroll
                internally; the shell itself never does. */
             html,body{overscroll-behavior-y:none;}
