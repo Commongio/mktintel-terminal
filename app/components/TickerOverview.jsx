@@ -75,6 +75,17 @@ const fmtVol = (n) => {
   if (n >= 1e3) return (n / 1e3).toFixed(0) + "K";
   return String(n);
 };
+const earnDayLabel = (d) => {
+  if (!d) return "";
+  const dt = new Date(d + "T12:00:00");
+  return dt.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+};
+const daysUntil = (d) => {
+  if (!d) return null;
+  const ms = new Date(d + "T12:00:00") - new Date();
+  return Math.max(0, Math.round(ms / 86400000));
+};
+const whenLabel = { bmo: "PRE-MKT", amc: "AFTER CLOSE", dmh: "MID-DAY", PRE: "PRE-MKT", AFTER: "AFTER CLOSE", MID: "MID-DAY" };
 
 export default function TickerOverview({ symbol, T, accent, messages, input, setInput, send, loading, onBack, onSymbolChange, fontSize = 14 }) {
   const text = T?.text ?? "#E2EDF8";
@@ -86,6 +97,7 @@ export default function TickerOverview({ symbol, T, accent, messages, input, set
   const [tech, setTech] = useState(null);
   const [news, setNews] = useState([]);
   const [signals, setSignals] = useState([]);
+  const [earn, setEarn] = useState(null);   // next upcoming earnings for THIS ticker
   const [tf, setTf] = useState("1d");   // Overview chart timeframe (avoid shadowing global setInterval)
   const [symInput, setSymInput] = useState("");       // search box
   const chatEndRef = useRef(null);
@@ -100,6 +112,13 @@ export default function TickerOverview({ symbol, T, accent, messages, input, set
       try { const r = await fetch(`/api/yf-quotes?symbols=${symbol}`); const d = await r.json(); if (!cancelled) setQuote((d.data || [])[0] || null); } catch {}
       try { const r = await fetch(`/api/technicals?symbol=${symbol}`); const d = await r.json(); if (!cancelled) setTech(d); } catch {}
       try { const r = await fetch(`/api/news?symbol=${symbol}&limit=8`); const d = await r.json(); if (!cancelled) setNews(d.data || []); } catch {}
+      try {
+        const r = await fetch(`/api/earnings?symbol=${symbol}`); const d = await r.json();
+        const today = new Date().toISOString().slice(0, 10);
+        // First row on/after today that isn't already reported = next report.
+        const next = (d.rows || []).find((e) => e.date >= today && !e.reported);
+        if (!cancelled) setEarn(next || null);
+      } catch {}
     })();
     return () => { cancelled = true; };
   }, [symbol]);
@@ -162,6 +181,21 @@ export default function TickerOverview({ symbol, T, accent, messages, input, set
           <button onClick={submitSearch} style={{ flexShrink: 0, fontFamily: FM, fontSize: 10, fontWeight: 800, color: accent, background: `${accent}14`, border: `1px solid ${accent}30`, borderRadius: 5, padding: "3px 10px", cursor: "pointer" }}>GO</button>
         </div>
       </div>
+
+      {/* ── NEXT EARNINGS — catalyst date for this ticker (Finnhub calendar) ── */}
+      {earn && (() => {
+        const dLeft = daysUntil(earn.date);
+        const when = whenLabel[earn.when] || "";
+        return (
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 14, padding: "9px 13px", borderRadius: 10, background: `${accent}0d`, border: `1px solid ${accent}30` }}>
+            <span style={{ fontFamily: FM, fontSize: 8.5, fontWeight: 800, letterSpacing: 1.5, color: accent }}>📅 NEXT EARNINGS</span>
+            <span style={{ fontFamily: FM, fontSize: 12, fontWeight: 800, color: text }}>{earnDayLabel(earn.date)}</span>
+            {when && <span style={{ fontFamily: FM, fontSize: 7.5, fontWeight: 800, letterSpacing: 1, color: accent, background: `${accent}18`, borderRadius: 4, padding: "2px 6px" }}>{when}</span>}
+            {dLeft != null && <span style={{ fontFamily: FM, fontSize: 10, fontWeight: 700, color: dim }}>{dLeft === 0 ? "today" : `in ${dLeft}d`}</span>}
+            {earn.epsEst != null && <span style={{ fontFamily: FM, fontSize: 9, color: dim, marginLeft: "auto" }}>EPS est {Number(earn.epsEst).toFixed(2)}{earn.quarter ? ` · Q${earn.quarter}` : ""}</span>}
+          </div>
+        );
+      })()}
 
       {/* ── CHART — taller, with timeframe switching (same ladder as Chart page) ── */}
       <Section title="CHART" T={T} accent={accent}>

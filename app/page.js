@@ -6,6 +6,7 @@ import { useIsMobile } from "../lib/useIsMobile";
 import PushAlerts from "./components/PushAlerts";
 import MoversPanel from "./components/MoversPanel";
 import CalendarPanel from "./components/CalendarPanel";
+import SectorHeatmap from "./components/SectorHeatmap";
 import TickerOverview from "./components/TickerOverview";
 import MarketStatusBadge from "./components/MarketStatusBadge";
 import PropFirmPanel from "./components/PropFirmPanel";
@@ -1415,6 +1416,7 @@ export function migrateDataLayout(l){
   return l.map((p)=>{const i=DATA_KEY_REMAP[p.i]||p.i;return LIVE_DATA_PANELS.has(i)?{...p,i}:null;}).filter(Boolean);
 }
 function DataPage({news,secData,secLoading,onRefreshAll,onDiveNews,onDiveFiling,onDiveInsider,messages,input,setInput,send,loading,onOpenChat,accent,T,watchlist,gridLayout,onGridChange,editMode,collapsed,onToggleCollapse,onPickTicker}){
+  const[dataView,setDataView]=useState("grid"); // "grid" (intel dashboard) | "heatmap" (sector treemap)
   const moversCard=(
     <MoversPanel T={T} accent={accent} onPick={onPickTicker} fill/>
   );
@@ -1518,20 +1520,39 @@ function DataPage({news,secData,secLoading,onRefreshAll,onDiveNews,onDiveFiling,
           <div style={{fontFamily:FONT_DISPLAY,fontSize:24,fontWeight:700,color:T.text,letterSpacing:0.2}}>Data</div>
           <div style={{fontFamily:FONT_CHAT,fontSize:11.5,color:T.dim,marginTop:2}}>Live market intelligence — news, filings, insider activity</div>
         </div>
-        <button onClick={onRefreshAll}
-          style={{display:"flex",alignItems:"center",gap:6,padding:"7px 13px",borderRadius:8,background:`${accent}10`,border:`1px solid ${accent}28`,color:accent,fontFamily:FONT_MONO,fontSize:10,fontWeight:700,letterSpacing:1,cursor:"pointer"}}>
-          <span style={{animation:secLoading?"spin 0.7s linear infinite":"none"}}>↻</span> REFRESH ALL
-        </button>
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          {/* GRID ⇆ HEATMAP toggle — segmented, single accent, uniform sizing. */}
+          <div style={{display:"flex",borderRadius:8,overflow:"hidden",border:`1px solid ${T.border}`}}>
+            {[["grid","▤ GRID"],["heatmap","▦ HEATMAP"]].map(([id,label])=>(
+              <button key={id} onClick={()=>setDataView(id)}
+                style={{padding:"7px 12px",fontFamily:FONT_MONO,fontSize:10,fontWeight:700,letterSpacing:1,cursor:"pointer",color:dataView===id?accent:T.dim,background:dataView===id?`${accent}12`:"transparent",border:"none"}}>{label}</button>
+            ))}
+          </div>
+          {dataView==="grid"&&(
+            <button onClick={onRefreshAll}
+              style={{display:"flex",alignItems:"center",gap:6,padding:"7px 13px",borderRadius:8,background:`${accent}10`,border:`1px solid ${accent}28`,color:accent,fontFamily:FONT_MONO,fontSize:10,fontWeight:700,letterSpacing:1,cursor:"pointer"}}>
+              <span style={{animation:secLoading?"spin 0.7s linear infinite":"none"}}>↻</span> REFRESH ALL
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* V12: Movers + Calendars as FIXED panels above the grid/flex fork, so they
-          always render regardless of the layout system (the draggable grid only
-          engages when a layout is saved or in edit mode — otherwise the page uses
-          the flex fallback, which is why a grid-only card never showed).
-          Side-by-side on desktop; they wrap to stacked on narrow screens. */}
-      <div style={{padding:"0 22px 12px",flexShrink:0,display:"flex",gap:14,flexWrap:"wrap"}}>
-        <div style={{flex:"1 1 320px",minWidth:0,height:250}}>{moversCard}</div>
-        <div style={{flex:"1 1 320px",minWidth:0,height:250}}><CalendarPanel T={T} accent={accent} onPick={onPickTicker} fill/></div>
+      {dataView==="heatmap"?(
+        <div style={{flex:1,minHeight:0,padding:"0 22px 20px"}}>
+          <div style={{height:"100%",borderRadius:10,overflow:"hidden",border:`1px solid ${T.border}`,background:T.surface}}>
+            <SectorHeatmap T={T}/>
+          </div>
+        </div>
+      ):(<>
+
+      {/* V12: Movers + Calendars are PINNED above the scroll area (flexShrink:0,
+          outside the overflow container below) so Top Movers + Earnings stay
+          in view while news/filings/insiders scroll — the sticky behavior the
+          Watchlist sidebar already has. Same 300px column basis and 14px gutter
+          as the scrollable grid below, so every card edge lines up. */}
+      <div style={{padding:"0 22px 14px",flexShrink:0,display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(300px,1fr))",gap:14}}>
+        <div style={{minWidth:0,height:280}}>{moversCard}</div>
+        <div style={{minWidth:0,height:280}}><CalendarPanel T={T} accent={accent} onPick={onPickTicker} fill/></div>
       </div>
 
       {useGrid?(
@@ -1545,14 +1566,15 @@ function DataPage({news,secData,secLoading,onRefreshAll,onDiveNews,onDiveFiling,
         />
       ):(
         <div style={{flex:1,overflowY:"auto",padding:"0 22px 20px",minHeight:0}}>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:14,marginBottom:18}}>
-            <div style={{maxHeight:360,display:"flex"}}>{newsCard}</div>
-            <div style={{maxHeight:360,display:"flex"}}>{filingsCard}</div>
-            <div style={{maxHeight:360,display:"flex"}}>{insidersCard}</div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(300px,1fr))",gap:14,marginBottom:14}}>
+            <div style={{height:340,display:"flex"}}>{newsCard}</div>
+            <div style={{height:340,display:"flex"}}>{filingsCard}</div>
+            <div style={{height:340,display:"flex"}}>{insidersCard}</div>
           </div>
           <div style={{height:260,display:"flex"}}>{deskCard}</div>
         </div>
       )}
+      </>)}
     </div>
   );
 }
@@ -2342,7 +2364,12 @@ export default function MarketTerminal(){
             /* Settings drawer: fixed rail on desktop, full sheet on a phone. */
             .kronos-settings-sheet{width:310px;height:100vh;height:100dvh;}
             @media (max-width:767px){
-              .kronos-settings-sheet{width:100vw;max-width:100vw;padding-bottom:calc(22px + env(safe-area-inset-bottom, 0px));}
+              /* Full-bleed sheet must clear the notch / Dynamic Island: in a
+                 standalone PWA the web view extends under the status bar, and a
+                 top-pinned close button lands beneath that system overlay, which
+                 silently eats the tap. Pad the top by the safe-area inset so the
+                 ✕ is actually reachable. */
+              .kronos-settings-sheet{width:100vw;max-width:100vw;padding-top:calc(22px + env(safe-area-inset-top, 0px))!important;padding-bottom:calc(22px + env(safe-area-inset-bottom, 0px))!important;}
             }
             /* Nothing may scroll the page sideways on a phone. Panels scroll
                internally; the shell itself never does. */
@@ -2511,7 +2538,7 @@ export default function MarketTerminal(){
             {mobileTab==="chat"&&(
               <div style={{flex:1,display:"flex",flexDirection:"column",minWidth:0,overflow:"hidden"}}>{consoleInner}</div>
             )}
-            {mobileTab==="watchlist"&&(
+            {view==="terminal"&&mobilePanel==="watchlist"&&(
               <div style={{flex:1,display:"flex",flexDirection:"column",minWidth:0,overflow:"hidden",background:TL.panel}}>{watchlistInner}</div>
             )}
             {mobileTab==="news"&&(
@@ -2532,7 +2559,7 @@ export default function MarketTerminal(){
                 gridLayout={migrateDataLayout(layouts?.data)} onGridChange={()=>{}} editMode={false}
                 collapsed={collapsed} onToggleCollapse={toggleCollapse}/>
             )}
-            {mobileTab==="bot"&&<BotDashboard isMobile accent={accent} T={T} botName="KRONOS BOT" isDev={isDev}/>}
+            {view==="bot"&&<BotDashboard isMobile accent={accent} T={T} botName="KRONOS BOT" isDev={isDev}/>}
             {view==="overview"&&overviewSymbol&&(
               <TickerOverview symbol={overviewSymbol} T={T} accent={accent}
                 messages={messages} input={input} setInput={setInput} send={send} loading={loading}

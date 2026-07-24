@@ -17,6 +17,12 @@ const fmtBig = (n) => {
   if (n >= 1e6)  return "$" + (n / 1e6).toFixed(0) + "M";
   return "$" + n;
 };
+const fmtShares = (n) => {
+  if (n == null) return null;
+  if (n >= 1e6) return (n / 1e6).toFixed(1) + "M sh";
+  if (n >= 1e3) return (n / 1e3).toFixed(0) + "K sh";
+  return n + " sh";
+};
 const dayLabel = (d) => {
   if (!d) return "";
   const dt = new Date(d + "T12:00:00");
@@ -32,6 +38,7 @@ export default function CalendarPanel({ T, accent, onPick, fill = false }) {
   const [tab, setTab] = useState("earnings");
   const [earn, setEarn] = useState({ state: "loading", rows: [] });
   const [econ, setEcon] = useState({ state: "loading", rows: [], stale: false });
+  const [ipo, setIpo] = useState({ state: "loading", rows: [] });
 
   const loadEarn = useCallback(async () => {
     setEarn((s) => ({ ...s, state: s.rows.length ? "live" : "loading" }));
@@ -53,9 +60,23 @@ export default function CalendarPanel({ T, accent, onPick, fill = false }) {
     } catch { setEcon((s) => ({ ...s, state: s.rows.length ? "live" : "error" })); }
   }, []);
 
-  useEffect(() => { if (tab === "earnings") loadEarn(); else loadEcon(); }, [tab, loadEarn, loadEcon]);
+  const loadIpo = useCallback(async () => {
+    setIpo((s) => ({ ...s, state: s.rows.length ? "live" : "loading" }));
+    try {
+      const r = await fetch("/api/ipo-calendar?days=45");
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || "unavailable");
+      setIpo({ state: (d.rows || []).length ? "live" : "empty", rows: d.rows || [] });
+    } catch { setIpo((s) => ({ ...s, state: s.rows.length ? "live" : "error" })); }
+  }, []);
 
-  const TABS = [["earnings", "📅 EARNINGS"], ["econ", "🏛 ECONOMIC"]];
+  useEffect(() => {
+    if (tab === "earnings") loadEarn();
+    else if (tab === "econ") loadEcon();
+    else loadIpo();
+  }, [tab, loadEarn, loadEcon, loadIpo]);
+
+  const TABS = [["earnings", "📅 EARNINGS"], ["econ", "🏛 ECONOMIC"], ["ipo", "🚀 IPOs"]];
 
   return (
     <div style={{ background: surface, border: `1px solid ${border}`, borderRadius: 10, overflow: "hidden", display: "flex", flexDirection: "column", ...(fill ? { height: "100%", minHeight: 0 } : {}) }}>
@@ -133,6 +154,40 @@ export default function CalendarPanel({ T, accent, onPick, fill = false }) {
               );
             })}
           </>
+        )}
+
+        {/* ── UPCOMING IPOs — Finnhub IPO calendar ── */}
+        {tab === "ipo" && (
+          ipo.state === "loading" ? <Msg dim={dim}>Loading IPO calendar…</Msg>
+          : ipo.state === "error" ? <Msg color="#ff3d57">⚠ IPO feed unavailable.</Msg>
+          : ipo.state === "empty" ? <Msg dim={dim}>No IPOs scheduled in the window.</Msg>
+          : ipo.rows.map((e, i) => {
+            const priced = e.priced;
+            const statusClr = priced ? "#00e676" : e.status === "withdrawn" ? "#ff3d57" : "#f7c948";
+            const statusLbl = (e.status || "expected").toUpperCase();
+            const meta = [e.exchange, fmtShares(e.shares)].filter(Boolean).join(" · ");
+            return (
+              <div key={e.symbol + e.date + i} onClick={() => onPick?.(e.symbol)}
+                style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 11px", borderBottom: `1px solid ${border}55`, gap: 10, cursor: onPick ? "pointer" : "default", opacity: e.past ? 0.62 : 1 }}
+                onMouseEnter={(ev) => { if (onPick) ev.currentTarget.style.background = "rgba(127,127,127,0.07)"; }}
+                onMouseLeave={(ev) => { ev.currentTarget.style.background = "transparent"; }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                  <TickerLogo symbol={e.symbol} size={20} />
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <span style={{ fontFamily: FM, fontSize: 11.5, fontWeight: 800, color: text }}>{e.symbol}</span>
+                      <span style={{ fontFamily: FM, fontSize: 7, fontWeight: 800, color: statusClr, background: `${statusClr}14`, borderRadius: 3, padding: "1px 4px" }}>{statusLbl}</span>
+                    </div>
+                    <div style={{ fontFamily: FC, fontSize: 9, color: dim, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 150 }}>{e.name}</div>
+                  </div>
+                </div>
+                <div style={{ textAlign: "right", flexShrink: 0 }}>
+                  <div style={{ fontFamily: FM, fontSize: 9, fontWeight: 700, color: text }}>{dayLabel(e.date)}</div>
+                  <div style={{ fontFamily: FM, fontSize: 8, color: dim }}>{e.priceRange ? `$${e.priceRange}` : (meta || "—")}</div>
+                </div>
+              </div>
+            );
+          })
         )}
       </div>
     </div>
