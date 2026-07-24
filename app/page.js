@@ -24,6 +24,7 @@ import KronosMentor from "./components/KronosMentor";
 import { CollapsedRail } from "./components/CollapseRail";
 import V13Popup from "./components/V13Popup";
 import { COMPANY_NAMES } from "../lib/companyNames";
+import Icon from "./components/Icons";
 import { vixFilter } from "../lib/vixColor";
 import { getSupabase, supabaseConfigured, getAccessToken } from "../lib/supabase";
 
@@ -121,21 +122,31 @@ const AI_DRAW_COLORS={teal:"#00d4aa",blue:"#7eb8f7",purple:"#a78bfa",green:"#00e
 // piece of the terminal view a phone is showing. That's why the tab id is
 // derived from (view, mobilePanel) rather than being separate state that could
 // silently drift out of sync with `view`.
+// V13.8: bottom bar trimmed from 7 tabs to 5 primary destinations (mobile
+// guideline is ~5 max). Desk / Chart / News / Data are the primaries; the
+// secondary destinations (Kronos bot, Watchlist, per-ticker Overview) moved into
+// a "More" sheet so the bar isn't a cramped 7-up row.
 const MOBILE_TABS=[
-  {id:"chat",     icon:"◈",  label:"Desk"},
-  {id:"chart",    icon:"📈", label:"Chart"},
-  {id:"overview", icon:"🔎", label:"Overview"},
-  {id:"bot",      icon:"🤖", label:"Kronos"},
-  {id:"watchlist",icon:"★",  label:"List"},
-  {id:"news",     icon:"📰", label:"News"},
-  {id:"data",     icon:"⚡", label:"Data"},
+  {id:"chat",  icon:"desk",  label:"Desk"},
+  {id:"chart", icon:"chart", label:"Chart"},
+  {id:"news",  icon:"news",  label:"News"},
+  {id:"data",  icon:"data",  label:"Data"},
+  {id:"more",  icon:"more",  label:"More"},
+];
+// Secondary destinations, reached through the More sheet.
+const MORE_ITEMS=[
+  {id:"bot",       icon:"bot",      label:"Kronos Bot", sub:"Signal engine & orb"},
+  {id:"watchlist", icon:"star",     label:"Watchlist",  sub:"Your tracked tickers"},
+  {id:"overview",  icon:"overview", label:"Overview",   sub:"Per-ticker deep dive"},
 ];
 function mobileTabFor(view,mobilePanel){
   if(view==="chart")return "chart";
-  if(view==="bot")return "bot";
   if(view==="data")return "data";
-  if(view==="overview")return "overview"; // per-ticker drill-down (no tab highlighted)
-  return mobilePanel||"chat"; // terminal view splits into chat/watchlist/news
+  // Secondary destinations light up the More tab.
+  if(view==="bot"||view==="overview")return "more";
+  if(mobilePanel==="news")return "news";
+  if(mobilePanel==="watchlist")return "more";
+  return "chat"; // terminal + chat panel = Desk
 }
 function MobileTabBar({active,onSelect,accent,T,alertCount=0}){
   return(
@@ -151,12 +162,13 @@ function MobileTabBar({active,onSelect,accent,T,alertCount=0}){
           <button key={t.id} onClick={()=>onSelect(t.id)} aria-label={t.label} aria-current={on?"page":undefined}
             style={{
               flex:1,minWidth:0,minHeight:52,   // ≥44px — an actual thumb target
-              display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:3,
+              display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:4,
               background:on?`${accent}0e`:"transparent",
               border:"none",borderTop:`2px solid ${on?accent:"transparent"}`,
               cursor:"pointer",padding:"6px 2px",position:"relative",
             }}>
-            <span style={{fontSize:15,lineHeight:1,opacity:on?1:0.55,filter:on?"none":"grayscale(1)"}}>{t.icon}</span>
+            {/* V13.8: uniform line icons (inherit color) instead of mixed emoji. */}
+            <Icon name={t.icon} size={20} color={on?accent:T.dim} />
             <span style={{fontFamily:FONT_MONO,fontSize:7.5,letterSpacing:0.4,fontWeight:700,color:on?accent:T.dim,whiteSpace:"nowrap"}}>{t.label}</span>
             {/* Breaking-news dot must reach you from any tab — same rule as desktop. */}
             {t.id==="data"&&alertCount>0&&(
@@ -169,32 +181,60 @@ function MobileTabBar({active,onSelect,accent,T,alertCount=0}){
   );
 }
 
+// V13.8: bottom sheet for the secondary destinations pulled out of the tab bar.
+function MoreSheet({ onClose, onPick, accent, T }){
+  return(
+    <div style={{position:"fixed",inset:0,zIndex:60,background:"rgba(0,0,0,0.55)",display:"flex",flexDirection:"column",justifyContent:"flex-end"}}
+      onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
+      <div style={{background:T.panel,borderTop:`1px solid ${T.border}`,borderTopLeftRadius:18,borderTopRightRadius:18,padding:"14px 14px calc(14px + env(safe-area-inset-bottom,0px))"}}>
+        <div style={{width:36,height:4,borderRadius:2,background:T.border,margin:"0 auto 12px"}}/>
+        <div style={{fontFamily:FONT_MONO,fontSize:8,letterSpacing:2,fontWeight:700,color:T.dim,margin:"0 6px 8px"}}>MORE</div>
+        <div style={{display:"flex",flexDirection:"column",gap:6}}>
+          {MORE_ITEMS.map(m=>(
+            <button key={m.id} onClick={()=>{onPick(m.id);onClose();}}
+              style={{display:"flex",alignItems:"center",gap:12,padding:"12px 12px",borderRadius:12,background:T.surface,border:`1px solid ${T.border}`,cursor:"pointer",textAlign:"left"}}>
+              <Icon name={m.icon} size={20} color={accent}/>
+              <span style={{display:"flex",flexDirection:"column",gap:2}}>
+                <span style={{fontFamily:FONT_MONO,fontSize:11,fontWeight:700,letterSpacing:0.5,color:T.text}}>{m.label}</span>
+                <span style={{fontFamily:FONT_CHAT,fontSize:10,color:T.dim}}>{m.sub}</span>
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// V13.8: quick-action groups now carry a line-ICON name instead of an emoji +
+// a per-group hue. Every group defers to the single brand accent (no more
+// gold/purple/teal/blue/orange competing) — the icon differentiates them, not color.
 const QA_GROUPS=[
-  {label:"📰 NEWS",color:"#f7c948",actions:[
+  {label:"NEWS",icon:"news",actions:[
     {label:"Breaking market news now",prompt:"Give me the most important breaking market news RIGHT NOW using live context. For each catalyst: direction, exact options play with strike/expiry, IV rank, entry/target/stop. Grade every setup A/B/C."},
     {label:"Trump / Truth Social now",prompt:"Search Trump's latest Truth Social posts and statements RIGHT NOW. Sectors impacted? For each: tickers, exact options play, IV rank, entry/target/stop."},
     {label:"Fed & macro today",prompt:"Latest Fed news, CPI, jobs, rate decisions. What matters most right now? IV rank on every setup."},
     {label:"Earnings today",prompt:"Companies reporting today or after-hours? Beats or misses? Best remaining options plays. IV rank for each."},
   ]},
-  {label:"💎 DISCOVERY",color:"#a78bfa",actions:[
+  {label:"DISCOVERY",icon:"discovery",actions:[
     {label:"Undervalued stocks now",prompt:"Undervalued stocks with catalysts Wall Street hasn't priced in. Large AND small/micro caps. Options play, IV rank."},
     {label:"Hidden gems",prompt:"Hidden gems with explosive upside: low float squeeze, micro-caps, biotech near FDA, DoD contracts. Wide scan."},
     {label:"Short squeeze plays",prompt:"Top short squeeze candidates now. High short float + catalyst. Short %, days to cover, exact options strikes, IV rank."},
     {label:"Small cap movers",prompt:"Small and micro caps with unusual activity. 5-8 names with specific setups and IV rank."},
   ]},
-  {label:"🐋 WHALE",color:"#00d4aa",actions:[
+  {label:"WHALE",icon:"whale",actions:[
     {label:"Whale buys now",prompt:"Full whale and dark pool activity today. Block trades above $500K, institutional buys, unusual sweeps."},
     {label:"Unusual options flow",prompt:"Unusual options flow now. Biggest sweeps, dark pool prints, 0DTE spikes. Exact setups with strikes and IV rank."},
     {label:"Insider buys this week",prompt:"Insider buying via SEC Form 4 this week. Size, significance, options plays with IV rank."},
     {label:"Dark pool prints",prompt:"Biggest dark pool prints today. Bullish vs bearish? Small/mid caps that haven't reacted yet."},
   ]},
-  {label:"📊 ANALYSIS",color:"#7eb8f7",actions:[
+  {label:"ANALYSIS",icon:"analysis",actions:[
     {label:"Full market scan",prompt:"Complete market scan. Top CALLs, Top PUTs, hidden gems, whale summary, sector rotation, macro risks. IV rank."},
     {label:"Best options this week",prompt:"Best options plays for this week. Conviction ranked. Catalyst, exact strike/expiry, entry, target, stop, IV rank."},
     {label:"Sector rotation",prompt:"Which sectors seeing rotation today? Money flowing IN and OUT. Specific ETFs, tickers, options plays both directions."},
     {label:"Best LEAPS now",prompt:"Best LEAPS for 3-12 month holds. Specific strikes, expiry, entry zone, thesis for each."},
   ]},
-  {label:"⚡ INTEL",color:"#ff6b35",actions:[
+  {label:"INTEL",icon:"bolt",actions:[
     {label:"Pre-market movers",prompt:"What's moving pre-market right now? Gainers/losers with catalyst from live context. Options plays with IV rank."},
     {label:"Crypto vs stocks",prompt:"Crypto moving today affecting stocks? BTC, ETH, MSTR, COIN, RIOT, MARA, CLSK. Options opportunities? IV rank."},
     {label:"FDA/biotech catalysts",prompt:"Biotech or pharma FDA catalysts this week. PDUFA dates, trial readouts. Options, IV rank, risk/reward."},
@@ -262,27 +302,58 @@ function TypingIndicator({accent}){
   );
 }
 
+// V13.8: render an assistant reply with visual hierarchy. The engine/AI output is
+// labeled lines — section markers ("▸ CATALYST"), ALL-CAPS headers ("IV RANK",
+// "VERDICT"), and "Label:" sub-heads. We detect those per line and give them
+// weight + color so the reply is scannable instead of a dense block. Pure
+// presentation — the text itself is unchanged.
+function classifyLine(t){
+  const s=t.trim();
+  if(!s) return "blank";
+  if(/^[▸►]/.test(s)) return "marker";
+  const letters=s.replace(/[^A-Za-z]/g,"");
+  if(letters.length>=2 && s.length<=48){
+    const upper=s.replace(/[^A-Z]/g,"").length;
+    if(upper/letters.length>0.75) return "caps";
+  }
+  if(/^[A-Za-z][A-Za-z0-9 /()%.+-]{0,38}:$/.test(s)) return "colon";
+  return "body";
+}
+function RichMessage({content,fontSize,accent,T}){
+  const lines=(content||"").replace(/\n{3,}/g,"\n\n").split("\n");
+  return(
+    <div style={{fontFamily:FONT_CHAT,fontSize,color:T.textDim,lineHeight:1.62,WebkitFontSmoothing:"antialiased"}}>
+      {lines.map((line,i)=>{
+        const k=classifyLine(line);
+        if(k==="blank") return <div key={i} style={{height:7}}/>;
+        if(k==="marker") return <div key={i} style={{fontFamily:FONT_MONO,fontSize:fontSize-2,fontWeight:700,letterSpacing:0.4,color:accent,marginTop:i?7:0,marginBottom:1}}>{line.replace(/^[▸►]\s*/,"")}</div>;
+        if(k==="caps") return <div key={i} style={{fontWeight:800,letterSpacing:0.5,color:T.text,marginTop:i?8:0,marginBottom:1}}>{line}</div>;
+        if(k==="colon") return <div key={i} style={{fontWeight:700,color:T.text,marginTop:i?6:0}}>{line}</div>;
+        return <div key={i} style={{whiteSpace:"pre-wrap"}}>{line}</div>;
+      })}
+    </div>
+  );
+}
+
 const ChatMessage=memo(function ChatMessage({msg,accent,T,fontSize,onButton}){
   const u=msg.role==="user";
   return(
     <div style={{display:"flex",flexDirection:"column",alignItems:u?"flex-end":"flex-start",marginBottom:5}}>
       <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:3}}>
-        {!u&&<span style={{color:msg.isAlertDive?"#a78bfa":accent,fontSize:9,fontFamily:FONT_MONO,letterSpacing:2,fontWeight:700}}>{msg.isAlertDive?"◆ INTEL":"◈ DESK"}</span>}
+        {!u&&<span style={{color:accent,fontSize:9,fontFamily:FONT_MONO,letterSpacing:2,fontWeight:700}}>{msg.isAlertDive?"◆ INTEL":"◈ DESK"}</span>}
         {u&&<span style={{color:T.dim,fontSize:9,fontFamily:FONT_MONO,letterSpacing:2,fontWeight:700}}>YOU ◈</span>}
       </div>
-      <div style={{maxWidth:"91%",background:u?`${accent}10`:msg.isAlertDive?"rgba(167,139,250,0.08)":"rgba(127,127,127,0.06)",border:u?`1px solid ${accent}28`:msg.isAlertDive?"1px solid rgba(167,139,250,0.22)":`1px solid ${T.border}`,borderRadius:u?"12px 12px 3px 12px":"3px 12px 12px 12px",padding:"10px 14px"}}>
-        <p style={{
-  color:u?T.text:T.textDim,
-  fontSize:fontSize||14,
-  lineHeight:1.5,
-  margin:0,
-  fontFamily:FONT_CHAT,
-  whiteSpace:"pre-wrap",
-  textRendering:"geometricPrecision",
-  WebkitFontSmoothing:"antialiased",
-}}>
-  {(msg.content||"").replace(/\n{3,}/g,"\n\n")}
-</p>
+      <div style={{maxWidth:"91%",background:u?`${accent}10`:"rgba(127,127,127,0.06)",border:u?`1px solid ${accent}28`:`1px solid ${T.border}`,borderRadius:u?"12px 12px 3px 12px":"3px 12px 12px 12px",padding:"11px 15px"}}>
+        {u?(
+          <p style={{color:T.text,fontSize:fontSize||14,lineHeight:1.6,margin:0,fontFamily:FONT_CHAT,whiteSpace:"pre-wrap",WebkitFontSmoothing:"antialiased"}}>
+            {(msg.content||"").replace(/\n{3,}/g,"\n\n")}
+          </p>
+        ):(
+          // V13.8: line-based hierarchy — section markers (▸) and ALL-CAPS/colon
+          // headers (CATALYST, IV RANK, VERDICT…) get weight + the accent/soft
+          // color so the reply scans as structure instead of a wall of text.
+          <RichMessage content={msg.content} fontSize={fontSize||14} accent={accent} T={T} />
+        )}
       </div>
       {/* V12: inline action buttons the desk attaches to a reply — auto-setup re-show
           (kind:action → runs a chart tool) or a choice like short/long (kind:prompt
@@ -304,24 +375,36 @@ const ChatMessage=memo(function ChatMessage({msg,accent,T,fontSize,onButton}){
 function QuickActions({onAction,accent,T}){
   const[open,setOpen]=useState(null);
   return(
-    <div style={{padding:"7px 16px 9px",borderTop:`1px solid ${T.border}`,background:T.panel}}>
-      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
+    <div style={{padding:"8px 18px 10px",borderTop:`1px solid ${T.border}`,background:T.panel}}>
+      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
         <span style={{fontFamily:FONT_MONO,fontSize:9,color:T.dim,letterSpacing:2,fontWeight:700}}>QUICK ACTIONS</span>
         <div style={{flex:1,height:1,background:T.border}}/>
       </div>
-      <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:open!==null?7:0}}>
-        {QA_GROUPS.map((g,gi)=>(
-          <button key={gi} onClick={()=>setOpen(open===gi?null:gi)}
-            style={{fontFamily:FONT_MONO,fontSize:10,fontWeight:700,color:open===gi?g.color:T.dim,background:open===gi?`${g.color}14`:"transparent",border:`1px solid ${open===gi?`${g.color}38`:T.border}`,padding:"4px 11px",borderRadius:5,letterSpacing:0.5,cursor:"pointer"}}>
-            {g.label}
-          </button>
-        ))}
+      {/* V13.8: uniform grid of identical chips — same shape, same ~10% fill,
+          same spacing; the active one uses the single accent. Icons differentiate
+          the groups, not five different colors. */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:6,marginBottom:open!==null?8:0}}>
+        {QA_GROUPS.map((g,gi)=>{
+          const on=open===gi;
+          return(
+            <button key={gi} onClick={()=>setOpen(on?null:gi)}
+              style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:4,
+                fontFamily:FONT_MONO,fontSize:7.5,fontWeight:700,letterSpacing:0.5,
+                color:on?accent:T.dim,
+                background:on?`${accent}18`:"rgba(255,255,255,0.05)",
+                border:`1px solid ${on?`${accent}45`:"rgba(255,255,255,0.08)"}`,
+                padding:"8px 4px",borderRadius:9,cursor:"pointer",minHeight:48}}>
+              <Icon name={g.icon} size={16} color={on?accent:T.dim}/>
+              {g.label}
+            </button>
+          );
+        })}
       </div>
       {open!==null&&(
-        <div style={{display:"flex",gap:5,flexWrap:"wrap",borderTop:`1px solid ${T.border}`,paddingTop:7}}>
+        <div style={{display:"flex",gap:6,flexWrap:"wrap",borderTop:`1px solid ${T.border}`,paddingTop:8}}>
           {QA_GROUPS[open].actions.map((a,ai)=>(
             <button key={ai} onClick={()=>{onAction(a.prompt,a.label);setOpen(null);}}
-              style={{fontFamily:FONT_MONO,fontSize:10,color:QA_GROUPS[open].color,background:`${QA_GROUPS[open].color}0f`,border:`1px solid ${QA_GROUPS[open].color}2a`,padding:"5px 12px",borderRadius:18,letterSpacing:0.3,cursor:"pointer"}}>
+              style={{fontFamily:FONT_MONO,fontSize:10,color:accent,background:`${accent}0f`,border:`1px solid ${accent}2a`,padding:"6px 12px",borderRadius:8,letterSpacing:0.3,cursor:"pointer"}}>
               {a.label}
             </button>
           ))}
@@ -1540,6 +1623,7 @@ export default function MarketTerminal(){
   // first paint always agree.
   const isMobile=useIsMobile();
   const[mobilePanel,setMobilePanel]=useState("chat");
+  const[showMore,setShowMore]=useState(false); // V13.8 mobile "More" sheet
   const mobileTab=mobileTabFor(view,mobilePanel);
 
   // V10.6: AI-drawn chart annotations. Keyed by symbol so drawings for NVDA don't
@@ -2409,12 +2493,12 @@ export default function MarketTerminal(){
                 color:interactionMode==="command"?T.text:accent,
                 background:interactionMode==="command"?T.surface:`${accent}0e`,
                 border:`1px solid ${interactionMode==="command"?T.border:`${accent}30`}`,cursor:"pointer"}}>
-              {interactionMode==="command"?"⌘":"💬"}
+              {interactionMode==="command"?<span style={{fontFamily:FONT_MONO,fontWeight:700}}>⌘</span>:<Icon name="message" size={16}/>}
             </button>
             <MarketStatusBadge accent={accent} T={T}/>
             {/* V10.2: Kronos Mentor (coming soon) */}
-            <button onClick={()=>setShowMentor(true)} title="Kronos Mentor" style={{width:32,height:32,borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,color:accent,background:`${accent}0e`,border:`1px solid ${accent}30`,cursor:"pointer"}}>🤖</button>
-            <button onClick={()=>setShowSettings(true)} style={{width:32,height:32,borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,color:T.dim,background:T.surface,border:`1px solid ${T.border}`,cursor:"pointer"}}>⚙</button>
+            <button onClick={()=>setShowMentor(true)} title="Kronos Mentor" style={{width:32,height:32,borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",color:accent,background:`${accent}0e`,border:`1px solid ${accent}30`,cursor:"pointer"}}><Icon name="bot" size={16}/></button>
+            <button onClick={()=>setShowSettings(true)} aria-label="Settings" style={{width:32,height:32,borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",color:T.dim,background:T.surface,border:`1px solid ${T.border}`,cursor:"pointer"}}><Icon name="gear" size={16}/></button>
           </div>
         </div>
 
@@ -2534,19 +2618,27 @@ export default function MarketTerminal(){
         )}
 
         {/* Bottom tab bar — mobile only, always last so it pins to the bottom. */}
-        {isMobile&&(
+        {isMobile&&(<>
           <MobileTabBar active={mobileTab} accent={accent} T={T} alertCount={newsAlerts.length}
             onSelect={(id)=>{
               // Map a tab back onto (view, mobilePanel). Keeping `view` authoritative
               // means AI actions, the tour, and deep links all still drive the phone
               // layout for free.
+              if(id==="more"){setShowMore(true);return;}
               if(id==="chart"){setView("chart");}
-              else if(id==="bot"){setView("bot");}
               else if(id==="data"){setView("data");}
-              else if(id==="overview"){if(!overviewSymbol)setOverviewSymbol(chartSymbol||"AAPL");setView("overview");}
-              else{setView("terminal");setMobilePanel(id);}
+              else if(id==="news"){setView("terminal");setMobilePanel("news");}
+              else{setView("terminal");setMobilePanel("chat");} // Desk
             }}/>
-        )}
+          {showMore&&(
+            <MoreSheet accent={accent} T={T} onClose={()=>setShowMore(false)}
+              onPick={(id)=>{
+                if(id==="bot"){setView("bot");}
+                else if(id==="overview"){if(!overviewSymbol)setOverviewSymbol(chartSymbol||"AAPL");setView("overview");}
+                else if(id==="watchlist"){setView("terminal");setMobilePanel("watchlist");}
+              }}/>
+          )}
+        </>)}
       </div>
     </>      )}
     </>  );

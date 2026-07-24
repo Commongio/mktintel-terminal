@@ -393,4 +393,20 @@ New libs: `lib/chop.js` (choppiness index + market regime). New routes: `/api/ma
    by the V13.5 TEST button / `GET /api/push/test` — needs Gio's device.)
 
 **Migrations now (in order): 006, 007, 008, 009.** 009 adds `push_subscriptions.notify_level`.
+
+---
+
+## 14. V13.7 (BUILT + DEPLOYED 2026-07-23) — icon + login, from Gio's reference images
+
+- **App icon** = the TK-monogram KRONOS logo everywhere (replaces the orb). Cropped from Gio's
+  actual asset with **sharp** (no recreation). New `app/icon.png` (favicon) + `app/apple-icon.png`
+  (iOS home-screen touch icon — what "Add to Home Screen" uses); regenerated `public/icons/*`
+  (192/512/apple-touch/maskable); deleted old `app/favicon.ico`; removed the manual `icons` map in
+  `layout.js`. To swap a new logo later: re-run the sharp crop against a source image → same output
+  paths. Verified live (`/apple-icon.png` = the monogram).
+- **Login** restyled to match the reference: teal-navy→purple gradient, starfield, faint outlined
+  Greek ΚΡΟΝΟΣ watermark, ringed-planet-with-constellation mark, frosted card, blue segmented tabs
+  (active underline), person/lock field icons (new `icon` prop on `Field`), steel-blue button,
+  `# UNAUTHORIZED…` footer, corner sparkle. Login uses BLUE accents (own surface); app stays teal.
+  Verified live via production screenshot. No migration; no new deps (sharp was already present).
 ```

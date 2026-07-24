@@ -3,68 +3,16 @@
 // When Supabase is configured: real sign-in / sign-up (signup burns a one-time
 // registration code). When it isn't: falls back to the legacy AccessGate so the
 // terminal keeps working as a single-user local app.
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import AccessGate from "./AccessGate";
 import { getSupabase, supabaseConfigured } from "../../lib/supabase";
 
 const FM = "'JetBrains Mono',monospace";
 const FD = "'Fraunces',serif";
 
-// V13.5: starry-galaxy login backdrop. Canvas (not the stars.mp4 video) so it's
-// fully self-contained, DPR-crisp, and degrades to a static starfield under
-// reduced-motion instead of a frozen video frame. A faint teal nebula bloom +
-// twinkling stars + a slow drift — premium, not "vibe-coded".
-function GalaxyBackdrop() {
-  const ref = useRef(null);
-  useEffect(() => {
-    const canvas = ref.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    let raf, w, h, dpr, stars;
-    const seed = () => {
-      dpr = Math.min(window.devicePixelRatio || 1, 2);
-      w = canvas.clientWidth; h = canvas.clientHeight;
-      canvas.width = w * dpr; canvas.height = h * dpr;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      const n = Math.min(220, Math.round((w * h) / 6000));
-      stars = Array.from({ length: n }, () => ({
-        x: Math.random() * w, y: Math.random() * h,
-        r: Math.random() * 1.3 + 0.2,
-        base: Math.random() * 0.5 + 0.25,
-        tw: Math.random() * Math.PI * 2,
-        tws: Math.random() * 0.03 + 0.008,
-        warm: Math.random() < 0.15,
-      }));
-    };
-    const paint = (t) => {
-      ctx.clearRect(0, 0, w, h);
-      // Two soft nebula blooms for depth.
-      const bloom = (cx, cy, rad, col) => {
-        const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, rad);
-        g.addColorStop(0, col); g.addColorStop(1, "rgba(0,0,0,0)");
-        ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
-      };
-      bloom(w * 0.72, h * 0.30, Math.max(w, h) * 0.5, "rgba(0,150,130,0.10)");
-      bloom(w * 0.22, h * 0.78, Math.max(w, h) * 0.45, "rgba(80,60,160,0.09)");
-      for (const s of stars) {
-        s.tw += s.tws;
-        const a = s.base + Math.sin(s.tw) * 0.25;
-        ctx.beginPath();
-        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
-        ctx.fillStyle = s.warm ? `rgba(255,225,190,${a})` : `rgba(200,225,255,${a})`;
-        ctx.fill();
-        if (!reduce) { s.y += 0.015 + s.r * 0.01; if (s.y > h + 2) s.y = -2; }
-      }
-      if (!reduce) raf = requestAnimationFrame(paint);
-    };
-    seed(); paint(0);
-    const onResize = () => { seed(); if (reduce) paint(0); };
-    window.addEventListener("resize", onResize);
-    return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", onResize); };
-  }, []);
-  return <canvas ref={ref} aria-hidden="true" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", display: "block" }} />;
-}
+// V13.7b: the canvas GalaxyBackdrop was replaced by Gio's real astrophotography
+// starfield photo (public/login-stars.jpg) as a full-bleed background — see the
+// SupabaseGate render. The old canvas generator was removed with it.
 
 // KRONOS in Greek — the titan the terminal is named for. Used as a faint,
 // oversized watermark behind the card and as a small mark under the wordmark.
@@ -167,7 +115,7 @@ function SupabaseGate({ onAccess }) {
     // V13.7: matches the reference — teal-navy (top) → purple (bottom) gradient,
     // starfield, giant faint outlined ΚΡΟΝΟΣ watermark bleeding off both edges,
     // ringed-planet-with-constellation mark, frosted card, steel-blue controls.
-    <div style={{ position: "fixed", inset: 0, background: "linear-gradient(168deg, #0d2c3c 0%, #12253b 40%, #1b1840 72%, #2a1748 100%)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: FM, zIndex: 9999, overflow: "hidden" }}>
+    <div style={{ position: "fixed", inset: 0, background: "#000", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: FM, zIndex: 9999, overflow: "hidden" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@700;800&family=JetBrains+Mono:wght@400;600;700;800&display=swap');
         @keyframes ag-appear { from{opacity:0;transform:translateY(12px);} to{opacity:1;transform:translateY(0);} }
@@ -175,7 +123,19 @@ function SupabaseGate({ onAccess }) {
         @keyframes ag-spin { from{transform:rotate(0deg);} to{transform:rotate(360deg);} }
       `}</style>
 
-      <GalaxyBackdrop />
+      {/* V13.7b: real astrophotography starfield (Gio's photo) as the full-bleed
+          background, replacing the canvas starfield. Solid black + raw stars, no
+          nebula/gradient tint — per the reference. */}
+      <div aria-hidden="true" style={{
+        position: "absolute", inset: 0, pointerEvents: "none",
+        backgroundImage: "url(/login-stars.jpg)", backgroundSize: "cover", backgroundPosition: "center",
+      }} />
+      {/* Neutral readability vignette — darkens behind the card/text so the frosted
+          panel reads, without tinting the starfield's color. */}
+      <div aria-hidden="true" style={{
+        position: "absolute", inset: 0, pointerEvents: "none",
+        background: "radial-gradient(ellipse at center, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.12) 45%, rgba(0,0,0,0) 72%)",
+      }} />
 
       {/* Giant faint OUTLINED Greek ΚΡΟΝΟΣ watermark, bleeding off both edges,
           behind the card. Transparent fill + faint stroke = the outlined look. */}
@@ -253,11 +213,6 @@ function SupabaseGate({ onAccess }) {
           # UNAUTHORIZED ACCESS IS MONITORED AND PROHIBITED
         </div>
       </div>
-
-      {/* Four-point sparkle accent, bottom-right. */}
-      <svg width="30" height="30" viewBox="0 0 24 24" aria-hidden="true" style={{ position: "absolute", right: 30, bottom: 34, pointerEvents: "none" }}>
-        <path d="M12 1 L14 10 L23 12 L14 14 L12 23 L10 14 L1 12 L10 10 Z" fill="#8aa0bd" opacity="0.75" />
-      </svg>
     </div>
   );
 }
