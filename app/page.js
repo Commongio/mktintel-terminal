@@ -1415,7 +1415,7 @@ export function migrateDataLayout(l){
   if(!Array.isArray(l)) return l;   // undefined → flex fallback (no forced grid)
   return l.map((p)=>{const i=DATA_KEY_REMAP[p.i]||p.i;return LIVE_DATA_PANELS.has(i)?{...p,i}:null;}).filter(Boolean);
 }
-function DataPage({news,secData,secLoading,onRefreshAll,onDiveNews,onDiveFiling,onDiveInsider,messages,input,setInput,send,loading,onOpenChat,accent,T,watchlist,gridLayout,onGridChange,editMode,collapsed,onToggleCollapse,onPickTicker}){
+function DataPage({news,secData,secLoading,onRefreshAll,onDiveNews,onDiveFiling,onDiveInsider,messages,input,setInput,send,loading,onOpenChat,accent,T,watchlist,gridLayout,onGridChange,editMode,collapsed,onToggleCollapse,onPickTicker,isMobile=false}){
   const[dataView,setDataView]=useState("grid"); // "grid" (intel dashboard) | "heatmap" (sector treemap)
   const moversCard=(
     <MoversPanel T={T} accent={accent} onPick={onPickTicker} fill/>
@@ -1538,10 +1538,24 @@ function DataPage({news,secData,secLoading,onRefreshAll,onDiveNews,onDiveFiling,
       </div>
 
       {dataView==="heatmap"?(
-        <div style={{flex:1,minHeight:0,padding:"0 22px 20px"}}>
-          <div style={{height:"100%",borderRadius:10,overflow:"hidden",border:`1px solid ${T.border}`,background:T.surface}}>
+        <div style={{flex:1,minHeight:0,padding:isMobile?"0 12px 16px":"0 22px 20px"}}>
+          <div style={{height:"100%",minHeight:isMobile?420:0,borderRadius:10,overflow:"hidden",border:`1px solid ${T.border}`,background:T.surface}}>
             <SectorHeatmap T={T}/>
           </div>
+        </div>
+      ):isMobile?(
+        /* ── MOBILE: ONE scrolling column. Pinning Movers/Earnings is a desktop
+           affordance (like the Watchlist sidebar); on a phone that just eats the
+           whole viewport and leaves nothing to scroll. Here every panel stacks
+           at a fixed height inside a single overflow container, so the page
+           scrolls as one continuous surface. */
+        <div style={{flex:1,overflowY:"auto",WebkitOverflowScrolling:"touch",padding:"0 12px 24px",minHeight:0,display:"flex",flexDirection:"column",gap:12}}>
+          <div style={{height:300,flexShrink:0}}>{moversCard}</div>
+          <div style={{height:300,flexShrink:0}}><CalendarPanel T={T} accent={accent} onPick={onPickTicker} fill/></div>
+          <div style={{height:340,flexShrink:0}}>{newsCard}</div>
+          <div style={{height:340,flexShrink:0}}>{filingsCard}</div>
+          <div style={{height:340,flexShrink:0}}>{insidersCard}</div>
+          <div style={{height:300,flexShrink:0}}>{deskCard}</div>
         </div>
       ):(<>
 
@@ -1549,7 +1563,8 @@ function DataPage({news,secData,secLoading,onRefreshAll,onDiveNews,onDiveFiling,
           outside the overflow container below) so Top Movers + Earnings stay
           in view while news/filings/insiders scroll — the sticky behavior the
           Watchlist sidebar already has. Same 300px column basis and 14px gutter
-          as the scrollable grid below, so every card edge lines up. */}
+          as the scrollable grid below, so every card edge lines up. DESKTOP ONLY
+          — the mobile branch above scrolls everything as one column. */}
       <div style={{padding:"0 22px 14px",flexShrink:0,display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(300px,1fr))",gap:14}}>
         <div style={{minWidth:0,height:280}}>{moversCard}</div>
         <div style={{minWidth:0,height:280}}><CalendarPanel T={T} accent={accent} onPick={onPickTicker} fill/></div>
