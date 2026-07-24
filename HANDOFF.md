@@ -396,6 +396,36 @@ New libs: `lib/chop.js` (choppiness index + market regime). New routes: `/api/ma
 
 ---
 
+## ⏭ NEXT SESSION — PENDING DATA-PAGE BATCH (not started; Gio-approved to build + commit)
+
+The V13.8 UI pass, login redesign, and starfield background are committed. The NEXT unstarted work
+is a 6-item Data-page batch (`DataPage` in `app/page.js:~1417`; panels: `MoversPanel.jsx`,
+`CalendarPanel.jsx`; SEC/insider render inline in DataPage). Gio's spec verbatim:
+
+1. **Data page layout/spacing** — the default grid is uneven (inconsistent column widths, misaligned
+   card edges, uneven gutters between Top Movers / Top Losers / Most Active / Earnings / Economic /
+   Breaking News / SEC Filings / Insider Trades / Ask the Desk). Rework to a consistent grid:
+   even gutters, consistent card widths per column, consistent vertical rhythm.
+2. **Overview page** — show the upcoming **earnings date** on an individual ticker's Overview view
+   (`TickerOverview.jsx`), not just in the aggregate Data earnings list. (`/api/earnings` exists.)
+3. **Sticky panels** — Top Movers + Earnings panels should `position: sticky` while the long content
+   below (breaking news, SEC filings, insider trades) scrolls — like the left Watchlist sidebar
+   already does.
+4. **New tab: Upcoming IPOs** — a Data tab listing upcoming IPOs + expected dates. (Needs a data
+   source — no IPO endpoint yet; Finnhub has `/calendar/ipo`, or Nasdaq. Add `/api/ipos`.)
+5. **New feature: Heatmap view** — a button opening a treemap sector heatmap (tiles sized by market
+   cap, colored green/red by %change, grouped by sector: Electronic Technology, Technology Services,
+   Finance, Retail Trade, Health Technology, etc.). Toolbar: index selector (S&P 500 / Nasdaq 100),
+   and grouping dropdowns (Market Cap / Change 1D% / Sector). No treemap lib yet — either add one or
+   hand-roll a squarified-treemap layout in SVG/divs. Data: market-wide screener (see
+   `lib/universe.js:fetchScreener`) gives price/%change/marketCap/name.
+6. If tabs #4/#5 push the page taller so a tab needs scrolling to reach, that's fine — keep spacing
+   uncramped.
+
+DataPage is rendered twice (mobile `page.js:~2527`, desktop `~2600`) — both take the same props.
+
+---
+
 ## 14. V13.7 (BUILT + DEPLOYED 2026-07-23) — icon + login, from Gio's reference images
 
 - **App icon** = the TK-monogram KRONOS logo everywhere (replaces the orb). Cropped from Gio's
