@@ -2578,7 +2578,7 @@ export default function MarketTerminal(){
             {/* V13: interaction-mode switcher — Chatty AI (conversational) vs
                 Command Palette (terse/strict). Pure client state, no reload. */}
             <button onClick={()=>setInteractionMode(m=>m==="command"?"chatty":"command")}
-              title={interactionMode==="command"?"Command Palette — click for Chatty AI":"Chatty AI — click for Command Palette"}
+              title={interactionMode==="command"?"Command Palette — switch to AI Assistant":"AI Assistant — switch to Command Palette"}
               style={{width:32,height:32,borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,
                 color:interactionMode==="command"?T.text:accent,
                 background:interactionMode==="command"?T.surface:`${accent}0e`,

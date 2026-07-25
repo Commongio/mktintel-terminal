@@ -510,7 +510,7 @@ export default function BotDashboard({ accent = "#00d4aa", T, botName = "KRONOS"
         background: `linear-gradient(180deg, ${surface}f2, ${surface}d8)`, backdropFilter: "blur(10px)", flexShrink: 0,
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0, flexWrap: "wrap" }}>
-          <div style={{ fontFamily: FD, fontSize: 20, fontWeight: 700, color: text, letterSpacing: 0.4 }}>{botName}</div>
+          <div style={{ fontFamily: FC, fontSize: 19, fontWeight: 700, color: text, letterSpacing: -0.2 }}>{botName}</div>
           {/* Active trading sessions (item 12) — real clock math, not decoration */}
           <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
             {["ASIA", "LONDON", "NEW YORK"].map((s) => {

@@ -15,50 +15,55 @@ const FC = "'Inter',sans-serif";
 // bot modes (INVEST is new), the Chatty/Command mode selector, the Data page's
 // heatmap + IPO tabs, and the chop stand-down. Stale claims removed — the chart
 // is our own lightweight-charts build now, not a TradingView embed.
+// COPY STANDARD (V14): instrument documentation, not conversation.
+//   • No idioms — "home base" → "central dashboard", "around the clock" → "continuously".
+//   • Utility over personality — describe what a control DOES, not how it feels.
+//   • Active, precise verbs — "execute", "navigate", "displays", not "run it for you".
+//   • Standard feature names — "AI Assistant"/"AI Desk", never "Chatty".
 const STOPS = [
   {
-    id: "terminal", view: "terminal", title: "The Trading Terminal", icon: "🖥",
-    intro: "Your home base — watchlist, AI desk, and live news in one screen.",
+    id: "terminal", view: "terminal", title: "Trading Terminal", icon: "🖥",
+    intro: "Your central dashboard: watchlist, AI Desk, and live news in a single view.",
     items: [
-      ["AI Desk (center)", "Your market analyst. Ask anything — \"what's moving today?\", \"break down NVDA\" — and it scans the whole market, not just your watchlist. It can also run the app for you: change themes, load charts, switch pages."],
-      ["Watchlist & News", "Live prices on the left (green up, red down; RSI/MACD are momentum gauges). Headlines on the right, each with a bar rating how likely it is to move the market."],
-      ["Chatty vs Command", "Top-right toggle. Chatty explains and converses; Command is terse, flat, and institutional — minimal output, zero decoration. Your pick sticks."],
+      ["AI Desk (center)", "An integrated market analyst. Enter natural-language queries (\"what's moving today?\", \"analyze NVDA\") to scan the broader market — not only your watchlist. The AI can also navigate the platform, load charts, and adjust settings on command."],
+      ["Watchlist & News", "Live pricing on the left, with RSI and MACD momentum readings per symbol. Headlines on the right, each scored for probable market impact."],
+      ["Interaction modes", "Top-right toggle. AI Assistant returns explanatory analysis; Command Palette returns minimal, formatted output. The selection persists across sessions."],
     ],
   },
   {
-    id: "data", view: "data", title: "The Data Page", icon: "📊",
-    intro: "The intelligence dashboard — movers, calendars, filings, and a market heatmap.",
+    id: "data", view: "data", title: "Data", icon: "📊",
+    intro: "Market intelligence: movers, calendars, filings, and sector performance.",
     items: [
-      ["Movers & calendars", "Top movers, losers and most-active up top. Beside them: earnings dates, economic events, and upcoming IPOs — each on its own tab."],
-      ["Heatmap view", "The ▦ HEATMAP button swaps the dashboard for a sector treemap — tile size is market cap, colour is today's move. Switch index or grouping from its top bar."],
-      ["Filings & insiders", "SEC paperwork the moment it lands, plus Form 4 insider buys and sells. Tap anything to have the desk explain what it means."],
+      ["Movers & calendars", "Top gainers, decliners, and most-active issues. Adjacent panels cover earnings dates, economic releases, and upcoming IPOs."],
+      ["Heatmap", "The HEATMAP control replaces the dashboard with a sector treemap — tile size represents market capitalization, color represents daily change. Index and grouping are configurable."],
+      ["Filings & insiders", "SEC filings on publication, plus Form 4 insider transactions. Select any entry for AI analysis."],
     ],
   },
   {
-    id: "chart", view: "chart", title: "The Chart Page", icon: "📈",
-    intro: "A fast native chart with the AI desk beside it.",
+    id: "chart", view: "chart", title: "Charts", icon: "📈",
+    intro: "Native charting with the AI Desk alongside.",
     items: [
-      ["Load any ticker", "Search a symbol and load it. The chart remembers your last symbol and timeframe across refreshes, and rescales automatically when you switch names."],
-      ["Levels drawn for you", "Ask the desk for levels, or hit \"Show trade on chart\" from any signal — entry, stop and targets are drawn directly onto the chart."],
-      ["Ask while you look", "The AI panel sits right next to the chart, so you never have to leave the page to ask about what you're seeing."],
+      ["Symbol loading", "Enter a symbol to load it. Symbol and timeframe persist across sessions, and the price axis rescales automatically on symbol change."],
+      ["Level plotting", "Request levels from the AI Desk, or select \"Show trade on chart\" from any signal to plot entry, stop, and targets directly."],
+      ["Inline analysis", "The AI panel is docked beside the chart, so queries require no page change."],
     ],
   },
   {
-    id: "bot", view: "bot", title: "The Kronos Bot", icon: "🌌",
-    intro: "Your signal engine — it scans continuously so you don't have to watch charts all day.",
+    id: "bot", view: "bot", title: "Kronos Bot", icon: "🌌",
+    intro: "The signal engine. Scans continuously and grades every setup on conviction.",
     items: [
-      ["Three modes", "FUT for futures (intraday only), OPT for options (short-dated, this week's expiry), and INVEST for long-term positions with a stated take-profit month. The toggle up top switches anytime; everything on screen belongs to the active mode."],
-      ["Reading a signal", "Tap any card for entry, stop, targets, and how each AI agent voted. The orb is the VIX as a galaxy — blue calm, red fear. Kronos never touches your money: it signals, you execute in your own broker (⧉ BROKER)."],
-      ["When it stands down", "If the market turns choppy, Kronos halts new setups and tells you plainly rather than feeding you whipsaw. An empty feed in chop is the system working, not broken."],
+      ["Three modes", "FUT for futures (intraday only), OPT for options (short-dated, current-week expiry), and INVEST for long-term positions with a stated take-profit month. The active mode scopes everything displayed."],
+      ["Reading a signal", "Select any signal for entry, stop, targets, and the individual agent votes behind it. The orb displays VIX as a volatility gauge. Kronos issues signals only — execution occurs in your own broker (⧉ BROKER)."],
+      ["Stand-down conditions", "In choppy or directionless conditions, Kronos suspends new signals and displays a stand-down notice. An empty feed under those conditions is expected behavior."],
     ],
   },
   {
-    id: "settings", view: "terminal", title: "Make It Yours", icon: "⚙",
-    intro: "Themes, alerts, and everything that follows your account.",
+    id: "settings", view: "terminal", title: "Configuration", icon: "⚙",
+    intro: "Appearance, alerts, and account-level persistence.",
     items: [
-      ["Themes & type", "Settings → animated backdrops, your own photo or video, accent colours, fonts and text size. Panels can go transparent so the theme shows through."],
-      ["Alerts", "Turn on push to get signals on your phone. On iPhone you must add the app to your Home Screen first — Safari only allows notifications for installed apps."],
-      ["It follows you", "Settings, watchlist, layouts and chat history sync to your account. Replay this tour anytime from Settings."],
+      ["Appearance", "Settings provides animated backdrops, custom image or video backgrounds, accent colors, typefaces, and text sizing. Side panels support transparency."],
+      ["Alerts", "Enable push notifications to receive signals on mobile. On iOS, the app must be added to the Home Screen first — Safari restricts notifications to installed applications."],
+      ["Persistence", "Settings, watchlist, layouts, and chat history sync to your account. This tour can be replayed from Settings."],
     ],
   },
 ];
@@ -109,7 +114,8 @@ export default function TourGuide({ accent = "#00d4aa", T, onClose, onSwitchView
 
         <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 4 }}>
           <span style={{ fontSize: 20 }}>{s.icon}</span>
-          <span style={{ fontFamily: FD, fontSize: 19, fontWeight: 800, color: "#E8F0F8", letterSpacing: 0.4 }}>{s.title}</span>
+          {/* V14: Inter, matching the welcome + release-notes popups. */}
+          <span style={{ fontFamily: FC, fontSize: 18, fontWeight: 700, color: "#E8F0F8", letterSpacing: -0.2 }}>{s.title}</span>
           <span style={{ fontFamily: FM, fontSize: 8, color: "#5a6a7d", letterSpacing: 1 }}>STEP {item + 1}/{s.items.length}</span>
         </div>
         <div style={{ fontFamily: FC, fontSize: 11, color: "#7A8FA5", marginBottom: 12 }}>{s.intro}</div>
@@ -134,7 +140,7 @@ export default function TourGuide({ accent = "#00d4aa", T, onClose, onSwitchView
             background: `linear-gradient(135deg,${accent}30,${accent}12)`, border: `1px solid ${accent}55`,
             color: accent, fontFamily: FM, fontSize: 10, fontWeight: 800, letterSpacing: 2,
           }}>
-            {isLastItem && isLastStop ? "✓ FINISH" : isLastItem ? `NEXT: ${STOPS[stop + 1].title.toUpperCase()} →` : "✓ GOT IT — NEXT"}
+            {isLastItem && isLastStop ? "FINISH" : isLastItem ? `NEXT: ${STOPS[stop + 1].title.toUpperCase()} →` : "CONTINUE"}
           </button>
         </div>
       </div>

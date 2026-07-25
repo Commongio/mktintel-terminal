@@ -63,15 +63,15 @@ export function BotEntryWarning({ accent, T, onAcknowledge, reviewMode = false }
     <Shell accent={accent} T={T} onClose={reviewMode ? onAcknowledge : undefined}>
       <div style={{ textAlign: "center", marginBottom: 16 }}>
         <div style={{ fontSize: 30, marginBottom: 8 }}>⚠️</div>
-        <div style={{ fontFamily: FD, fontSize: 21, fontWeight: 800, color: text, letterSpacing: 0.5 }}>BEFORE YOU ENTER KRONOS BOT</div>
-        <div style={{ fontFamily: FM, fontSize: 8, color: dim, letterSpacing: 2, marginTop: 6 }}>READ THIS ONCE · REVIEWABLE ANYTIME IN BOT SETTINGS</div>
+        <div style={{ fontFamily: FC, fontSize: 19, fontWeight: 700, color: text, letterSpacing: -0.1 }}>RISK DISCLOSURE</div>
+        <div style={{ fontFamily: FM, fontSize: 8, color: dim, letterSpacing: 2, marginTop: 6 }}>REQUIRED ACKNOWLEDGMENT · AVAILABLE ANYTIME IN BOT SETTINGS</div>
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 18 }}>
         {[
-          ["What this is", "KRONOS surfaces multi-agent trade intelligence — structure, technicals, sentiment, options flow — with a conviction score and a risk gate. It does NOT place trades. Every entry is your decision."],
-          ["Day trading ≠ investing", "Options and futures signals are for SHORT-horizon active trading (intraday to ~2 weeks). They use leverage and decay fast. This is high-risk and most day traders lose money. It is fundamentally different from buying and holding to grow a portfolio over years."],
-          ["Options / Futures risk", "Options can expire worthless — you can lose 100% of the premium. Futures are leveraged — losses can exceed your initial margin. Only risk capital you can afford to lose entirely."],
-          ["Investing (INVEST mode)", "The BUY / HOLD / SELL signals are longer-horizon, for growing a portfolio — lower-risk than day trading, but still not guaranteed. Nothing here is financial advice."],
+          ["System scope", "KRONOS produces multi-agent trade intelligence — structure, technicals, sentiment, and options flow — with a conviction score and a risk gate. It does not execute trades. All entries are your decision."],
+          ["Active trading vs. investing", "Options and futures signals are short-horizon instruments (intraday to approximately two weeks). They are leveraged and subject to time decay. This carries substantial risk, and the majority of active traders incur losses. It is materially different from long-term portfolio investing."],
+          ["Leverage and loss exposure", "Options can expire worthless, resulting in total loss of premium. Futures are leveraged, and losses can exceed initial margin. Allocate only capital you can afford to lose entirely."],
+          ["INVEST mode", "BUY / HOLD / SELL signals are long-horizon and intended for portfolio growth. Lower risk than active trading, but returns are not guaranteed. No content in this platform constitutes financial advice."],
         ].map(([h, b]) => (
           <div key={h} style={{ padding: "11px 13px", borderRadius: 9, background: surface, border: `1px solid ${border}` }}>
             <div style={{ fontFamily: FM, fontSize: 9, fontWeight: 800, letterSpacing: 1, color: accent, marginBottom: 4 }}>{h.toUpperCase()}</div>
@@ -83,7 +83,7 @@ export function BotEntryWarning({ accent, T, onAcknowledge, reviewMode = false }
         width: "100%", padding: "13px 0", borderRadius: 10,
         background: `linear-gradient(135deg,${accent}28,${accent}12)`, border: `1px solid ${accent}50`,
         color: accent, fontFamily: FM, fontSize: 11, fontWeight: 800, letterSpacing: 3, cursor: "pointer",
-      }}>{reviewMode ? "CLOSE" : "I UNDERSTAND"}</button>
+      }}>{reviewMode ? "CLOSE" : "ACKNOWLEDGE"}</button>
     </Shell>
   );
 }
@@ -128,9 +128,9 @@ export function ModeSelectPopup({ accent, T, onSelect }) {
     return (
       <Shell accent={accent} T={T}>
         <div style={{ textAlign: "center", marginBottom: 18 }}>
-          <div style={{ fontFamily: FD, fontSize: 20, fontWeight: 800, color: text, letterSpacing: 1 }}>HOW OFTEN DO YOU TRADE?</div>
+          <div style={{ fontFamily: FC, fontSize: 18, fontWeight: 700, color: text, letterSpacing: -0.1 }}>SELECT SIGNAL CADENCE</div>
           <div style={{ fontFamily: FM, fontSize: 8, color: dim, letterSpacing: 2, marginTop: 5 }}>
-            YOUR SIGNAL FEED ONLY SHOWS SETUPS MATCHING THIS CADENCE · CHANGE ANYTIME VIA ⧉
+            THE SIGNAL FEED IS FILTERED TO THE SELECTED HORIZONS · CONFIGURABLE ANYTIME VIA ⧉
           </div>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
@@ -162,9 +162,9 @@ export function ModeSelectPopup({ accent, T, onSelect }) {
   return (
     <Shell accent={accent} T={T}>
       <div style={{ textAlign: "center", marginBottom: 20 }}>
-        <div style={{ fontFamily: FD, fontSize: 22, fontWeight: 800, color: text, letterSpacing: 1 }}>WHAT ARE WE TRADING?</div>
+        <div style={{ fontFamily: FC, fontSize: 19, fontWeight: 700, color: text, letterSpacing: -0.1 }}>SELECT INSTRUMENT CLASS</div>
         <div style={{ fontFamily: FM, fontSize: 8, color: dim, letterSpacing: 2, marginTop: 5 }}>
-          THIS SETS KRONOS'S DATA SOURCES + SIGNAL LOGIC · SWITCH ANYTIME (TOP-RIGHT TOGGLE)
+          DETERMINES DATA SOURCES AND SIGNAL LOGIC · SWITCHABLE VIA THE TOP-RIGHT TOGGLE
         </div>
       </div>
       <div style={{ display: "flex", gap: 12 }}>
@@ -223,10 +223,10 @@ export function BrokerSideBySidePopup({ accent, T, onDone, onSkip }) {
   return (
     <Shell accent={accent} T={T} onClose={skip}>
       <div style={{ textAlign: "center", marginBottom: 18 }}>
-        <div style={{ fontFamily: FD, fontSize: 20, fontWeight: 800, color: text, letterSpacing: 0.5 }}>TRADE SIDE-BY-SIDE</div>
+        <div style={{ fontFamily: FC, fontSize: 18, fontWeight: 700, color: text, letterSpacing: -0.1 }}>BROKER WORKSPACE</div>
         <div style={{ fontFamily: FC, fontSize: 11.5, color: dim, lineHeight: 1.6, marginTop: 8, maxWidth: 420, margin: "8px auto 0" }}>
-          Kronos surfaces the signals — <b style={{ color: text }}>you</b> place the trades in your own broker window.
-          Pick your platform and we'll open it beside the terminal.
+          Kronos issues signals; execution occurs in your own broker. Select a platform to open it
+          in a docked window beside the terminal.
         </div>
       </div>
 

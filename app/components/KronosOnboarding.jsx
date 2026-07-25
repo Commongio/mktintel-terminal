@@ -99,7 +99,9 @@ function KronosOnboarding({ accent, T, onComplete }) {
   const [leaving, setLeaving] = useState(false);
 
   const FM = "'JetBrains Mono',monospace";
-  const FD = "'Fraunces',serif";
+  // V14: Inter for headings — the Fraunces display serif was replaced app-wide
+  // (welcome, release notes, tour, bot flow) for a precision-instrument register.
+  const FC = "'Inter',sans-serif";
   const surface = T?.surface ?? "#0b1320";
   const border  = T?.border  ?? "#172030";
   const dim     = T?.dim     ?? "#3a4a5a";
@@ -140,7 +142,7 @@ function KronosOnboarding({ accent, T, onComplete }) {
       }}>
         {/* Header */}
         <div style={{ textAlign: "center", marginBottom: 24 }}>
-          <div style={{ fontFamily: FD, fontSize: 22, fontWeight: 800, color: text, marginBottom: 4 }}>
+          <div style={{ fontFamily: FC, fontSize: 20, fontWeight: 700, letterSpacing: -0.2, color: text, marginBottom: 4 }}>
             KRONOS SETUP
           </div>
           <div style={{ fontFamily: FM, fontSize: 8, color: dim, letterSpacing: 3 }}>

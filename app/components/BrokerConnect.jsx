@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 
 const FM = "'JetBrains Mono',monospace";
 const FD = "'Fraunces',serif";
+const FC = "'Inter',sans-serif";
 
 const BROKERS = [
   { id: "tradier",    label: "Tradier",     live: true,  desc: "Free sandbox + live API. Fully automated." },
@@ -156,7 +157,7 @@ export default function BrokerConnect({ accent, T, onClose }) {
         }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
             <div>
-              <div style={{ fontFamily: FD, fontSize: 17, fontWeight: 700, color: text }}>Portfolio</div>
+              <div style={{ fontFamily: FC, fontSize: 16, fontWeight: 700, letterSpacing: -0.2, color: text }}>Portfolio</div>
               <div style={{ fontFamily: FM, fontSize: 9, color: accent, marginTop: 2 }}>
                 ◈ CONNECTED — {brokerLabel.toUpperCase()} {connected.manual ? "(MANUAL)" : ""}
               </div>
@@ -216,7 +217,7 @@ export default function BrokerConnect({ accent, T, onClose }) {
         borderRadius: 16, padding: 24, boxShadow: `0 0 50px ${accent}18`,
       }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-          <div style={{ fontFamily: FD, fontSize: 17, fontWeight: 700, color: text }}>Connect Broker</div>
+          <div style={{ fontFamily: FC, fontSize: 16, fontWeight: 700, letterSpacing: -0.2, color: text }}>Connect Broker</div>
           <button onClick={onClose} style={{ color: dim, fontSize: 18, cursor: "pointer", background: "none", border: "none" }}>✕</button>
         </div>
 

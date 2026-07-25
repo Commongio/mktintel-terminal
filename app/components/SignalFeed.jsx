@@ -135,7 +135,7 @@ function reasoningFor(r) {
   if (r.status === "FIRE") {
     headline = `All gates passed. ${agree.length} of ${agents.length} agents voted ${dirWord}${lead ? `, led by ${lead.agent} at ${lead.confidence}%` : ""} — conviction ${r.conviction}% cleared the risk gate, so this is a live setup.`;
   } else if (r.status === "HOLD") {
-    headline = `A ${dirWord} setup is forming but hasn't cleared the risk gate. Conviction is ${r.conviction}%${against.length ? `, and ${against.length} agent${against.length > 1 ? "s" : ""} still disagree` : ""} — watch, don't fire yet.`;
+    headline = `A ${dirWord} setup is forming but has not cleared the risk gate. Conviction is ${r.conviction}%${against.length ? `, with ${against.length} agent${against.length > 1 ? "s" : ""} dissenting` : ""}. Monitor; not yet actionable.`;
   } else {
     headline = `No tradeable edge here right now. The agents are split or flat, so the portfolio manager is standing down.`;
   }
@@ -714,7 +714,7 @@ const SignalFeed = forwardRef(function SignalFeed({ accent = "#00d4aa", T, asset
                 )}
               </div>
               <div style={{ fontFamily: FC, fontSize: 10, color: dim, lineHeight: 1.45 }}>
-                The broad market is choppy and directionless right now{chop?.ci != null ? ` (choppiness ${chop.ci})` : ""}. KRONOS has paused new actionable setups — these conditions whipsaw traders. It will resume firing as a clean trend re-establishes.
+                Broad market conditions are choppy and directionless{chop?.ci != null ? ` (choppiness index ${chop.ci})` : ""}. KRONOS has suspended new actionable setups; these conditions produce elevated false-signal rates. Signal issuance resumes once a defined trend re-establishes.
               </div>
               {devChopPreview && !chop?.choppy && (
                 <button onClick={dismissChopPreview}
@@ -751,8 +751,8 @@ const SignalFeed = forwardRef(function SignalFeed({ accent = "#00d4aa", T, asset
         )}
         {state === "empty" && (
           <div style={{ padding: "14px", fontFamily: FC, fontSize: 10.5, color: dim, lineHeight: 1.6 }}>
-            No {assetClass} setups at {effectiveThreshold}%+ conviction across the last two sessions. The engine writes new signals as setups change — nothing is
-            shown here unless it's real.
+            No {assetClass} setups at or above {effectiveThreshold}% conviction across the last two sessions.
+            The engine writes new signals as conditions change; no placeholder or simulated entries are displayed.
           </div>
         )}
         {state === "error" && <div style={{ padding: 14, fontFamily: FM, fontSize: 9, color: "#ff3d57" }}>⚠ Could not load signal feed.</div>}
@@ -771,9 +771,9 @@ const SignalFeed = forwardRef(function SignalFeed({ accent = "#00d4aa", T, asset
               ⌖ BEST AVAILABLE — BELOW FIRE THRESHOLD
             </div>
             <div style={{ fontFamily: FC, fontSize: 10, color: dim, lineHeight: 1.55 }}>
-              Nothing cleared {effectiveThreshold}% conviction right now, so this is the strongest
-              long-term candidate the engine currently sees — shown for research, not as an
-              actionable trade. Treat it as a watch item until it fires.
+              No candidate cleared {effectiveThreshold}% conviction. This is the highest-ranked
+              long-term candidate currently identified, displayed for research purposes only.
+              It is not an actionable signal until it clears the threshold.
             </div>
           </div>
         )}
