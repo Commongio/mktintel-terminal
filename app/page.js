@@ -287,12 +287,15 @@ function WelcomePopup({onClose,onTour,T}){
           <h2 style={{fontFamily:FONT_CHAT,fontSize:21,fontWeight:700,color:WHITE,letterSpacing:-0.3,lineHeight:1.25,margin:"0 0 10px",textAlign:"center"}}>
             Welcome to the Kronos Terminal
           </h2>
-          {/* PLACEHOLDER COPY — Giovanni is choosing the final wording; the
-              layout and type scale are final so the real text drops straight in. */}
+          {/* Deliberately claims no performance: it describes what the engine
+              DOES (scan, grade, stand down, learn) and hands the decision back to
+              the user, which keeps it consistent with the bot's own risk warning
+              and the not-financial-advice footer. */}
           <p style={{fontFamily:FONT_CHAT,fontSize:13.5,lineHeight:1.7,color:COOL,margin:"0 0 24px",textAlign:"center"}}>
-            Institutional-grade market intelligence — live signals, multi-agent analysis,
-            and full-market data in one terminal. Built to help you find asymmetric setups
-            and act on them with conviction.
+            A terminal built by a trader, for traders. Kronos scans the market continuously,
+            grades every setup on conviction, and learns from its own losing trades — it even
+            tells you plainly when conditions aren&rsquo;t worth trading at all.
+            It surfaces the edge; you make the call. Feedback and ideas are always welcome.
           </p>
 
           <div style={{display:"flex",gap:10}}>
