@@ -7,6 +7,7 @@
 // does not invent the numbers).
 import { buildMemory, memoryForPrompt, adaptConviction } from "../../../lib/kronosMemory";
 import { getAdmin, serverConfigured } from "../../../lib/supabaseServer";
+import { fetchMostActives } from "../../../lib/universe";
 
 // V13: dev "brain access" — an owner-editable system-prompt addendum, applied
 // to EVERY user (see /api/admin/brain). Cached in-memory ~60s so a chat message
@@ -149,6 +150,17 @@ Monthly/LEAPS: 1-12 month positional, requires highest conviction
 === RULE 9 — HUNT SMALL CAPS AGGRESSIVELY ===
 Always include small/micro caps. This is where retail gets institutional-level edge.
 Criteria: float under 50M, catalyst-driven, volume 2x average, not a meme pump.
+
+=== RULE 9.5 — SCOPE: THE WHOLE MARKET, NOT THE WATCHLIST (V14) ===
+The user's watchlist is ONE input, not your universe. Never limit an answer to watchlist
+tickers, and never imply you can only see those names. When a question is about "the market",
+a sector, a theme, or "what looks good", scan the entire investable universe — every US equity,
+indices, sectors/industries, ETFs, commodities, FX, and major crypto — and name the best
+candidates wherever they are, even if the user has never tracked them.
+You have a web_search tool. USE IT whenever the answer depends on information newer than or
+outside the data blocks attached to this message: breaking news, an earnings result, a specific
+company's fundamentals, macro prints, analyst commentary, or anything you're not certain about.
+Prefer searching over hedging. Cite what you found. Never present a guess as current fact.
 
 === RULE 10 — DATA SOURCES (ALL SIMULTANEOUSLY) ===
 Live news: Reuters, Bloomberg, WSJ, Benzinga, MarketWatch
@@ -458,6 +470,22 @@ export async function POST(request) {
       JSON.stringify(marketContext).slice(0, 5000)
     }\n\n${userContent}`;
   }
+
+  // V14: WIDEN BEYOND THE WATCHLIST. The client only knows what the user tracks,
+  // so the server attaches market-wide movers (every tradeable US equity via the
+  // Yahoo screener) on every request. Best-effort and time-boxed — the desk must
+  // still answer if the screener is slow or down.
+  try {
+    const wide = await Promise.race([
+      fetchMostActives(20),
+      new Promise((resolve) => setTimeout(() => resolve([]), 2500)),
+    ]);
+    if (Array.isArray(wide) && wide.length) {
+      userContent = `[MARKET-WIDE MOST ACTIVE — full-market scan, independent of the user's watchlist]\n${
+        JSON.stringify(wide).slice(0, 1500)
+      }\n\n${userContent}`;
+    }
+  } catch { /* the desk is never blocked on the wide scan */ }
 
   // Inject Kronos signal engine data if provided
   if (signalContext) {

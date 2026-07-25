@@ -9,58 +9,56 @@ const FM = "'JetBrains Mono',monospace";
 const FD = "'Fraunces',serif";
 const FC = "'Inter',sans-serif";
 
+// V14: rebuilt for the current app and deliberately SHORT — 5 stops × 3 items
+// (was 5 × 5). A first-run tour someone actually finishes beats a thorough one
+// they abandon. Content refreshed for everything shipped since V10: the three
+// bot modes (INVEST is new), the Chatty/Command mode selector, the Data page's
+// heatmap + IPO tabs, and the chop stand-down. Stale claims removed — the chart
+// is our own lightweight-charts build now, not a TradingView embed.
 const STOPS = [
   {
     id: "terminal", view: "terminal", title: "The Trading Terminal", icon: "🖥",
-    intro: "Your home base — everything live, in one screen.",
+    intro: "Your home base — watchlist, AI desk, and live news in one screen.",
     items: [
-      ["Watchlist (left)", "Your tickers with live prices. Green = up today, red = down. The small RSI/MACD numbers are momentum gauges — tap the ⓘ button up top any time for a plain-English explanation."],
-      ["AI Desk (center)", "Chat with your personal market analyst. Ask anything — \"what's the news today?\", \"how's the market looking?\" — or ask it to change your theme, load a chart, even switch pages. It can actually do it."],
-      ["Quick Actions", "One-tap prompts under the chat: breaking news, whale activity, sector scans. No typing needed."],
-      ["News (right)", "Live headlines. The red-to-green bar under each story rates how likely it is to move the market — hover it to see why. A \"T\" badge marks Trump/Truth Social items."],
-      ["Quick Chart (below)", "Scroll down for a live chart of your top ticker. The 🔓 LAYOUT button (top right) lets you drag and resize every panel to build your own layout."],
+      ["AI Desk (center)", "Your market analyst. Ask anything — \"what's moving today?\", \"break down NVDA\" — and it scans the whole market, not just your watchlist. It can also run the app for you: change themes, load charts, switch pages."],
+      ["Watchlist & News", "Live prices on the left (green up, red down; RSI/MACD are momentum gauges). Headlines on the right, each with a bar rating how likely it is to move the market."],
+      ["Chatty vs Command", "Top-right toggle. Chatty explains and converses; Command is terse, flat, and institutional — minimal output, zero decoration. Your pick sticks."],
     ],
   },
   {
     id: "data", view: "data", title: "The Data Page", icon: "📊",
-    intro: "The intelligence dashboard — filings, insiders, options flow.",
+    intro: "The intelligence dashboard — movers, calendars, filings, and a market heatmap.",
     items: [
-      ["Breaking News", "Same live feed, with impact ratings, in dashboard form."],
-      ["SEC Filings", "Official company paperwork the moment it drops. The chip under each tells you if it's a routine report or an EVENT that can move the price fast."],
-      ["Insider Trades", "When executives buy or sell their own stock (Form 4). Insider buying is often a bullish tell."],
-      ["Options Intelligence", "Unusual options activity — where big money is placing bets. Click anything to have the AI break it down."],
-      ["Customize it", "This page supports drag-and-drop too — 🔓 LAYOUT up top, then move and resize any card."],
+      ["Movers & calendars", "Top movers, losers and most-active up top. Beside them: earnings dates, economic events, and upcoming IPOs — each on its own tab."],
+      ["Heatmap view", "The ▦ HEATMAP button swaps the dashboard for a sector treemap — tile size is market cap, colour is today's move. Switch index or grouping from its top bar."],
+      ["Filings & insiders", "SEC paperwork the moment it lands, plus Form 4 insider buys and sells. Tap anything to have the desk explain what it means."],
     ],
   },
   {
     id: "chart", view: "chart", title: "The Chart Page", icon: "📈",
-    intro: "Full TradingView charting with the AI desk beside it.",
+    intro: "A fast native chart with the AI desk beside it.",
     items: [
-      ["Load any ticker", "Type a symbol in the search box and hit LOAD. Your chart remembers itself now — refresh-proof."],
-      ["Draw and analyze", "It's a full TradingView chart: indicators, drawings, timeframes — all free."],
-      ["Ask while you look", "The AI panel sits right next to the chart. See something odd? Ask about it without leaving the page."],
+      ["Load any ticker", "Search a symbol and load it. The chart remembers your last symbol and timeframe across refreshes, and rescales automatically when you switch names."],
+      ["Levels drawn for you", "Ask the desk for levels, or hit \"Show trade on chart\" from any signal — entry, stop and targets are drawn directly onto the chart."],
+      ["Ask while you look", "The AI panel sits right next to the chart, so you never have to leave the page to ask about what you're seeing."],
     ],
   },
   {
     id: "bot", view: "bot", title: "The Kronos Bot", icon: "🌌",
-    intro: "Your signal engine — it scans markets and calls setups so you don't stare at charts all day.",
+    intro: "Your signal engine — it scans continuously so you don't have to watch charts all day.",
     items: [
-      ["Pick your mode", "FUTURES (NQ, ES...) or OPTIONS (SPY, NVDA...) — the OPT/FUT toggle up top switches anytime. Everything on screen belongs to the active mode only."],
-      ["The galaxy orb", "That's the market's fear gauge (VIX) as a living galaxy: blue = calm, violet = normal, amber = tense, red = fear. It spins faster as volatility rises."],
-      ["Signal feed (left)", "Real setups from the engine. ⚡ SETUP = actionable — tap one to see entry, stop, targets, and exactly why each AI agent voted for it. 90%+ conviction signals literally fly in as comets."],
-      ["Trade side-by-side", "Kronos never touches your money. The ⧉ BROKER button opens your own trading platform next to the terminal — it signals, you decide, you execute."],
-      ["Paper trading & shadow account", "In ANALYTICS: practice with virtual money first, and check the shadow account — the bot's honest, public win-rate record. No fake numbers anywhere."],
+      ["Three modes", "FUT for futures (intraday only), OPT for options (short-dated, this week's expiry), and INVEST for long-term positions with a stated take-profit month. The toggle up top switches anytime; everything on screen belongs to the active mode."],
+      ["Reading a signal", "Tap any card for entry, stop, targets, and how each AI agent voted. The orb is the VIX as a galaxy — blue calm, red fear. Kronos never touches your money: it signals, you execute in your own broker (⧉ BROKER)."],
+      ["When it stands down", "If the market turns choppy, Kronos halts new setups and tells you plainly rather than feeding you whipsaw. An empty feed in chop is the system working, not broken."],
     ],
   },
   {
-    id: "settings", view: "terminal", title: "Settings & Personalization", icon: "⚙",
-    intro: "Make it yours — every choice saves to your account.",
+    id: "settings", view: "terminal", title: "Make It Yours", icon: "⚙",
+    intro: "Themes, alerts, and everything that follows your account.",
     items: [
-      ["Themes", "Settings → Personal: animated backdrops — a galaxy, a news globe, a world map, even a live chart of your favorite ticker as wallpaper. Or upload your own photo."],
-      ["Fonts & colors", "Pick your font, accent color, panel colors, text size. Side panels can go transparent so your theme shows through."],
-      ["Layouts", "Any layout you build with 🔓 LAYOUT is saved per page, per account."],
-      ["It follows you", "Sign in anywhere — settings, watchlist, layouts, even your AI chat history come with you."],
-      ["Replay this tour", "Settings → Personal → \"Take the tour again\" whenever you need a refresher."],
+      ["Themes & type", "Settings → animated backdrops, your own photo or video, accent colours, fonts and text size. Panels can go transparent so the theme shows through."],
+      ["Alerts", "Turn on push to get signals on your phone. On iPhone you must add the app to your Home Screen first — Safari only allows notifications for installed apps."],
+      ["It follows you", "Settings, watchlist, layouts and chat history sync to your account. Replay this tour anytime from Settings."],
     ],
   },
 ];

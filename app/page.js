@@ -255,36 +255,65 @@ function ResizeDivider({onMouseDown,accent}){
 }
 
 // ─── WELCOME POPUP ────────────────────────────────────────────────────────────
-function WelcomePopup({onClose,onTour,accent,T}){
+// V14 WELCOME POPUP — blacked-out institutional redesign.
+//
+// Replaces the synthwave/neon treatment: the serif display face is gone (Inter,
+// a geometric UI sans, reads as fintech rather than indie-blog), the purple
+// tinting is stripped to pure black + white/cool-grey, the cinematic 2-3px
+// letter-spacing is pulled back to normal UI proportions, and the neon
+// "TRADERS TERMINAL" hero is replaced with the real Kronos TK monogram (the
+// V13.7 icon asset is already composited on solid black, so it drops straight
+// onto the popup's black field with no white halo).
+function WelcomePopup({onClose,onTour,T}){
+  // Deliberately NOT themed off `accent` — this popup is monochrome by design.
+  const WHITE="#FFFFFF", COOL="#B6C2D2", HAIRLINE="rgba(255,255,255,0.14)";
   return(
-    <div style={{position:"fixed",inset:0,zIndex:3000,background:"rgba(0,0,0,0.92)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
-      <div style={{width:"100%",maxWidth:520,background:T.panel,border:`1px solid ${accent}45`,borderRadius:20,overflow:"hidden",boxShadow:`0 0 100px ${accent}25,0 0 200px rgba(0,0,0,0.8)`}}>
-        <div style={{position:"relative",width:"100%",height:240,overflow:"hidden",background:"#000"}}>
-          <img src="/welcome.png" alt="Traders Terminal"
-            style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center",display:"block",opacity:0.92}}/>
-          <div style={{position:"absolute",inset:0,background:`linear-gradient(to bottom, transparent 60%, ${T.panel})`}}/>
+    <div style={{position:"fixed",inset:0,zIndex:3000,background:"rgba(0,0,0,0.94)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+      <div style={{
+        width:"100%",maxWidth:460,borderRadius:18,overflow:"hidden",
+        // Glossy black: a near-flat vertical sheen instead of a colored glow.
+        background:"linear-gradient(180deg,#0B0B0C 0%,#000000 100%)",
+        border:`1px solid ${HAIRLINE}`,
+        boxShadow:"0 24px 70px rgba(0,0,0,0.9), inset 0 1px 0 rgba(255,255,255,0.06)",
+        maxHeight:"calc(100dvh - 40px)",overflowY:"auto",
+      }}>
+        {/* Logo lockup on solid black — no photo, no neon. */}
+        <div style={{display:"flex",justifyContent:"center",alignItems:"center",padding:"34px 0 22px",background:"#000"}}>
+          <img src="/icons/icon-512.png" alt="KRONOS"
+            style={{width:112,height:112,objectFit:"contain",display:"block"}}/>
         </div>
-        <div style={{padding:"22px 30px 28px"}}>
-          <p style={{fontFamily:FONT_DISPLAY,fontSize:20,fontWeight:700,color:T.text,marginBottom:10,letterSpacing:0.2}}>
-            Welcome to the Traders Terminal!
+
+        <div style={{padding:"0 30px 28px"}}>
+          <h2 style={{fontFamily:FONT_CHAT,fontSize:21,fontWeight:700,color:WHITE,letterSpacing:-0.3,lineHeight:1.25,margin:"0 0 10px",textAlign:"center"}}>
+            Welcome to the Kronos Terminal
+          </h2>
+          {/* PLACEHOLDER COPY — Giovanni is choosing the final wording; the
+              layout and type scale are final so the real text drops straight in. */}
+          <p style={{fontFamily:FONT_CHAT,fontSize:13.5,lineHeight:1.7,color:COOL,margin:"0 0 24px",textAlign:"center"}}>
+            Institutional-grade market intelligence — live signals, multi-agent analysis,
+            and full-market data in one terminal. Built to help you find asymmetric setups
+            and act on them with conviction.
           </p>
-          <p style={{fontFamily:FONT_CHAT,fontSize:14,lineHeight:1.72,color:T.textDim,marginBottom:6}}>
-            This is a project by me that I hope you can find useful and efficient. I appreciate any feedback and tips for future builds.
-          </p>
-          <p style={{fontFamily:FONT_DISPLAY,fontSize:16,fontWeight:600,color:accent,marginBottom:24,fontStyle:"italic"}}>— Gio</p>
+
           <div style={{display:"flex",gap:10}}>
+            {/* PRIMARY — solid white on black, the highest-contrast action. */}
             <button onClick={onClose}
-              style={{flex:1.4,padding:"13px 0",background:`linear-gradient(135deg,${accent}28,${accent}12)`,border:`1px solid ${accent}50`,borderRadius:10,color:accent,fontFamily:FONT_MONO,fontSize:12,fontWeight:700,letterSpacing:2,cursor:"pointer",transition:"all 0.2s"}}
-              onMouseEnter={e=>{e.currentTarget.style.background=`${accent}30`;e.currentTarget.style.borderColor=`${accent}70`;e.currentTarget.style.boxShadow=`0 0 20px ${accent}30`;}}
-              onMouseLeave={e=>{e.currentTarget.style.background=`linear-gradient(135deg,${accent}28,${accent}12)`;e.currentTarget.style.borderColor=`${accent}50`;e.currentTarget.style.boxShadow="none";}}>
-              LAUNCH TERMINAL
+              style={{flex:1.35,padding:"12px 0",background:WHITE,border:"1px solid "+WHITE,borderRadius:9,color:"#000",fontFamily:FONT_CHAT,fontSize:13,fontWeight:600,letterSpacing:0.1,cursor:"pointer",transition:"opacity 0.15s"}}
+              onMouseEnter={e=>{e.currentTarget.style.opacity="0.86";}}
+              onMouseLeave={e=>{e.currentTarget.style.opacity="1";}}>
+              Launch Terminal
             </button>
-            {/* V10: guided onboarding */}
+            {/* GHOST — hairline outline; compass is a 1.5px line icon so its
+                visual weight matches the 600-weight label beside it. */}
             <button onClick={onTour}
-              style={{flex:1,padding:"13px 0",background:"transparent",border:`1px solid ${T.border}`,borderRadius:10,color:T.textDim,fontFamily:FONT_MONO,fontSize:12,fontWeight:700,letterSpacing:2,cursor:"pointer",transition:"all 0.2s"}}
-              onMouseEnter={e=>{e.currentTarget.style.borderColor=`${accent}45`;e.currentTarget.style.color=accent;}}
-              onMouseLeave={e=>{e.currentTarget.style.borderColor=T.border;e.currentTarget.style.color=T.textDim;}}>
-              🧭 TAKE A TOUR
+              style={{flex:1,padding:"12px 0",background:"transparent",border:`1px solid ${HAIRLINE}`,borderRadius:9,color:COOL,fontFamily:FONT_CHAT,fontSize:13,fontWeight:600,letterSpacing:0.1,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:7,transition:"all 0.15s"}}
+              onMouseEnter={e=>{e.currentTarget.style.borderColor="rgba(255,255,255,0.34)";e.currentTarget.style.color=WHITE;}}
+              onMouseLeave={e=>{e.currentTarget.style.borderColor=HAIRLINE;e.currentTarget.style.color=COOL;}}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="9"/>
+                <polygon points="16.2 7.8 13.9 13.9 7.8 16.2 10.1 10.1"/>
+              </svg>
+              Take a Tour
             </button>
           </div>
         </div>
@@ -1991,11 +2020,18 @@ export default function MarketTerminal(){
 
   useEffect(()=>{if(view==="data"&&!secData)loadSecData();},[view,secData,loadSecData]);
 
+  // V14: the desk is NOT scoped to the watchlist. This block used to send only the
+  // user's watchlist + 8 headlines, which is why answers kept orbiting those few
+  // tickers. The watchlist is now labeled as just one input among several, and the
+  // server widens it further (market-wide movers) before the model sees it.
   const ctx=useCallback(()=>({
-    watchlist:watchlist.map(s=>({symbol:s,name:watchlistMeta[s]||s,...(quotes[s]||{})})),
-    news:news.slice(0,8).map(n=>({headline:n.headline,source:n.source,datetime:n.datetime})),
+    _scope:"The watchlist below is only what the user happens to be tracking — it is NOT the universe. Answer across the entire market.",
+    watchlistTrackedByUser:watchlist.map(s=>({symbol:s,name:watchlistMeta[s]||s,...(quotes[s]||{})})),
+    news:news.slice(0,12).map(n=>({headline:n.headline,source:n.source,datetime:n.datetime})),
+    secFilings:(secData?.filings||[]).slice(0,6).map(f=>({symbol:f.symbol,form:f.form,date:f.date})),
+    insiderTrades:(secData?.insiderTrades||[]).slice(0,6).map(t=>({symbol:t.symbol,txn:t.txnCode,value:t.txnValue,date:t.date})),
     fetchedAt:lastUpd,
-  }),[watchlist,watchlistMeta,quotes,news,lastUpd]);
+  }),[watchlist,watchlistMeta,quotes,news,secData,lastUpd]);
 
   // ── V12 AUTO-SETUP (chat rules 1 & 2) ──────────────────────────────────────
   // When the user names a ticker in chat, the desk checks the Signal Feed for a

@@ -53,8 +53,6 @@ const PORTFOLIO_UNIVERSE = {
   equity:  CURATED.large.slice(0, 12),
 };
 
-// Roughly-every-N-minutes gate using wall-clock minutes (no state to persist).
-const everyNMinutes = (n) => new Date().getMinutes() % n < 2;
 
 async function writeIfChanged(admin, { assetClass, symbol, interval }, buckets, stats, choppy) {
   const raw = await runSignalEngine({ assetClass, symbol, interval });
@@ -201,12 +199,19 @@ export async function GET(request) {
     }
   };
 
-  // Weekly bucket ("1d"): cheap daily candles, safe to run every call.
+  // Weekly bucket ("1d"): cheap daily candles, safe to run every call. Options is
+  // the only class still allowed at 1d (equity dropped it with the V14 weekly-
+  // horizon removal; futures never permitted it).
   if (!ranOutOfTime) await sweep("1d", "weekly");
-  // Monthly bucket ("1w"): swing/position setups don't need 2-min freshness.
-  if (!ranOutOfTime && everyNMinutes(15)) await sweep("1w", "monthly");
-  // Yearly bucket ("1mo"): long-horizon — once a day, near the open, is plenty.
-  if (!ranOutOfTime && new Date().getUTCHours() === 13 && everyNMinutes(2)) await sweep("1mo", "yearly");
+  // ── V14: INVEST RUNS CONTINUOUSLY, 24/7 ────────────────────────────────────
+  // These were gated to every-15-min / once-a-day-at-13:00-UTC, which (combined
+  // with the once-daily Vercel cron) meant the long-term feed could go a full day
+  // with nothing written and sit empty. INVEST is now swept on every run, the
+  // same as the futures side. It's cheap: PORTFOLIO_UNIVERSE is ~12 large caps on
+  // weekly/monthly candles, and writeIfChanged still dedups so an unchanged
+  // verdict never writes a row.
+  if (!ranOutOfTime) await sweep("1w", "monthly");
+  if (!ranOutOfTime) await sweep("1mo", "yearly");
 
   // ── V12 LIFECYCLE: grade open signals → won/lost/invalidated ────────────────
   // Runs after writes so a signal generated this same tick can be superseded in

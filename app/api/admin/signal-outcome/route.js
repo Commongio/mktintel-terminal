@@ -12,6 +12,10 @@ import { getAdmin, getUserFromRequest, isOwner, serverConfigured } from "../../.
 const REASON_TO_STATE = {
   stopped_out: "lost",        // hit the stop / trade failed → counts against win-rate
   bad_rr: "invalidated",      // R:R turned negative before triggering → not a graded loss, but gone
+  // V14: wins are teaching data too. Grading a deletion as a WIN lets the
+  // self-learning loop reinforce the setup signature instead of only ever
+  // learning from failures (which biases the aggregate gate pessimistic).
+  closed_profit: "won",       // closed with a good return → counts toward win-rate
 };
 
 export async function POST(request) {
@@ -28,7 +32,7 @@ export async function POST(request) {
   const reason = body?.reason;
   const state = REASON_TO_STATE[reason];
   if (!id || !state) {
-    return Response.json({ error: "Expected { id, reason: 'stopped_out' | 'bad_rr' }" }, { status: 400 });
+    return Response.json({ error: "Expected { id, reason: 'stopped_out' | 'bad_rr' | 'closed_profit' }" }, { status: 400 });
   }
 
   const admin = getAdmin();

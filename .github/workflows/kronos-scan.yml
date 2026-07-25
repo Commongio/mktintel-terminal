@@ -1,0 +1,75 @@
+name: KRONOS continuous scan
+
+# WHY THIS EXISTS
+# ---------------
+# /api/cron/generate-signals is written for a ~2-minute cadence: it walks a
+# rotating slice of the universe per run (RUN_MS = 2min), gates the weekly sweep
+# on everyNMinutes(15), and stops at a 50s time budget expecting the NEXT run to
+# continue where it left off.
+#
+# Vercel's Hobby plan only permits ONE cron invocation per day, so vercel.json
+# could only ask for "0 14 * * 1-5". With one run a day the rotation cursor never
+# advances, most of the universe is never scanned, and the feed goes stale — which
+# is why signals appeared to require a manual refresh and good setups were missed.
+#
+# GitHub Actions schedules are free on public repos and generous on private ones,
+# so this workflow drives the endpoint instead. Vercel's own cron stays as a
+# once-daily backstop in case Actions is disabled.
+#
+# NOTE ON CADENCE: GitHub's scheduler has a 5-minute minimum and can drift under
+# load, so each run fires several spaced requests to approximate the ~2-minute
+# cadence the endpoint was designed for.
+
+on:
+  schedule:
+    # Every 5 minutes. Actions may delay this when GitHub is busy; the endpoint is
+    # idempotent (dedup on status/direction change or 30-min staleness), so an
+    # early/late/duplicate run is harmless.
+    - cron: "*/5 * * * *"
+  # Lets you kick a scan by hand from the Actions tab when testing.
+  workflow_dispatch:
+
+# Never let two scans overlap — the rotation cursor is clock-derived, so a pile-up
+# would just re-scan the same slice and burn API quota.
+concurrency:
+  group: kronos-scan
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Trigger signal scans
+        env:
+          SCAN_URL: ${{ secrets.KRONOS_SCAN_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$SCAN_URL" ] || [ -z "$CRON_SECRET" ]; then
+            echo "::error::KRONOS_SCAN_URL and CRON_SECRET repository secrets must be set."
+            exit 1
+          fi
+
+          # Three passes, ~110s apart, to approximate the engine's 2-minute design
+          # cadence within a single 5-minute schedule tick.
+          for i in 1 2 3; do
+            echo "--- pass $i/3 at $(date -u +%H:%M:%SZ) ---"
+            code=$(curl -sS -o /tmp/scan.json -w '%{http_code}' \
+              --max-time 120 \
+              -H "Authorization: Bearer $CRON_SECRET" \
+              "$SCAN_URL") || code="000"
+
+            echo "HTTP $code"
+            # Trim the body so the log stays readable but stays diagnosable.
+            head -c 900 /tmp/scan.json 2>/dev/null || true
+            echo
+
+            # A single failed pass must not fail the workflow — the next tick picks
+            # up the next slice. Only a total wipeout is worth a red run.
+            if [ "$code" = "401" ]; then
+              echo "::error::401 Unauthorized — CRON_SECRET does not match the deployment."
+              exit 1
+            fi
+
+            if [ "$i" -lt 3 ]; then sleep 110; fi
+          done

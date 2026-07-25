@@ -8,7 +8,7 @@ import { useState, useEffect, forwardRef, useRef } from "react";
 import { createPortal } from "react-dom";
 import { getSupabase, supabaseConfigured, getAccessToken } from "../../lib/supabase";
 import { symbolTier, allowedTiers, PRIORITY_INDEX_OPTIONS } from "../../lib/universe";
-import { directionLabel, directionColor } from "../../lib/signalLabels";
+import { directionLabel, directionColor, bucketFor } from "../../lib/signalLabels";
 
 // V13: "prioritized but not fully prioritized" — major index options get a
 // badge + sorted-to-top display treatment, but conviction itself is untouched
@@ -77,8 +77,8 @@ const stColor = (s) => (s === "FIRE" ? "#00e676" : s === "HOLD" ? "#f7c948" : "#
 const dirColor = (d) => (d === "LONG" ? "#00e676" : d === "SHORT" ? "#ff3d57" : "#9DB4CC");
 const convColor = (c) => (c >= 90 ? "#00e676" : c >= 78 ? "#f7c948" : c >= 60 ? "#fb923c" : "#9DB4CC");
 
-// Cadence buckets: interval → bucket. "daily" = intraday signals, "weekly" = swing TFs.
-const INTERVAL_BUCKET = { "1min": "daily", "5min": "daily", "15min": "daily", "1h": "daily", "4h": "weekly", "1d": "weekly", "1w": "monthly", "1mo": "yearly" };
+// Cadence buckets now live in lib/signalLabels (bucketFor) because they are
+// asset-class aware — options/futures never classify above "daily" (short-dated).
 export function getCadencePref() {
   try { return JSON.parse(localStorage.getItem("kronos_cadence") || '["all"]'); } catch { return ["all"]; }
 }
@@ -248,6 +248,16 @@ function ReasoningPopup({ r, T, accent, anchorRect, onClose }) {
                 R:R ≈ {rr} · risk {Math.abs(r.plan.entry - r.plan.stop).toFixed(2)} pts{r.plan.contractGuidance ? ` · ${r.plan.contractGuidance}` : ""}
               </div>
             )}
+            {/* V14: long-term signals state an explicit calendar take-profit target. */}
+            {r.plan.takeProfitBy && (
+              <div style={{ gridColumn: "1 / -1", display: "flex", alignItems: "center", gap: 6, marginTop: 5, padding: "5px 8px", borderRadius: 6, background: "rgba(52,211,153,0.08)", border: "1px solid rgba(52,211,153,0.25)" }}>
+                <span style={{ fontFamily: FM, fontSize: 7, fontWeight: 800, letterSpacing: 1, color: "#34d399" }}>{r.plan.takeProfitBy.horizon}</span>
+                <span style={{ fontFamily: FM, fontSize: 8.5, fontWeight: 700, color: text }}>
+                  Take profit by {r.plan.takeProfitBy.month} {r.plan.takeProfitBy.year}
+                </span>
+                <span style={{ fontFamily: FM, fontSize: 7.5, color: dim }}>(~{r.plan.takeProfitBy.monthsOut}mo)</span>
+              </div>
+            )}
           </div>
         </>
       )}
@@ -339,7 +349,9 @@ function FeedRow({ r, T, accent, highlight, onDelete, isDev, onDevGrade }) {
           boxShadow: "0 8px 30px rgba(0,0,0,0.6)", padding: 6,
         }}>
           <div style={{ fontFamily: FM, fontSize: 7, color: dim, letterSpacing: 1, padding: "3px 6px 5px" }}>WHY REMOVE? (LOGS OUTCOME)</div>
-          {[["stopped_out", "Stopped out", "#ff3d57"], ["bad_rr", "R:R turned negative", "#f7c948"]].map(([reason, label, c]) => (
+          {/* V14: wins are gradeable too — "closed with profit" teaches the loop
+              which setups WORK, not just which ones fail. */}
+          {[["closed_profit", "Closed with profit", "#00e676"], ["stopped_out", "Stopped out", "#ff3d57"], ["bad_rr", "R:R turned negative", "#f7c948"]].map(([reason, label, c]) => (
             <button key={reason}
               onClick={() => { setDevMenu(false); onDevGrade?.(r, reason); }}
               style={{ display: "block", width: "100%", textAlign: "left", padding: "7px 8px", borderRadius: 6, background: "transparent", border: "none", color: c, fontFamily: FM, fontSize: 9.5, fontWeight: 700, cursor: "pointer" }}>
@@ -622,13 +634,27 @@ const SignalFeed = forwardRef(function SignalFeed({ accent = "#00d4aa", T, asset
     if (dismissed.has(r.id)) return false;                 // user trashed it (local override)
     if (r.state === "lost" || r.state === "invalidated") return false; // defensive: hide non-terminal-good
     if ((r.conviction ?? 0) < effectiveThreshold) return false;
-    if (!cadence.includes("all") && !cadence.includes(INTERVAL_BUCKET[r.interval] || "daily")) return false;
+    if (!cadence.includes("all") && !cadence.includes(bucketFor(r.interval, r.asset_class))) return false;
     // A signal the user explicitly searched for bypasses the risk-tier filter —
     // that filter exists to gate what the engine auto-surfaces, not to hide a
     // ticker the user themselves typed in and got a real setup on.
     if (r.source === "manual") return true;
     return tiers.includes(symbolTier(r.symbol));
   }).sort((a, b) => (isPriorityIndex(b.symbol) ? 1 : 0) - (isPriorityIndex(a.symbol) ? 1 : 0)); // stable: priority indices float to top, order otherwise unchanged
+
+  // ── V14: INVEST NEVER SITS EMPTY ───────────────────────────────────────────
+  // A long-term investor should always have at least one idea to evaluate. But
+  // we will NOT dress a weak setup up as a fired trade — that's exactly what the
+  // conviction floor and the chop halt exist to prevent. So when the normal
+  // filters yield nothing for equity, we surface the single best-ranked candidate
+  // and badge it honestly as below-threshold (see `isBestAvailable` in the row),
+  // rather than either hiding it or lying about its conviction.
+  const bestAvailable = (assetClass === "equity" && filtered.length === 0)
+    ? rows
+        .filter((r) => !dismissed.has(r.id) && r.state !== "lost" && r.state !== "invalidated")
+        .sort((a, b) => (b.conviction ?? 0) - (a.conviction ?? 0))[0] || null
+    : null;
+  const visible = bestAvailable ? [{ ...bestAvailable, _bestAvailable: true }] : filtered;
 
   // The equity engine only scans during US market hours, so outside them the feed
   // is quiet by design — say so instead of leaving a bare "waiting" state. Futures
@@ -730,13 +756,28 @@ const SignalFeed = forwardRef(function SignalFeed({ accent = "#00d4aa", T, asset
           </div>
         )}
         {state === "error" && <div style={{ padding: 14, fontFamily: FM, fontSize: 9, color: "#ff3d57" }}>⚠ Could not load signal feed.</div>}
-        {state === "live" && filtered.length === 0 && (
+        {state === "live" && visible.length === 0 && (
           <div style={{ padding: "14px", fontFamily: FC, fontSize: 10.5, color: dim, lineHeight: 1.6 }}>
             Signals exist but none match your cadence preference ({cadence.join(", ")}). Adjust it in
             the mode setup (⧉) or Settings.
           </div>
         )}
-        {filtered.map((r) => <FeedRow key={r.id} r={r} T={T} accent={accent} highlight={highlightId === r.id} onDelete={dismissSignal} isDev={isDev} onDevGrade={devGrade} />)}
+        {/* V14: honest banner for the never-empty INVEST fallback — the idea below
+            is the best-ranked long-term candidate, but it did NOT clear the fire
+            threshold, and the UI says so plainly rather than implying a setup. */}
+        {bestAvailable && (
+          <div style={{ margin: "10px 10px 4px", padding: "9px 11px", borderRadius: 8, background: "rgba(52,211,153,0.07)", border: "1px solid rgba(52,211,153,0.28)" }}>
+            <div style={{ fontFamily: FM, fontSize: 8, fontWeight: 800, letterSpacing: 1.5, color: "#34d399", marginBottom: 4 }}>
+              ⌖ BEST AVAILABLE — BELOW FIRE THRESHOLD
+            </div>
+            <div style={{ fontFamily: FC, fontSize: 10, color: dim, lineHeight: 1.55 }}>
+              Nothing cleared {effectiveThreshold}% conviction right now, so this is the strongest
+              long-term candidate the engine currently sees — shown for research, not as an
+              actionable trade. Treat it as a watch item until it fires.
+            </div>
+          </div>
+        )}
+        {visible.map((r) => <FeedRow key={r.id} r={r} T={T} accent={accent} highlight={highlightId === r.id} onDelete={dismissSignal} isDev={isDev} onDevGrade={devGrade} />)}
       </div>
     </div>
   );

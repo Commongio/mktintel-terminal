@@ -6,7 +6,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { KronosOnboarding } from "./KronosOnboarding";
 import BrokerConnect from "./BrokerConnect";
-import BotMiniChart from "./BotMiniChart";
 import PropFirmPanel, { PROP_FIRMS } from "./PropFirmPanel";
 import MultiAgentSignal, { getPaperState, savePaperState } from "./MultiAgentSignal";
 import ShadowAccountPanel, { PaperTradingPanel } from "./ShadowAccountPanel";
@@ -38,7 +37,7 @@ const MODE_CONFIG = {
   // arbitrary large caps.
   options: { symbols: ["SPY", "QQQ"], intervals: ALLOWED_INTERVALS.options, defaultSymbol: "SPY", defaultInterval: "1h", color: "#a78bfa" },
   // V13.5: INVEST — grow-the-portfolio mode. Buy/Hold/Sell on large caps.
-  equity:  { symbols: ["AAPL", "MSFT", "NVDA", "AMZN"], intervals: ALLOWED_INTERVALS.equity, defaultSymbol: "AAPL", defaultInterval: "1d", color: "#34d399" },
+  equity:  { symbols: ["AAPL", "MSFT", "NVDA", "AMZN"], intervals: ALLOWED_INTERVALS.equity, defaultSymbol: "AAPL", defaultInterval: "1w", color: "#34d399" },
 };
 
 // The interval buttons used to be raw codes ("1w", "1mo"), which don't tell you
@@ -561,8 +560,9 @@ export default function BotDashboard({ accent = "#00d4aa", T, botName = "KRONOS"
           )}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0, position: "relative" }}>
-          {/* V12: dedicated bot-side mini chart for the current instrument. */}
-          <BotMiniChart symbol={signalSymbol} T={T} accent={accent} />
+          {/* V14: the bot-side mini chart was removed — it overlapped the
+              multi-agent panel and duplicated the Chart page. The bot is a
+              signal surface; charting lives on the Chart page. */}
           <button onClick={() => setFlowStep("broker")} title="Open broker side-by-side" style={{
             padding: "4px 10px", borderRadius: 7, cursor: "pointer",
             fontFamily: FM, fontSize: 9, fontWeight: 700, letterSpacing: 1,

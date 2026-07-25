@@ -148,21 +148,12 @@ function SupabaseGate({ onAccess }) {
       }}>{KRONOS_GREEK}</div>
 
       <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", gap: 18, width: "100%", maxWidth: 440, padding: "0 22px", animation: "ag-appear 0.5s ease" }}>
-        {/* Ringed planet with a small constellation traced inside. */}
-        <svg width="92" height="92" viewBox="0 0 100 100" fill="none" aria-hidden="true">
-          <ellipse cx="50" cy="52" rx="42" ry="15" transform="rotate(-22 50 52)" stroke="#9db3cc" strokeWidth="1.4" opacity="0.85" />
-          <circle cx="50" cy="47" r="21" stroke="#c3d3e6" strokeWidth="1.6" />
-          <g stroke="#aebfd4" strokeWidth="1" opacity="0.9">
-            <path d="M41 42 L51 38 L58 49 L47 54 Z" fill="none" opacity="0.5" />
-          </g>
-          {[[41, 42], [51, 38], [58, 49], [47, 54]].map(([x, y], i) => (
-            <circle key={i} cx={x} cy={y} r="1.7" fill="#e2ecf7" />
-          ))}
-        </svg>
-
-        <div style={{ textAlign: "center", marginTop: -2 }}>
-          <div style={{ fontFamily: FD, fontSize: 42, fontWeight: 800, color: "#eef4fb", letterSpacing: 6, lineHeight: 1 }}>KRONOS</div>
-          <div style={{ fontFamily: FM, fontSize: 11, color: "#8095ab", letterSpacing: 5, fontWeight: 600, marginTop: 12 }}>TRADING INTELLIGENCE TERMINAL</div>
+        {/* V14: the ringed-planet mark and the large "KRONOS" wordmark were
+            removed — the giant Greek ΚΡΟΝΟΣ watermark behind the card already
+            carries the branding, and stacking a mark + title on top of it made
+            the header area busy. Only the subtitle remains above the card. */}
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontFamily: FM, fontSize: 11, color: "#8095ab", letterSpacing: 5, fontWeight: 600 }}>TRADING INTELLIGENCE TERMINAL</div>
         </div>
 
         {/* Frosted-glass card. */}

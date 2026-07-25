@@ -60,6 +60,7 @@ export default function LightweightChart({
   const priceLinesRef = useRef([]);   // IPriceLine handles — must be removed explicitly
   const trendRef = useRef([]);        // trendline ISeriesApi handles
   const candlesRef = useRef([]);      // raw chart candles, for snapping
+  const symbolRef = useRef(null);     // last symbol drawn — drives the price-axis re-arm
 
   const [state, setState] = useState("loading");
   const [meta, setMeta] = useState(null);
@@ -159,6 +160,16 @@ export default function LightweightChart({
         color: c.close >= c.open ? "rgba(0,230,118,0.28)" : "rgba(255,61,87,0.28)",
       })));
       chartRef.current?.timeScale().fitContent();
+      // V14 PRICE-AXIS RESCALE: fitContent() only fits the TIME axis. Dragging the
+      // price axis latches autoScale off in lightweight-charts, so switching from
+      // (say) SPY at ~$700 to a $40 name left the y-axis pinned to the old range
+      // and the candles off-screen. Re-arm autoScale whenever the symbol changes
+      // so the new instrument always frames itself; within one symbol we leave the
+      // user's manual zoom alone (see the ResizeObserver note above).
+      if (symbolRef.current !== symbol) {
+        try { chartRef.current?.priceScale("right").applyOptions({ autoScale: true }); } catch {}
+        symbolRef.current = symbol;
+      }
 
       const last = candles[candles.length - 1];
       const prev = candles[candles.length - 2];

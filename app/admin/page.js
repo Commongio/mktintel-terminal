@@ -210,6 +210,8 @@ function BrainPanel({ C, FM }) {
   const [resetEmail, setResetEmail] = useState("");
   const [resetBusy, setResetBusy] = useState(false);
   const [lossLog, setLossLog] = useState(null); // V13.5 self-teaching loss log
+  const [lessons, setLessons] = useState(null);       // V14 lessons-learned ledger
+  const [lessonsBusy, setLessonsBusy] = useState(false);
 
   const FEATURE_FLAGS = [
     ["prioritizeIndices", "Prioritize SPX/major index options (always-scan slot)"],
@@ -238,6 +240,20 @@ function BrainPanel({ C, FM }) {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  // V14: lessons are generated ON DEMAND (90-day aggregation is heavier than the
+  // rest of this page), so the button drives this rather than the initial load.
+  const loadLessons = useCallback(async () => {
+    setLessonsBusy(true);
+    try {
+      const token = await getAccessToken();
+      const r = await fetch("/api/admin/brain?view=lessons", { headers: { Authorization: `Bearer ${token}` } });
+      const d = await r.json();
+      setLessons(r.ok ? d : { available: false, error: d.error || "Failed to load lessons" });
+    } catch {
+      setLessons({ available: false, error: "Connection error" });
+    } finally { setLessonsBusy(false); }
+  }, []);
 
   const put = async (key, value) => {
     const token = await getAccessToken();
@@ -355,6 +371,21 @@ function BrainPanel({ C, FM }) {
                 </div>
               </>
             )}
+            {/* V14: the winning side of the ledger — what the engine learns from
+                trades graded "closed with profit", not just from failures. */}
+            {lossLog.bestSetups?.length > 0 && (
+              <>
+                <div style={{ fontSize: 8, color: C.dim, letterSpacing: 1, marginBottom: 6 }}>BEST SETUP SIGNATURES (learned from wins)</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 12 }}>
+                  {lossLog.bestSetups.map((s) => (
+                    <div key={s.key} style={{ display: "flex", justifyContent: "space-between", fontSize: 10, padding: "5px 8px", borderRadius: 6, background: "rgba(0,230,118,0.06)" }}>
+                      <span style={{ color: C.text, fontFamily: FM }}>{s.key}</span>
+                      <span style={{ color: s.winRate >= 60 ? C.accent : C.gold, fontWeight: 700 }}>{s.winRate}% · {s.wins}/{s.n}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
             {lossLog.recentLosers?.length > 0 && (
               <>
                 <div style={{ fontSize: 8, color: C.dim, letterSpacing: 1, marginBottom: 6 }}>RECENT LOSSES ({lossLog.recentLosers.length})</div>
@@ -367,6 +398,73 @@ function BrainPanel({ C, FM }) {
                   ))}
                 </div>
               </>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* ── V14: LESSONS LEARNED ────────────────────────────────────────────
+          Each entry is something the engine concluded from graded outcomes AND
+          what it changed as a result — derived deterministically from the same
+          stats the conviction gate uses, so the ledger can never claim a lesson
+          the engine isn't actually acting on. */}
+      <div style={boxSx}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+          <div style={labelSx}>LESSONS LEARNED · WHAT THE ENGINE TAUGHT ITSELF</div>
+          <button onClick={loadLessons} disabled={lessonsBusy}
+            style={{ ...btnSx, padding: "6px 12px", fontSize: 9 }}>
+            {lessonsBusy ? "GENERATING…" : lessons ? "↻ REGENERATE SUMMARY" : "GENERATE SUMMARY"}
+          </button>
+        </div>
+
+        {!lessons ? (
+          <div style={{ fontSize: 10.5, color: C.dim, lineHeight: 1.6 }}>
+            Press Generate Summary to build the ledger from the last 90 days of graded signals.
+          </div>
+        ) : !lessons.available ? (
+          <div style={{ fontSize: 10.5, color: C.dim, lineHeight: 1.6 }}>
+            {lessons.error || "No graded signal history yet — lessons appear once signals resolve to won/lost."}
+          </div>
+        ) : (
+          <>
+            {/* On-demand roll-up of the whole record set. */}
+            {lessons.summary && (
+              <div style={{ fontSize: 11, color: C.text, lineHeight: 1.65, padding: "10px 12px", borderRadius: 8, background: C.surface, border: `1px solid ${C.border}`, marginBottom: 12 }}>
+                {lessons.summary}
+              </div>
+            )}
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {lessons.lessons.map((l) => {
+                const tone = l.kind === "strength" ? C.accent : l.kind === "calibration" ? C.text : l.kind === "symbol" ? C.gold : C.red;
+                return (
+                  <div key={l.id} style={{ padding: "10px 12px", borderRadius: 8, background: C.surface, borderLeft: `3px solid ${tone}`, border: `1px solid ${C.border}` }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "baseline", marginBottom: 5 }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: tone }}>{l.title}</span>
+                      <span style={{ fontSize: 9, color: C.dim, fontFamily: FM, flexShrink: 0 }}>{l.evidence.winRate}% · n={l.evidence.n}</span>
+                    </div>
+                    <div style={{ fontSize: 10, color: C.dim, lineHeight: 1.55, marginBottom: 5 }}>{l.observed}</div>
+                    <div style={{ fontSize: 10, color: C.text, lineHeight: 1.55 }}>
+                      <span style={{ fontSize: 8, fontWeight: 800, letterSpacing: 1, color: C.dim }}>WHAT CHANGED → </span>
+                      {l.changed}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Honesty rail: signatures deliberately NOT acted on yet. */}
+            {lessons.forming?.length > 0 && (
+              <div style={{ marginTop: 12 }}>
+                <div style={{ fontSize: 8, color: C.dim, letterSpacing: 1, marginBottom: 6 }}>STILL FORMING — NOT ACTED ON YET</div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+                  {lessons.forming.map((f) => (
+                    <span key={f.key} style={{ fontSize: 9, fontFamily: FM, color: C.dim, padding: "3px 8px", borderRadius: 5, background: C.surface, border: `1px solid ${C.border}` }}>
+                      {f.label} · {f.n}/{f.needed}
+                    </span>
+                  ))}
+                </div>
+              </div>
             )}
           </>
         )}

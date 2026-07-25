@@ -9,6 +9,7 @@
 // same OWNER_EMAILS allowlist that already powers /admin/codes.
 import { getAdmin, getUserFromRequest, isOwner, serverConfigured } from "../../../../lib/supabaseServer";
 import { buildSignalStats } from "../../../../lib/signalStats";
+import { buildLessons, summarizeLessons } from "../../../../lib/lessons";
 
 async function requireOwner(request) {
   if (!serverConfigured()) {
@@ -50,7 +51,27 @@ export async function GET(request) {
           direction: r.direction, conviction: r.conviction,
           created_at: r.created_at, resolved_at: r.resolved_at,
         })),
+        // V14: the loop learns from WINS too (dev can now grade a deletion as
+        // "closed with profit"), so the panel shows both sides of the ledger
+        // instead of only what went wrong.
+        bestSetups: Object.entries(stats.byKey || {})
+          .filter(([, v]) => v.status === "ready")
+          .sort((a, b) => b[1].winRate - a[1].winRate)
+          .slice(0, 12)
+          .map(([key, v]) => ({ key, ...v })),
       });
+    } catch (e) {
+      return Response.json({ available: false, error: String(e.message) });
+    }
+  }
+
+  // V14: LESSONS LEARNED ledger — what the engine taught itself and what it
+  // changed as a result, plus an on-demand deterministic summary.
+  if (searchParams.get("view") === "lessons") {
+    try {
+      const stats = await buildSignalStats(admin, { lookbackDays: 90 });
+      const ledger = buildLessons(stats);
+      return Response.json({ ...ledger, summary: summarizeLessons(ledger) });
     } catch (e) {
       return Response.json({ available: false, error: String(e.message) });
     }
