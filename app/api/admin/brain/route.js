@@ -23,6 +23,11 @@ async function requireOwner(request) {
 
 const KEYS = ["system_prompt_addendum", "feature_flags", "v13_popup_content"];
 
+// V14: must stay in lockstep with RELEASE_POPUP_VERSION in app/page.js. Bumping
+// the release there means bumping it here, or "reset popup" clears a stale flag
+// that nothing reads any more.
+const RELEASE_POPUP_SETTINGS_KEY = "hasSeenV14Popup";
+
 export async function GET(request) {
   const gate = await requireOwner(request);
   if (gate.fail) return gate.fail;
@@ -125,8 +130,8 @@ export async function POST(request) {
     if (selErr) return Response.json({ error: selErr.message }, { status: 500 });
     let updated = 0;
     for (const row of rows || []) {
-      if (!row.settings?.hasSeenV13Popup) continue;
-      const settings = { ...row.settings, hasSeenV13Popup: false };
+      if (!row.settings?.[RELEASE_POPUP_SETTINGS_KEY]) continue;
+      const settings = { ...row.settings, [RELEASE_POPUP_SETTINGS_KEY]: false };
       const { error } = await admin.from("user_settings").update({ settings }).eq("user_id", row.user_id);
       if (!error) updated++;
     }
@@ -149,7 +154,7 @@ export async function POST(request) {
     if (!userId) return Response.json({ error: "No user with that email" }, { status: 404 });
 
     const { data: existing } = await admin.from("user_settings").select("settings").eq("user_id", userId).maybeSingle();
-    const settings = { ...(existing?.settings || {}), hasSeenV13Popup: false };
+    const settings = { ...(existing?.settings || {}), [RELEASE_POPUP_SETTINGS_KEY]: false };
     const { error } = await admin.from("user_settings").upsert({ user_id: userId, settings, updated_at: new Date().toISOString() });
     if (error) return Response.json({ error: error.message }, { status: 500 });
     return Response.json({ ok: true });

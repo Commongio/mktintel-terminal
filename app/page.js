@@ -44,6 +44,16 @@ import TickerTape from "./components/TickerTape";
 const FONT_SANS = "'Geist',sans-serif", FONT_SERIF = "'Source Serif 4',serif";
 const FONT_DISPLAY = "'Fraunces',serif", FONT_CHAT = "'Inter',sans-serif", FONT_MONO = "'JetBrains Mono',monospace";
 
+// ── RELEASE POPUP VERSIONING (V14) ───────────────────────────────────────────
+// The "what's new" popup used a hardcoded V13 flag, so anyone who dismissed the
+// V13 notes would never see another release note again. Both the local mirror
+// and the server-side settings field are now derived from this one constant:
+// bump it on a release and the popup shows once more for EVERY user, with no
+// manual admin reset. Old flags are simply left behind (harmless).
+const RELEASE_POPUP_VERSION = "v14";
+const RELEASE_POPUP_LS_KEY = `kronos_${RELEASE_POPUP_VERSION}_popup_seen`;
+const RELEASE_POPUP_SETTINGS_KEY = `hasSeen${RELEASE_POPUP_VERSION.toUpperCase()}Popup`; // hasSeenV14Popup
+
 // ─── COLOR HELPERS ────────────────────────────────────────────────────────────
 function hexToRgb(h) {
   h = (h||"#000").replace("#",""); if(h.length===3) h=h.split("").map(c=>c+c).join("");
@@ -1753,12 +1763,12 @@ export default function MarketTerminal(){
   const[displayName,setDisplayName]=useState("");
   const[interactionMode,setInteractionMode]=useState("chatty"); // "chatty" | "command"
   const[isDev,setIsDev]=useState(false); // server-derived (OWNER_EMAILS); never sent on save
-  const[hasSeenV13Popup,setHasSeenV13Popup]=useState(()=>{
-    try{return localStorage.getItem("kronos_v13_popup_seen")==="1";}catch{return false;}
+  const[hasSeenReleasePopup,setHasSeenReleasePopup]=useState(()=>{
+    try{return localStorage.getItem(RELEASE_POPUP_LS_KEY)==="1";}catch{return false;}
   });
   const[settingsReady,setSettingsReady]=useState(false); // gates the V13 popup so it never flashes before we know
   const[v13PopupContent,setV13PopupContent]=useState(null); // dev-editable copy from brain_config, via /api/settings
-  const[v13PopupPreview,setV13PopupPreview]=useState(false); // dev-only manual preview, doesn't touch hasSeenV13Popup
+  const[v13PopupPreview,setV13PopupPreview]=useState(false); // dev-only manual preview, doesn't touch hasSeenReleasePopup
   const[chatAutoDelete,setChatAutoDelete]=useState("never"); // daily|weekly|monthly|session|never
   const[chatHistoryClearedAt,setChatHistoryClearedAt]=useState(null);
   const[watchlist,setWatchlist]=useState(DEFAULT_WATCHLIST);
@@ -1933,9 +1943,9 @@ export default function MarketTerminal(){
           if(s.chatHistoryClearedAt)setChatHistoryClearedAt(s.chatHistoryClearedAt);
           // Server is authoritative once logged in (lets a dev's "reset popup" reach the
           // user on next load even if their local mirror still says "seen").
-          if(typeof s.hasSeenV13Popup==="boolean"){
-            setHasSeenV13Popup(s.hasSeenV13Popup);
-            try{localStorage.setItem("kronos_v13_popup_seen",s.hasSeenV13Popup?"1":"0");}catch{}
+          if(typeof s[RELEASE_POPUP_SETTINGS_KEY]==="boolean"){
+            setHasSeenReleasePopup(s[RELEASE_POPUP_SETTINGS_KEY]);
+            try{localStorage.setItem(RELEASE_POPUP_LS_KEY,s[RELEASE_POPUP_SETTINGS_KEY]?"1":"0");}catch{}
           }
         }
       }catch{}
@@ -1955,7 +1965,10 @@ export default function MarketTerminal(){
         const base={
           theme:{mainBg,mainText,leftBg,leftText,rightBg,rightText,accent:accentKey,density,leftWidth,rightWidth,chartRightWidth},
           fontSize,watchlist,watchlistMeta,chatStyle,bgImage,layouts,collapsed,notes,themeSel,sidePanels,chatFont,kronosLocal,
-          displayName,interactionMode,hasSeenV13Popup,chatAutoDelete,chatHistoryClearedAt,
+          displayName,interactionMode,chatAutoDelete,chatHistoryClearedAt,
+          // Versioned key (hasSeenV14Popup) — must match what the loader reads
+          // and what /admin's "reset popup" clears.
+          [RELEASE_POPUP_SETTINGS_KEY]:hasSeenReleasePopup,
         };
         const putSettings=(settings)=>fetch("/api/settings",{method:"PUT",headers:{"Content-Type":"application/json",Authorization:`Bearer ${token}`},body:JSON.stringify({settings})});
         let r=await putSettings({...base,chatHistory:messages.slice(-80)});
@@ -1968,7 +1981,7 @@ export default function MarketTerminal(){
     },2000);
     return()=>clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  },[user,mainBg,mainText,leftBg,leftText,rightBg,rightText,accentKey,density,leftWidth,rightWidth,chartRightWidth,fontSize,watchlist,watchlistMeta,chatStyle,bgImage,layouts,notes,themeSel,sidePanels,chatFont,messages,displayName,interactionMode,hasSeenV13Popup,chatAutoDelete,chatHistoryClearedAt]);
+  },[user,mainBg,mainText,leftBg,leftText,rightBg,rightText,accentKey,density,leftWidth,rightWidth,chartRightWidth,fontSize,watchlist,watchlistMeta,chatStyle,bgImage,layouts,notes,themeSel,sidePanels,chatFont,messages,displayName,interactionMode,hasSeenReleasePopup,chatAutoDelete,chatHistoryClearedAt]);
   useEffect(()=>{if(desktopChatAtBottom)chatEndRef.current?.scrollIntoView({behavior:"smooth"});},[messages,loading]);
 
   const fetchQuotes=useCallback(async()=>{
@@ -2495,8 +2508,8 @@ export default function MarketTerminal(){
             {showTour&&<TourGuide accent={accent} T={T} onClose={()=>setShowTour(false)} onSwitchView={(v)=>setView(v)}/>}
             {/* V13: one-time "what's new" popup — waits for settings to load (no
                 flash) and for the welcome/tour modals to clear (no stacking). */}
-            {settingsReady&&!showWelcome&&!showTour&&!hasSeenV13Popup&&(
-              <V13Popup content={v13PopupContent} accent={accent} T={T} onClose={()=>{setHasSeenV13Popup(true);try{localStorage.setItem("kronos_v13_popup_seen","1");}catch{}}}/>
+            {settingsReady&&!showWelcome&&!showTour&&!hasSeenReleasePopup&&(
+              <V13Popup content={v13PopupContent} accent={accent} T={T} onClose={()=>{setHasSeenReleasePopup(true);try{localStorage.setItem(RELEASE_POPUP_LS_KEY,"1");}catch{}}}/>
             )}
             {v13PopupPreview&&<V13Popup content={v13PopupContent} accent={accent} T={T} onClose={()=>setV13PopupPreview(false)}/>}
         {showWL&&<WatchlistModal onClose={()=>setShowWL(false)} watchlist={watchlist} onAdd={addWL} onRemove={rmWL} onReset={resetWL} accent={accent} T={TL}/>}

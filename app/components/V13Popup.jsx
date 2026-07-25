@@ -11,13 +11,15 @@ const FC = "'Inter',sans-serif";
 // product-name drift ("Chatty AI" → "AI Assistant"). State the capability, then
 // where to find it. The UI carries the personality; the text carries the facts.
 const DEFAULT_CONTENT = {
-  title: "Release Notes — V13",
+  title: "Release Notes — V14",
   bullets: [
-    "Mode switcher (top-right): toggle between the AI Assistant and Command Palette instantly.",
-    "SPX and major index options are now prioritized in every scan cycle.",
-    "Futures scanning now runs continuously. The header displays the active Globex session.",
-    "Signal Info displays an exact timestamp in your local timezone.",
-    "Chat enhancements: scroll-to-bottom, manual history deletion, and automated clearing schedules (Settings → Personal).",
+    "Continuous scanning: the signal engine now runs on a multi-minute cycle instead of once daily. New setups reach the feed automatically — no manual refresh required.",
+    "Signal routing corrected: INVEST signals were being written to the futures feed. Each instrument class is now isolated, with interval limits enforced at the database layer.",
+    "INVEST rebuilt: Monthly and Yearly horizons only, each signal carries an explicit take-profit month, and a notification is sent if a position moves against you.",
+    "Options signals are constrained to short-dated, daily-tradeable setups (0–5 DTE) and are no longer classified as multi-week swings.",
+    "Charts now rescale the price axis automatically on symbol change.",
+    "The AI Desk queries the full market and live web sources rather than your watchlist alone.",
+    "Data: sector heatmap, upcoming IPO calendar, and next-earnings dates on ticker overviews.",
   ],
   links: [],
 };
@@ -29,7 +31,7 @@ export default function V13Popup({ content, onClose, accent, T }) {
       onClick={(e) => { if (e.target === e.currentTarget) onClose?.(); }}>
       <div style={{ width: "100%", maxWidth: 480, maxHeight: "85vh", overflowY: "auto", background: T.panel, border: `1px solid ${accent}45`, borderRadius: 18, boxShadow: `0 0 80px ${accent}20, 0 0 200px rgba(0,0,0,0.8)`, padding: "24px 28px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
-          <span style={{ fontFamily: FM, fontSize: 9, fontWeight: 800, color: accent, letterSpacing: 3 }}>V13 UPDATE</span>
+          <span style={{ fontFamily: FM, fontSize: 9, fontWeight: 800, color: accent, letterSpacing: 3 }}>V14 UPDATE</span>
           <button onClick={onClose} aria-label="Close" style={{ color: T.dim, fontSize: 16, cursor: "pointer", background: "none", border: "none" }}>✕</button>
         </div>
         {/* V14: Inter, not the Fraunces serif — the display serif read as
