@@ -2,8 +2,30 @@
 import "./globals.css";
 
 export const metadata = {
-  title: "MKTINTEL PRO",
-  description: "Live trading intelligence terminal",
+  // V14.6: the last surviving "MKTINTEL PRO" string. It was only in <title>, but
+  // that's the highest-visibility place it could have been: the browser tab, and
+  // the fallback a link unfurler uses when there's no Open Graph block — so every
+  // shared link previewed under the old brand name.
+  metadataBase: new URL("https://kronosterminal.online"),
+  title: "KRONOS",
+  description: "Live trading intelligence terminal — continuous market scanning, multi-agent signals, and an AI desk.",
+  applicationName: "KRONOS",
+  // Explicit OG/Twitter blocks so a shared link is DESIGNED rather than inferred.
+  // Without these, iMessage/Slack/Discord fall back to <title> + a guessed icon.
+  openGraph: {
+    title: "KRONOS",
+    siteName: "KRONOS",
+    description: "Live trading intelligence terminal — continuous market scanning, multi-agent signals, and an AI desk.",
+    url: "https://kronosterminal.online",
+    type: "website",
+    images: [{ url: "/icons/icon-512.png", width: 512, height: 512, alt: "KRONOS" }],
+  },
+  twitter: {
+    card: "summary",           // summary, not summary_large_image — the asset is a square logo, not a banner
+    title: "KRONOS",
+    description: "Live trading intelligence terminal.",
+    images: ["/icons/icon-512.png"],
+  },
   // iOS ignores the web manifest's `display: standalone`; it needs these legacy
   // apple-* meta tags to launch chrome-less from the home screen. Without them an
   // "installed" app still opens with Safari's URL bar — and since iOS only
