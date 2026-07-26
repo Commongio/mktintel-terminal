@@ -209,6 +209,13 @@ function BrainPanel({ C, FM }) {
   const [saving, setSaving] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
   const [resetBusy, setResetBusy] = useState(false);
+  // V14.5 bulk signal purge (dev-only, preview-first)
+  const [purgeBusy, setPurgeBusy] = useState(false);
+  const [purgePreview, setPurgePreview] = useState(null);
+  const [purgeMisrouted, setPurgeMisrouted] = useState(true);
+  const [purgeAsset, setPurgeAsset] = useState("");
+  const [purgeBefore, setPurgeBefore] = useState("");
+  const [purgeVersion, setPurgeVersion] = useState("");
   const [lossLog, setLossLog] = useState(null); // V13.5 self-teaching loss log
   const [lessons, setLessons] = useState(null);       // V14 lessons-learned ledger
   const [lessonsBusy, setLessonsBusy] = useState(false);
@@ -301,6 +308,36 @@ function BrainPanel({ C, FM }) {
       setNotice(`Popup reset for ${d.updated} user(s).`);
     } catch { setError("Connection error"); }
     finally { setResetBusy(false); }
+  };
+
+  // V14.5: purge signals produced by a buggy engine version. Always previews
+  // first — a confirm() on an unknown row count is not informed consent, so the
+  // dev sees exactly how many rows (and a sample) before anything is deleted.
+  const purgeBadSignals = async (confirmDelete) => {
+    setPurgeBusy(true); setError(""); setNotice("");
+    try {
+      const token = await getAccessToken();
+      const filters = {
+        misroutedOnly: purgeMisrouted,
+        assetClass: purgeAsset || undefined,
+        before: purgeBefore || undefined,
+        engineVersion: purgeVersion.trim() || undefined,
+      };
+      const r = await fetch("/api/admin/brain", {
+        method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ action: "purge_bad_signals", filters, confirm: confirmDelete === true }),
+      });
+      const d = await r.json();
+      if (!r.ok) { setError(d.error || "Purge failed"); setPurgePreview(null); return; }
+      if (d.dryRun) {
+        setPurgePreview(d);
+        setNotice(`Preview: ${d.matched} signal(s) match. Nothing deleted yet.`);
+      } else {
+        setPurgePreview(null);
+        setNotice(`Deleted ${d.deleted} signal(s).`);
+      }
+    } catch { setError("Connection error"); }
+    finally { setPurgeBusy(false); }
   };
 
   const resetUser = async () => {
@@ -504,6 +541,84 @@ function BrainPanel({ C, FM }) {
             style={{ ...inputSx, flex: 1 }} />
           <button onClick={resetUser} disabled={resetBusy || !resetEmail.trim()} style={btnSx}>RESET FOR USER</button>
         </div>
+      </div>
+
+      {/* V14.5: PURGE BAD SIGNALS.
+          Separate from the per-signal delete-reason tags — those record a trading
+          OUTCOME and feed the self-teaching loop. These rows are data errors from
+          a buggy engine version, so they're erased WITHOUT being learned from:
+          training on a misclassification would teach the engine its own bug. */}
+      <div style={boxSx}>
+        <div style={labelSx}>PURGE BAD SIGNALS</div>
+        <div style={{ fontSize: 8.5, color: C.dim, marginBottom: 10, lineHeight: 1.5 }}>
+          Erases signals written by a buggy engine version. These are <b style={{ color: C.text }}>data errors</b>,
+          not losing trades — they are deleted outright and never enter the loss log or the
+          lessons ledger. Always previews before deleting.
+        </div>
+
+        <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, cursor: "pointer" }}>
+          <input type="checkbox" checked={purgeMisrouted} onChange={(e) => { setPurgeMisrouted(e.target.checked); setPurgePreview(null); }} style={{ accentColor: C.accent }} />
+          <span style={{ fontSize: 9, color: C.text, letterSpacing: 0.5 }}>
+            Misrouted only — futures rows at 1d/1w/1mo (the pre-V14 options/INVEST bug)
+          </span>
+        </label>
+
+        <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
+          <select value={purgeAsset} onChange={(e) => { setPurgeAsset(e.target.value); setPurgePreview(null); }}
+            style={{ ...inputSx, flex: 1, minWidth: 120 }}>
+            <option value="">Any asset class</option>
+            <option value="futures">futures</option>
+            <option value="options">options</option>
+            <option value="equity">equity</option>
+          </select>
+          <input type="date" value={purgeBefore} onChange={(e) => { setPurgeBefore(e.target.value); setPurgePreview(null); }}
+            title="Only signals created before this date"
+            style={{ ...inputSx, flex: 1, minWidth: 130 }} />
+          <input value={purgeVersion} onChange={(e) => { setPurgeVersion(e.target.value); setPurgePreview(null); }}
+            placeholder="engine version (optional)" style={{ ...inputSx, flex: 1, minWidth: 140 }} />
+        </div>
+
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button onClick={() => purgeBadSignals(false)} disabled={purgeBusy} style={{ ...btnSx, flex: 1 }}>
+            {purgeBusy ? "…" : "PREVIEW MATCHES"}
+          </button>
+          <button
+            onClick={() => {
+              if (!purgePreview?.matched) return;
+              if (!confirm(`Permanently delete ${purgePreview.matched} signal(s)? This cannot be undone.`)) return;
+              purgeBadSignals(true);
+            }}
+            disabled={purgeBusy || !purgePreview?.matched}
+            style={{
+              ...btnSx, flex: 1,
+              background: purgePreview?.matched ? "rgba(255,77,109,0.08)" : "transparent",
+              border: `1px solid ${purgePreview?.matched ? "rgba(255,77,109,0.3)" : C.border}`,
+              color: purgePreview?.matched ? C.red : C.dim,
+              opacity: purgePreview?.matched ? 1 : 0.5,
+            }}>
+            DELETE {purgePreview?.matched ? `${purgePreview.matched} ROW(S)` : "— PREVIEW FIRST"}
+          </button>
+        </div>
+
+        {purgePreview && (
+          <div style={{ marginTop: 10, maxHeight: 180, overflowY: "auto", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 7, padding: 10 }}>
+            {purgePreview.matched === 0 ? (
+              <div style={{ fontSize: 9, color: C.dim }}>No signals match those filters.</div>
+            ) : (
+              (purgePreview.sample || []).map((s) => (
+                <div key={s.id} style={{ fontSize: 8.5, color: C.dim, marginBottom: 3, fontFamily: FM }}>
+                  <span style={{ color: C.text }}>{s.symbol}</span> · {s.asset_class} · {s.interval} · {s.status}
+                  {s.engine_version ? ` · ${s.engine_version}` : ""} · {String(s.created_at).slice(0, 10)}
+                </div>
+              ))
+            )}
+            {purgePreview.matched > (purgePreview.sample?.length || 0) && (
+              <div style={{ fontSize: 8.5, color: C.dim, marginTop: 5 }}>
+                …and {purgePreview.matched - purgePreview.sample.length} more.
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* V13.6: dev tools — jump to the bot and fire a Comet so the effect can be

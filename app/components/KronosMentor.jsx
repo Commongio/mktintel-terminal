@@ -28,7 +28,7 @@ export default function KronosMentor({ onClose, accent = "#00d4aa", T }) {
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 3000, background: "rgba(0,0,0,0.78)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div style={{ width: "100%", maxWidth: 460, background: panel, border: `1px solid ${accent}45`, borderRadius: 18, overflow: "hidden", boxShadow: `0 0 70px ${accent}22` }}>
+      <div style={{ width: "100%", maxWidth: 460, background: panel, border: `1px solid ${accent}45`, borderRadius: 18, overflow: "hidden", boxShadow: "0 24px 64px rgba(0,0,0,0.7)" }}>
         <div style={{ padding: "26px 28px 10px", textAlign: "center", position: "relative" }}>
           <button onClick={onClose} style={{ position: "absolute", top: 16, right: 18, color: dim, fontSize: 18, background: "none", border: "none", cursor: "pointer" }}>✕</button>
           <div style={{ fontSize: 40, marginBottom: 8 }}>🤖</div>

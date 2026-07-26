@@ -694,21 +694,86 @@ function WatchlistModal({onClose,watchlist,onAdd,onRemove,onReset,accent,T}){
 }
 
 // ─── SETTINGS PANEL ───────────────────────────────────────────────────────────
+// V14.5: curated presets replaced the raw hex inputs. Free-form hex let anyone
+// build an unreadable terminal (white-on-white, or a background that killed the
+// contrast of every semantic green/red on screen) and a text field asking for
+// "#000000" is a developer's control, not a trader's. These palettes are picked
+// to stay legible against the app's dark chrome.
+const SURFACE_PRESETS = [
+  { id: "black",    label: "True Black",  hex: "#000000" },
+  { id: "carbon",   label: "Carbon",      hex: "#05080F" }, // the app default — must be a NAMED swatch, not "Custom"
+  { id: "graphite", label: "Graphite",    hex: "#0D1117" },
+  { id: "slate",    label: "Slate",       hex: "#111823" },
+  { id: "navy",     label: "Deep Navy",   hex: "#0A1020" },
+  { id: "ink",      label: "Ink",         hex: "#141414" },
+];
+const TEXT_PRESETS = [
+  { id: "white",   label: "White",       hex: "#FFFFFF" },
+  { id: "cool",    label: "Cool Grey",   hex: "#E2EDF8" }, // the app default text token
+  { id: "warm",    label: "Warm Grey",   hex: "#D6D3CE" },
+  { id: "muted",   label: "Muted",       hex: "#94A3B8" },
+  { id: "mint",    label: "Mint",        hex: "#7DD3B0" },
+  { id: "amber",   label: "Amber",       hex: "#E8C468" },
+];
+
+// A swatch grid that opens under a single button, so each section is one control
+// instead of two inputs. Closes on pick or on outside click.
+function SwatchPicker({ label, value, onPick, presets, T, accent }){
+  const [open,setOpen]=useState(false);
+  const wrapRef=useRef(null);
+  useEffect(()=>{
+    if(!open)return;
+    const onDoc=(e)=>{ if(wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown",onDoc);
+    return()=>document.removeEventListener("mousedown",onDoc);
+  },[open]);
+  const current=presets.find(p=>p.hex.toLowerCase()===String(value||"").toLowerCase());
+  return(
+    <div ref={wrapRef} style={{position:"relative",flex:1,minWidth:0}}>
+      <button onClick={()=>setOpen(o=>!o)}
+        aria-expanded={open}
+        style={{display:"flex",alignItems:"center",gap:7,width:"100%",minHeight:34,padding:"6px 9px",
+          borderRadius:6,background:T.bg,border:`1px solid ${open?accent:T.border}`,cursor:"pointer",textAlign:"left"}}>
+        <span style={{width:16,height:16,borderRadius:4,background:value,border:`1px solid ${T.border}`,flexShrink:0}}/>
+        <span style={{fontFamily:FONT_MONO,fontSize:9,color:T.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+          {current?current.label:"Custom"}
+        </span>
+        <span style={{marginLeft:"auto",fontFamily:FONT_MONO,fontSize:8,color:T.dim}}>{open?"▲":"▼"}</span>
+      </button>
+      {open&&(
+        <div style={{position:"absolute",top:"calc(100% + 4px)",left:0,right:0,zIndex:40,
+          background:T.panel,border:`1px solid ${T.border}`,borderRadius:8,padding:8,
+          display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6}}>
+          {presets.map(p=>{
+            const on=p.hex.toLowerCase()===String(value||"").toLowerCase();
+            return(
+              <button key={p.id} onClick={()=>{onPick(p.hex);setOpen(false);}} title={p.label}
+                style={{display:"flex",flexDirection:"column",alignItems:"center",gap:4,padding:"7px 3px",
+                  borderRadius:6,cursor:"pointer",background:on?`${accent}14`:"transparent",
+                  border:`1px solid ${on?accent:T.border}`,minHeight:44}}>
+                <span style={{width:20,height:20,borderRadius:4,background:p.hex,border:`1px solid ${T.border}`}}/>
+                <span style={{fontFamily:FONT_MONO,fontSize:7,color:on?accent:T.dim,letterSpacing:0.3,textAlign:"center",lineHeight:1.2}}>{p.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ColorRow({label,bg,setBg,text,setText,T,accent}){
-  const[bgD,setBgD]=useState(bg),[txtD,setTxtD]=useState(text);
-  useEffect(()=>setBgD(bg),[bg]);useEffect(()=>setTxtD(text),[text]);
-  const cBg=v=>{setBgD(v);if(/^#[0-9a-fA-F]{6}$/.test(v))setBg(v);};
-  const cTxt=v=>{setTxtD(v);if(/^#[0-9a-fA-F]{6}$/.test(v))setText(v);};
   return(
     <div style={{marginBottom:14,padding:"11px",borderRadius:8,background:T.surface,border:`1px solid ${T.border}`}}>
       <div style={{fontFamily:FONT_MONO,fontSize:9,color:accent,letterSpacing:2,fontWeight:700,marginBottom:9}}>{label}</div>
-      {[["BG",bg,setBg,bgD,setBgD,cBg],["TEXT",text,setText,txtD,setTxtD,cTxt]].map(([l,val,set,draft,setDraft,commit])=>(
-        <div key={l} style={{display:"flex",gap:7,alignItems:"center",marginBottom:l==="BG"?6:0}}>
-          <span style={{fontFamily:FONT_MONO,fontSize:8,color:T.dim,width:30}}>{l}</span>
-          <input type="color" value={val} onChange={e=>set(e.target.value)} style={{width:28,height:24,border:`1px solid ${T.border}`,borderRadius:4,cursor:"pointer",padding:0,background:"transparent"}}/>
-          <input type="text" value={draft} onChange={e=>commit(e.target.value)} style={{flex:1,background:T.bg,border:`1px solid ${T.border}`,borderRadius:5,padding:"4px 8px",color:T.text,fontFamily:FONT_MONO,fontSize:10}}/>
-        </div>
-      ))}
+      <div style={{display:"flex",gap:7,alignItems:"center",marginBottom:7}}>
+        <span style={{fontFamily:FONT_MONO,fontSize:8,color:T.dim,width:30,flexShrink:0}}>BG</span>
+        <SwatchPicker label="BG" value={bg} onPick={setBg} presets={SURFACE_PRESETS} T={T} accent={accent}/>
+      </div>
+      <div style={{display:"flex",gap:7,alignItems:"center"}}>
+        <span style={{fontFamily:FONT_MONO,fontSize:8,color:T.dim,width:30,flexShrink:0}}>TEXT</span>
+        <SwatchPicker label="TEXT" value={text} onPick={setText} presets={TEXT_PRESETS} T={T} accent={accent}/>
+      </div>
     </div>
   );
 }
@@ -1019,9 +1084,18 @@ function SettingsPanel(props){
               )}
             </div>
 
-            {/* V11 M3: signal push alerts — the reason mobile matters for a
-                signals product. Self-gates on platform support + sign-in. */}
-            <PushAlerts T={T} accent={accent} user={user}/>
+            {/* V14.5: signal alerts MOVED to Kronos Bot → ALERTS. They only ever
+                governed bot signals, so terminal-wide settings was the wrong
+                scope — and the new per-side/timeframe/market-cap routing belongs
+                next to the engine controls it filters. Pointer left behind so the
+                control isn't simply "gone" for anyone who knew where it lived. */}
+            <div style={{marginBottom:18,padding:"12px 13px",borderRadius:9,background:T.surface,border:`1px solid ${T.border}`}}>
+              <div style={{fontFamily:FONT_MONO,fontSize:9,color:T.dim,letterSpacing:2,fontWeight:700,marginBottom:7}}>SIGNAL ALERTS</div>
+              <div style={{fontFamily:FONT_CHAT,fontSize:10,color:T.dim,lineHeight:1.55}}>
+                Alert settings now live in <b style={{color:T.text}}>Kronos Bot → ALERTS</b>, where you can
+                choose which sides, timeframes and market-cap tiers notify you.
+              </div>
+            </div>
 
             {/* V13: CHAT HISTORY — delete on demand + an auto-delete cadence. */}
             <div style={{marginBottom:18,paddingTop:14,borderTop:`1px solid ${T.border}`}}>
@@ -2458,6 +2532,24 @@ export default function MarketTerminal(){
               input,textarea,select{font-size:16px !important;}
             }
 
+            /* ── V14.5 DESIGN PASS: INSTRUMENT, NOT POSTER ──
+               The audit's brief was to strip decorative bloat while preserving
+               the layout, every data point, and the key visual anchors. So this
+               is deliberately narrow:
+                 • text-shadow is removed globally — it never encodes data, and
+                   on dense numeric readouts it actively costs legibility.
+                 • decorative accent halos on panels are gone (replaced at the
+                   call sites with neutral elevation shadows for depth).
+               EXPLICITLY PRESERVED: the galaxy orb (canvas — it IS the anchor),
+               the dark palette, and the semantic purple/green/red accents. The
+               orb and comet layers are exempted below so the pass can't dim the
+               one visualization the brief said to keep. */
+            .kronos-shell *:not(canvas){text-shadow:none!important;}
+            /* Numeric readouts are the product — give them a consistent
+               tabular rhythm rather than per-component drift. */
+            .kronos-shell [data-num],
+            .kronos-shell [data-animated]{font-variant-numeric:tabular-nums;}
+
             /* ── GPU ACCELERATION FOR ANIMATED ELEMENTS ── */
             [data-animated]{will-change:transform;transform:translateZ(0);backface-visibility:hidden;}
 
@@ -2635,7 +2727,7 @@ export default function MarketTerminal(){
                 gridLayout={migrateDataLayout(layouts?.data)} onGridChange={()=>{}} editMode={false}
                 collapsed={collapsed} onToggleCollapse={toggleCollapse}/>
             )}
-            {view==="bot"&&<BotDashboard isMobile accent={accent} T={T} botName="KRONOS BOT" isDev={isDev}/>}
+            {view==="bot"&&<BotDashboard isMobile accent={accent} T={T} botName="KRONOS BOT" isDev={isDev} user={user}/>}
             {view==="overview"&&overviewSymbol&&(
               <TickerOverview symbol={overviewSymbol} T={T} accent={accent}
                 messages={messages} input={input} setInput={setInput} send={send} loading={loading}
@@ -2707,7 +2799,7 @@ export default function MarketTerminal(){
 
           {/* BOT DASHBOARD VIEW */}
 {view==="bot"&&(
-  <BotDashboard accent={accent} T={T} botName="KRONOS BOT" isDev={isDev} />
+  <BotDashboard accent={accent} T={T} botName="KRONOS BOT" isDev={isDev} user={user} />
 )}
 
           {/* V12: PER-TICKER OVERVIEW VIEW */}

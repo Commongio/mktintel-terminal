@@ -29,7 +29,7 @@ export default function V13Popup({ content, onClose, accent, T }) {
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 3000, background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose?.(); }}>
-      <div style={{ width: "100%", maxWidth: 480, maxHeight: "85vh", overflowY: "auto", background: T.panel, border: `1px solid ${accent}45`, borderRadius: 18, boxShadow: `0 0 80px ${accent}20, 0 0 200px rgba(0,0,0,0.8)`, padding: "24px 28px" }}>
+      <div style={{ width: "100%", maxWidth: 480, maxHeight: "85vh", overflowY: "auto", background: T.panel, border: `1px solid ${accent}45`, borderRadius: 18, boxShadow: "0 24px 64px rgba(0,0,0,0.7)", padding: "24px 28px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
           <span style={{ fontFamily: FM, fontSize: 9, fontWeight: 800, color: accent, letterSpacing: 3 }}>V14 UPDATE</span>
           <button onClick={onClose} aria-label="Close" style={{ color: T.dim, fontSize: 16, cursor: "pointer", background: "none", border: "none" }}>✕</button>

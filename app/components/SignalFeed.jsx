@@ -17,6 +17,7 @@ const isPriorityIndex = (sym) => PRIORITY_INDEX_OPTIONS.includes(String(sym || "
 import { getMarketStatus, getFuturesSessionStatus } from "./MarketStatusBadge";
 import TickerLogo from "./TickerLogo";
 import { makeLevel, loadAnnotations, saveAnnotations } from "../../lib/chartAnnotations";
+import { signalMatchesPrefs, normalizePrefs, defaultPrefs } from "../../lib/alertPrefs";
 
 // ── V12 lifecycle helpers ─────────────────────────────────────────────────────
 
@@ -440,6 +441,20 @@ const SignalFeed = forwardRef(function SignalFeed({ accent = "#00d4aa", T, asset
   const [dismissed, setDismissed] = useState(() => {
     try { return new Set(JSON.parse(localStorage.getItem("kronos_dismissed") || "[]")); } catch { return new Set(); }
   });
+  // V14.5 alert routing. Read lazily (not in useState's initializer) because this
+  // component also renders server-side, where localStorage doesn't exist; and
+  // re-read on the ALERTS tab's change event so toggling a chip re-filters the
+  // feed immediately rather than on next mount.
+  const [alertPrefs, setAlertPrefs] = useState(defaultPrefs);
+  useEffect(() => {
+    const read = () => {
+      try { setAlertPrefs(normalizePrefs(JSON.parse(localStorage.getItem("kronos_alert_prefs") || "null"))); }
+      catch { setAlertPrefs(defaultPrefs()); }
+    };
+    read();
+    window.addEventListener("kronos-alert-prefs-change", read);
+    return () => window.removeEventListener("kronos-alert-prefs-change", read);
+  }, []);
   const dismissSignal = (r) => {
     setDismissed((prev) => {
       const next = new Set(prev); next.add(r.id);
@@ -639,6 +654,10 @@ const SignalFeed = forwardRef(function SignalFeed({ accent = "#00d4aa", T, asset
     // that filter exists to gate what the engine auto-surfaces, not to hide a
     // ticker the user themselves typed in and got a real setup on.
     if (r.source === "manual") return true;
+    // V14.5: the SAME predicate push uses (lib/alertPrefs). Keeping one matcher
+    // is the point — a user must never be pushed a signal they then can't find
+    // in the feed, or vice versa.
+    if (!signalMatchesPrefs(r, alertPrefs)) return false;
     return tiers.includes(symbolTier(r.symbol));
   }).sort((a, b) => (isPriorityIndex(b.symbol) ? 1 : 0) - (isPriorityIndex(a.symbol) ? 1 : 0)); // stable: priority indices float to top, order otherwise unchanged
 

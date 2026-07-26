@@ -153,7 +153,7 @@ export default function BrokerConnect({ accent, T, onClose }) {
       }} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
         <div style={{
           width: 420, background: T?.panel ?? surface, border: `1px solid ${accent}35`,
-          borderRadius: 16, padding: 24, boxShadow: `0 0 50px ${accent}18`,
+          borderRadius: 16, padding: 24, boxShadow: "0 20px 56px rgba(0,0,0,0.66)",
         }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
             <div>
@@ -214,7 +214,7 @@ export default function BrokerConnect({ accent, T, onClose }) {
       <div style={{
         width: 420, maxHeight: "86vh", overflowY: "auto",
         background: T?.panel ?? surface, border: `1px solid ${accent}35`,
-        borderRadius: 16, padding: 24, boxShadow: `0 0 50px ${accent}18`,
+        borderRadius: 16, padding: 24, boxShadow: "0 20px 56px rgba(0,0,0,0.66)",
       }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
           <div style={{ fontFamily: FC, fontSize: 16, fontWeight: 700, letterSpacing: -0.2, color: text }}>Connect Broker</div>

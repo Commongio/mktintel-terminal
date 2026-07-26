@@ -41,7 +41,7 @@ function Shell({ children, accent, T, onClose }) {
     // reachable on a phone instead of hiding under the bottom nav.
     <div className="kronos-modal-backdrop" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.82)", zIndex: 2500, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
       onClick={(e) => { if (e.target === e.currentTarget && onClose) onClose(); }}>
-      <div className="kronos-modal-card" style={{ width: "100%", maxWidth: 520, maxHeight: "calc(100dvh - 40px)", overflowY: "auto", WebkitOverflowScrolling: "touch", boxSizing: "border-box", background: T?.panel ?? "#0A1018", border: `1px solid ${accent}40`, borderRadius: 18, padding: "26px 28px", boxShadow: `0 0 80px ${accent}20` }}>
+      <div className="kronos-modal-card" style={{ width: "100%", maxWidth: 520, maxHeight: "calc(100dvh - 40px)", overflowY: "auto", WebkitOverflowScrolling: "touch", boxSizing: "border-box", background: T?.panel ?? "#0A1018", border: `1px solid ${accent}40`, borderRadius: 18, padding: "26px 28px", boxShadow: "0 24px 64px rgba(0,0,0,0.7)" }}>
         {children}
       </div>
     </div>

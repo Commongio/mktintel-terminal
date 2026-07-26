@@ -7,7 +7,7 @@
 // silently — iOS in particular hides push behind a home-screen install, and a
 // toggle that just does nothing would be worse than no toggle.
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { getSupabase, supabaseConfigured } from "../../lib/supabase";
 
 const FM = "'JetBrains Mono',monospace";
@@ -29,7 +29,7 @@ const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) ||
 const isStandalone = () =>
   window.matchMedia?.("(display-mode: standalone)").matches || window.navigator.standalone === true;
 
-export default function PushAlerts({ T, accent, user }) {
+export default function PushAlerts({ T, accent, user, alertPrefs = null }) {
   const text = T?.text ?? "#E2EDF8";
   const dim = T?.dim ?? "#9DB4CC";
   const border = T?.border ?? "#1A2535";
@@ -45,6 +45,12 @@ export default function PushAlerts({ T, accent, user }) {
   const [notifyLevel, setNotifyLevel] = useState(() => {
     try { return localStorage.getItem("kronos_notify_level") || "fire"; } catch { return "fire"; }
   });
+
+  // V14.5: `enable` is a stable callback (empty deps), so reading alertPrefs
+  // directly would capture the value from first render and register stale
+  // routing. A ref keeps the latest without re-creating the subscribe handler.
+  const prefsRef = useRef(alertPrefs);
+  useEffect(() => { prefsRef.current = alertPrefs; }, [alertPrefs]);
 
   useEffect(() => {
     const ok = typeof window !== "undefined" &&
@@ -92,7 +98,15 @@ export default function PushAlerts({ T, accent, user }) {
       const r = await fetch("/api/push/subscribe", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({ subscription: sub.toJSON(), minConviction, notifyLevel }),
+        // V14.5: the side/timeframe/cap routing travels WITH the subscription so
+        // the server filter is the same one the feed applies. Omitted keys mean
+        // "no preference" server-side, which reads as allow-all.
+        body: JSON.stringify({
+          subscription: sub.toJSON(), minConviction, notifyLevel,
+          alertSides: prefsRef.current?.sides,
+          alertTimeframes: prefsRef.current?.timeframes,
+          alertCaps: prefsRef.current?.caps,
+        }),
       });
       const d = await r.json();
       if (!r.ok) { setMsg(d.error || "Couldn't save subscription."); await sub.unsubscribe(); setBusy(false); return; }
@@ -103,6 +117,17 @@ export default function PushAlerts({ T, accent, user }) {
     }
     setBusy(false);
   }, []);
+
+  // Changing routing while subscribed must reach the server, or the phone keeps
+  // getting the old set. Debounced so dragging through several chips is one write.
+  const prefsSig = JSON.stringify(alertPrefs ?? {});
+  const didMountRef = useRef(false);
+  useEffect(() => {
+    if (!didMountRef.current) { didMountRef.current = true; return; } // skip initial
+    if (!subscribed || !alertPrefs) return;
+    const id = setTimeout(() => { enable(); }, 600);
+    return () => clearTimeout(id);
+  }, [prefsSig, subscribed, alertPrefs, enable]);
 
   const disable = useCallback(async () => {
     setBusy(true); setMsg("");

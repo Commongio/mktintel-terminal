@@ -160,5 +160,56 @@ export async function POST(request) {
     return Response.json({ ok: true });
   }
 
+  // ── V14.5: PURGE SIGNALS WRITTEN BY A BUGGY ENGINE VERSION ─────────────────
+  // Distinct from the per-signal delete-reason tags: those record a TRADING
+  // outcome and feed the self-teaching loop. These rows are DATA ERRORS (e.g.
+  // the pre-V14 bug that filed equity signals under futures) and must be erased
+  // WITHOUT being learned from — training on them would teach the engine from
+  // its own misclassification.
+  //
+  // Destructive, so: dryRun is the default, the caller must pass an explicit
+  // filter, and confirm:true is required to actually delete.
+  if (body?.action === "purge_bad_signals") {
+    const filters = body.filters || {};
+    const assetClass = ["futures", "options", "equity"].includes(filters.assetClass) ? filters.assetClass : null;
+    const before = filters.before ? new Date(filters.before) : null;
+    const engineVersion = typeof filters.engineVersion === "string" && filters.engineVersion.trim()
+      ? filters.engineVersion.trim() : null;
+    // The specific known bug: equity-interval rows filed as futures.
+    const misrouted = filters.misroutedOnly === true;
+
+    if (!assetClass && !before && !engineVersion && !misrouted) {
+      return Response.json({ error: "Refusing to purge with no filter — pass at least one." }, { status: 400 });
+    }
+    if (before && Number.isNaN(before.getTime())) {
+      return Response.json({ error: "Invalid `before` date" }, { status: 400 });
+    }
+
+    let q = admin.from("signals").select("id,asset_class,symbol,interval,status,engine_version,created_at");
+    if (assetClass) q = q.eq("asset_class", assetClass);
+    if (before) q = q.lt("created_at", before.toISOString());
+    if (engineVersion) q = q.eq("engine_version", engineVersion);
+    // The misrouted set: futures rows at intervals futures can never legally
+    // hold (1d/1w/1mo) — i.e. equity/options signals written to the wrong side.
+    if (misrouted) q = q.eq("asset_class", "futures").in("interval", ["1d", "1w", "1mo"]);
+
+    const { data: matches, error: selErr } = await q.limit(5000);
+    if (selErr) return Response.json({ error: selErr.message }, { status: 500 });
+    const ids = (matches || []).map((r) => r.id);
+
+    // Preview by default. Nothing is deleted unless confirm is explicitly true.
+    if (body.confirm !== true) {
+      return Response.json({
+        ok: true, dryRun: true, matched: ids.length,
+        sample: (matches || []).slice(0, 20),
+      });
+    }
+    if (!ids.length) return Response.json({ ok: true, deleted: 0 });
+
+    const { error: delErr } = await admin.from("signals").delete().in("id", ids);
+    if (delErr) return Response.json({ error: delErr.message }, { status: 500 });
+    return Response.json({ ok: true, deleted: ids.length });
+  }
+
   return Response.json({ error: "Unknown action" }, { status: 400 });
 }

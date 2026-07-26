@@ -9,7 +9,7 @@
 // Everything here is persisted under its own key (`kronos_bot_ui`) and never
 // touches the terminal's personalization.
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 
 const FM = "'JetBrains Mono',monospace";
 const FC = "'Inter',sans-serif";
@@ -188,6 +188,19 @@ function hexA(hex, a) {
 }
 
 // ── the panel ─────────────────────────────────────────────────────────────────
+// Module scope on purpose — see the note at its use site. A component declared
+// inside a render function is a new type on every render, which forces React to
+// throw away and rebuild its entire subtree (losing DOM state, focus, and any
+// in-progress pointer drag) instead of updating it.
+function SettingsSection({ title, children, first, border, dim }) {
+  return (
+    <div style={{ marginBottom: 18, paddingTop: first ? 0 : 14, borderTop: first ? "none" : `1px solid ${border}` }}>
+      <div style={{ fontFamily: FM, fontSize: 9, color: dim, letterSpacing: 2, fontWeight: 700, marginBottom: 9 }}>{title}</div>
+      {children}
+    </div>
+  );
+}
+
 export default function BotSettings({ onClose, T, accent }) {
   const panel = T?.panel ?? "#0A1018";
   const surface = T?.surface ?? "#0A1018";
@@ -202,15 +215,41 @@ export default function BotSettings({ onClose, T, accent }) {
     setUI((prev) => { const next = { ...prev, ...patch }; saveBotUI(next); return next; });
   }, []);
 
+  // V14.5: local slider position, so dragging never waits on the global
+  // save/broadcast. Re-syncs whenever the stored value changes from elsewhere
+  // (style switch, reset) but not while the user is actively dragging.
+  const [sliderPct, setSliderPct] = useState(() => Math.round((ui.glassOpacity ?? 0.45) * 100));
+  const draggingRef = useRef(false);
+  useEffect(() => {
+    if (!draggingRef.current) setSliderPct(Math.round((ui.glassOpacity ?? 0.45) * 100));
+  }, [ui.glassOpacity]);
+
+  const commitOpacity = useCallback((pct) => {
+    draggingRef.current = false;
+    update({ glassOpacity: pct / 100 });
+  }, [update]);
+
+  // Debounced commit so the live preview still follows the drag without paying
+  // the full re-render on every event.
+  useEffect(() => {
+    if (Math.round((ui.glassOpacity ?? 0.45) * 100) === sliderPct) return;
+    draggingRef.current = true;
+    const id = setTimeout(() => { draggingRef.current = false; update({ glassOpacity: sliderPct / 100 }); }, 90);
+    return () => clearTimeout(id);
+  }, [sliderPct, ui.glassOpacity, update]);
+
   const usesOpacity = ui.panelStyle === "glass" || ui.panelStyle === "outline" || ui.panelStyle === "neon";
   const preview = botPanelStyle(ui, T, accent);
   const tabPreview = botTabStyle(ui, T, accent);
 
-  const Section = ({ title, children, first }) => (
-    <div style={{ marginBottom: 18, paddingTop: first ? 0 : 14, borderTop: first ? "none" : `1px solid ${border}` }}>
-      <div style={{ fontFamily: FM, fontSize: 9, color: dim, letterSpacing: 2, fontWeight: 700, marginBottom: 9 }}>{title}</div>
-      {children}
-    </div>
+  // `Section` lives at MODULE scope (SettingsSection, above). Defining it here
+  // made it a new component type on every render, so React unmounted and
+  // remounted the entire subtree — including the opacity slider — on every
+  // state change, detaching the very input the finger was dragging. That, not
+  // the event rate alone, is what made the slider feel broken on touch.
+  const Section = useCallback(
+    (p) => <SettingsSection {...p} border={border} dim={dim} />,
+    [border, dim]
   );
 
   return (
@@ -250,11 +289,24 @@ export default function BotSettings({ onClose, T, accent }) {
                 <span style={{ fontFamily: FM, fontSize: 8, color: dim, letterSpacing: 1 }}>
                   {ui.panelStyle === "glass" ? "TAB FROST OPACITY" : "OUTLINE INTENSITY"}
                 </span>
-                <span style={{ fontFamily: FM, fontSize: 9, color: accent, fontWeight: 700 }}>{Math.round(ui.glassOpacity * 100)}%</span>
+                <span style={{ fontFamily: FM, fontSize: 9, color: accent, fontWeight: 700 }}>{sliderPct}%</span>
               </div>
-              <input type="range" min={5} max={95} value={Math.round(ui.glassOpacity * 100)}
-                onChange={(e) => update({ glassOpacity: Number(e.target.value) / 100 })}
-                style={{ width: "100%", accentColor: accent }} />
+              {/* V14.5 drag fix: this used to call update() on every input event,
+                  and update() -> saveBotUI() writes localStorage AND dispatches a
+                  global kronos-bot-ui-change that re-renders the whole dashboard
+                  (orb, feed, every panel). At ~60 events/sec of dragging that
+                  re-render storm made the thumb stutter and lag the finger.
+                  Now the thumb tracks a local value (instant, no broadcast) and
+                  the expensive commit is debounced — so dragging is smooth and
+                  the live preview still follows within ~90ms. */}
+              <input type="range" min={5} max={95} value={sliderPct}
+                onChange={(e) => setSliderPct(Number(e.target.value))}
+                // Commit immediately on release so the final value can never be
+                // lost to the debounce if the sheet closes right after a drag.
+                onPointerUp={() => commitOpacity(sliderPct)}
+                onTouchEnd={() => commitOpacity(sliderPct)}
+                onKeyUp={() => commitOpacity(sliderPct)}
+                style={{ width: "100%", accentColor: accent, height: 28, touchAction: "none" }} />
               <div style={{ fontFamily: FC, fontSize: 8.5, color: dim, marginTop: 5, lineHeight: 1.4 }}>
                 {ui.panelStyle === "glass"
                   ? "Only affects the tab bar's frosted fill — every other panel stays transparent."

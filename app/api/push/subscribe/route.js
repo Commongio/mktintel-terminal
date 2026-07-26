@@ -6,6 +6,7 @@
 // resolves the caller from their bearer token and scopes strictly to that user.
 import { getAdmin, serverConfigured, getUserFromRequest } from "../../../../lib/supabaseServer";
 import { pushConfigured } from "../../../../lib/push";
+import { normalizePrefs } from "../../../../lib/alertPrefs";
 
 export async function POST(request) {
   if (!serverConfigured()) return Response.json({ error: "Supabase not configured" }, { status: 503 });
@@ -30,6 +31,14 @@ export async function POST(request) {
 
   // Upsert on `endpoint`: re-subscribing the same device must update, not
   // duplicate — duplicates would double-notify.
+  // V14.5 routing prefs. Validated against the shared vocabulary so a malformed
+  // client can't write junk that later silences a user's alerts. Undefined (not
+  // null) when absent, so the column keeps whatever it had.
+  const prefs = normalizePrefs({
+    sides: body.alertSides, timeframes: body.alertTimeframes, caps: body.alertCaps,
+  });
+  const sentAny = body.alertSides || body.alertTimeframes || body.alertCaps;
+
   const row = {
     user_id: user.id,
     endpoint, p256dh, auth,
@@ -37,8 +46,19 @@ export async function POST(request) {
     asset_class: assetClass,
     notify_level: notifyLevel,
     user_agent: (request.headers.get("user-agent") || "").slice(0, 200),
+    ...(sentAny ? {
+      alert_sides: prefs.sides,
+      alert_timeframes: prefs.timeframes,
+      alert_caps: prefs.caps,
+    } : null),
   };
   let { error } = await getAdmin().from("push_subscriptions").upsert(row, { onConflict: "endpoint" });
+  // Degrade gracefully if migration 011 (alert routing) hasn't run yet — the
+  // device still subscribes, just without per-side/timeframe filtering.
+  if (error && (error.code === "42703" || /alert_(sides|timeframes|caps)/.test(error.message || ""))) {
+    delete row.alert_sides; delete row.alert_timeframes; delete row.alert_caps;
+    ({ error } = await getAdmin().from("push_subscriptions").upsert(row, { onConflict: "endpoint" }));
+  }
   // Degrade gracefully if migration 009 (notify_level) hasn't run yet.
   if (error && (error.code === "42703" || /notify_level/.test(error.message || ""))) {
     delete row.notify_level;

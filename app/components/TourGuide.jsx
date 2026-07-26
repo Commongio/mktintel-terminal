@@ -97,7 +97,7 @@ export default function TourGuide({ accent = "#00d4aa", T, onClose, onSwitchView
         position: "absolute", left: "50%", bottom: 28, transform: "translateX(-50%)",
         width: "min(560px, calc(100vw - 32px))", pointerEvents: "auto",
         background: "rgba(10,16,26,0.98)", border: `1px solid ${accent}45`, borderRadius: 18,
-        boxShadow: `0 0 60px ${accent}22, 0 18px 50px rgba(0,0,0,0.6)`, backdropFilter: "blur(12px)",
+        boxShadow: "0 20px 56px rgba(0,0,0,0.66)", backdropFilter: "blur(12px)",
         padding: "20px 24px",
       }}>
         {/* stop progress */}

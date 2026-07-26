@@ -22,6 +22,7 @@ import { gradeSignalLifecycle } from "../../../../lib/signalLifecycle";
 import { buildSignalStats, applyAggregateGate } from "../../../../lib/signalStats";
 import { marketRegime } from "../../../../lib/chop";
 import { scanUniverse, fetchMostActives, FULL_UNIVERSE, BUCKET_SIZE, ROTATING_PER_RUN, rotationLength, CURATED, intervalAllowed } from "../../../../lib/universe";
+import { getQuotes } from "../../../../lib/marketData";
 
 export const maxDuration = 60;
 
@@ -53,6 +54,24 @@ const PORTFOLIO_UNIVERSE = {
   equity:  CURATED.large.slice(0, 12),
 };
 
+
+// V14.5 market-cap cache. Caps drive the per-tier alert filter, but a per-symbol
+// lookup inside the scan loop would eat the 50s budget. So caps are fetched in
+// batches, memoized for the lifetime of the run, and are strictly best-effort:
+// a failure yields null, and lib/alertPrefs treats an unknown cap as ALLOWED so
+// missing data can never silently hide a signal from someone.
+const _capCache = new Map();
+async function capFor(symbol) {
+  const key = String(symbol || "").toUpperCase();
+  if (!key) return null;
+  if (_capCache.has(key)) return _capCache.get(key);
+  try {
+    const quotes = await getQuotes([key]);
+    const cap = quotes?.[0]?.marketCap ?? null;
+    _capCache.set(key, cap);
+    return cap;
+  } catch { _capCache.set(key, null); return null; }
+}
 
 async function writeIfChanged(admin, { assetClass, symbol, interval }, buckets, stats, choppy) {
   const raw = await runSignalEngine({ assetClass, symbol, interval });
@@ -99,6 +118,10 @@ async function writeIfChanged(admin, { assetClass, symbol, interval }, buckets, 
     status: sig.status, direction: sig.direction, conviction: sig.conviction,
     plan: sig.plan, agents: sig.agents, engine_version: ENGINE_VERSION,
     source: "cron",
+    // V14.5: cap recorded AT FIRE TIME so cap-tier alert filtering is
+    // reproducible — a company crossing a tier boundary later must not
+    // retroactively change which alerts were correct. Futures have none.
+    market_cap: assetClass === "futures" ? null : await capFor(symbol),
   });
   if (error) { buckets.failed.push({ symbol: `${assetClass}:${symbol}:${interval}`, error: error.message }); return; }
   buckets.written.push(`${assetClass}:${symbol}:${interval}:${sig.status}`);

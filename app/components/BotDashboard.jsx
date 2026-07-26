@@ -18,6 +18,19 @@ import { useBotUI, botPanelStyle, botTabStyle, isFloatingStyle } from "./BotSett
 import { FuturesSessionBadge } from "./MarketStatusBadge";
 import { directionLabel } from "../../lib/signalLabels";
 import { ALLOWED_INTERVALS } from "../../lib/universe";
+import PushAlerts from "./PushAlerts";
+import {
+  SIDES, TIMEFRAMES, CAP_TIERS, CAP_IDS, CAP_FILTERABLE_SIDES,
+  defaultPrefs, normalizePrefs, describePrefs,
+} from "../../lib/alertPrefs";
+
+// V14.5: alert prefs are mirrored to localStorage so the feed can filter without
+// waiting on a network round-trip; the push subscription is the server-side copy.
+export const ALERT_PREFS_KEY = "kronos_alert_prefs";
+export function loadAlertPrefs() {
+  try { return normalizePrefs(JSON.parse(localStorage.getItem(ALERT_PREFS_KEY) || "null")); }
+  catch { return defaultPrefs(); }
+}
 
 const FM = "'JetBrains Mono',monospace";
 const FD = "'Fraunces',serif";
@@ -148,8 +161,141 @@ function AnalyticsTab({ accent, T, paperMode, setPaperMode, assetClass }) {
   );
 }
 
+// ─── ALERTS TAB (V14.5) ────────────────────────────────────────────────────────
+// Bot-scoped alert routing. This used to live in the terminal-wide gear Settings
+// (Personal tab), which was the wrong scope — it only ever governed bot signals.
+// Sides and timeframes gate BOTH the push and the feed, via one shared predicate
+// in lib/alertPrefs so the two can never disagree.
+function AlertsTab({ accent, T, user, alertPrefs, setAlertPrefs, minConviction }) {
+  const surface = T?.surface ?? "#0b1320";
+  const border = T?.border ?? "#172030";
+  const text = T?.text ?? "#c8d8e8";
+  const dim = T?.dim ?? "#3a4a5a";
+  const card = { background: surface, border: `1px solid ${border}`, borderRadius: 12, padding: "14px 16px" };
+  const head = { fontFamily: FM, fontSize: 9, color: dim, letterSpacing: 2, marginBottom: 8 };
+  const note = { fontFamily: FC, fontSize: 10, color: dim, lineHeight: 1.55 };
+
+  return (
+    <div style={{ flex: 1, overflowY: "auto", padding: 20 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 16, maxWidth: 460 }}>
+
+        <div style={card}>
+          <div style={head}>SIGNAL SIDES</div>
+          <div style={{ ...note, marginBottom: 10 }}>
+            Which sides of the engine can alert you. Unselected sides still generate
+            signals — you just won&apos;t be notified about them.
+          </div>
+          <ChipMultiSelect accent={accent} T={T} columns={1}
+            options={SIDES.map((s) => ({ id: s.id, label: s.label, hint: s.hint }))}
+            selected={alertPrefs.sides}
+            onChange={(sides) => setAlertPrefs({ ...alertPrefs, sides })} />
+        </div>
+
+        <div style={card}>
+          <div style={head}>TIMEFRAMES</div>
+          <div style={{ ...note, marginBottom: 10 }}>
+            Matches the interval buttons in the Trading tab. A 1-hour play and a
+            15-minute play are different trades — alert only on the ones you actually take.
+          </div>
+          <ChipMultiSelect accent={accent} T={T} columns={2}
+            options={TIMEFRAMES.map((t) => ({ id: t.id, label: t.label, hint: t.hint }))}
+            selected={alertPrefs.timeframes}
+            onChange={(timeframes) => setAlertPrefs({ ...alertPrefs, timeframes })} />
+          <div style={{ ...note, fontSize: 9, marginTop: 8 }}>
+            Currently alerting on <b style={{ color: text }}>{describePrefs(alertPrefs)}</b>, at
+            <b style={{ color: text }}> {minConviction}%+</b> conviction.
+          </div>
+        </div>
+
+        {/* Market cap governs which tickers alert you, so it's mirrored here as
+            well as in Studio — same state object, so the two always agree. */}
+        <div style={card}>
+          <div style={head}>MARKET CAP</div>
+          <MarketCapFilter side="options" prefs={alertPrefs} setPrefs={setAlertPrefs} accent={accent} T={T} />
+          <MarketCapFilter side="equity"  prefs={alertPrefs} setPrefs={setAlertPrefs} accent={accent} T={T} />
+        </div>
+
+        {/* Device registration + permission. Relocated verbatim from the gear
+            Settings panel; it reads the prefs above when it registers. */}
+        <PushAlerts T={T} accent={accent} user={user} alertPrefs={alertPrefs} />
+      </div>
+    </div>
+  );
+}
+
 // ─── STUDIO TAB ────────────────────────────────────────────────────────────────
-function StudioTab({ accent, T, profile, onEditProfile, onOpenBroker, brokerData, onSelectPropFirm, assetClass, minConviction, setMinConviction }) {
+// ─── V14.5 SHARED CONTROLS ─────────────────────────────────────────────────────
+// A multi-select chip row. Used by both the ALERTS tab (sides, timeframes) and
+// the Studio market-cap filter so every selector in the bot behaves identically:
+// tap to toggle, and the last selected item cannot be turned off (an empty set
+// would silently mute the user, which is never what a mis-tap meant).
+function ChipMultiSelect({ options, selected, onChange, accent, T, columns = 2 }) {
+  const border = T?.border ?? "#172030";
+  const dim = T?.dim ?? "#3a4a5a";
+  const text = T?.text ?? "#c8d8e8";
+  const toggle = (id) => {
+    const on = selected.includes(id);
+    if (on && selected.length === 1) return; // never allow an empty selection
+    onChange(on ? selected.filter((x) => x !== id) : [...selected, id]);
+  };
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: `repeat(${columns},minmax(0,1fr))`, gap: 6 }}>
+      {options.map((o) => {
+        const on = selected.includes(o.id);
+        const locked = on && selected.length === 1;
+        return (
+          <button key={o.id} onClick={() => toggle(o.id)}
+            aria-pressed={on}
+            title={locked ? "At least one must stay selected" : (o.hint || o.label)}
+            style={{
+              display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 2,
+              padding: "8px 10px", borderRadius: 8, cursor: locked ? "default" : "pointer",
+              minHeight: 44, textAlign: "left",
+              background: on ? `${accent}12` : "transparent",
+              border: `1px solid ${on ? `${accent}45` : border}`,
+              opacity: locked ? 0.75 : 1,
+            }}>
+            <span style={{ fontFamily: FM, fontSize: 9, fontWeight: 700, letterSpacing: 1, color: on ? accent : dim }}>
+              {on ? "▣ " : "▢ "}{o.label}
+            </span>
+            {o.hint && (
+              <span style={{ fontFamily: FC, fontSize: 8.5, color: dim, lineHeight: 1.35 }}>{o.hint}</span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// Market-cap tier picker. Rendered per side, and ONLY for sides where a market
+// cap exists — futures are index/commodity contracts, so the control is hidden
+// there rather than shown as a filter that does nothing.
+function MarketCapFilter({ side, prefs, setPrefs, accent, T }) {
+  const dim = T?.dim ?? "#3a4a5a";
+  const text = T?.text ?? "#c8d8e8";
+  if (!CAP_FILTERABLE_SIDES.includes(side)) return null;
+  const selected = prefs.caps?.[side] ?? CAP_IDS;
+  return (
+    <div style={{ marginTop: 12 }}>
+      <div style={{ fontFamily: FM, fontSize: 8, color: dim, letterSpacing: 1.5, marginBottom: 6 }}>
+        {side === "equity" ? "INVEST" : "OPTIONS"} — MARKET CAP
+      </div>
+      <ChipMultiSelect accent={accent} T={T} columns={2}
+        options={CAP_TIERS.map((c) => ({ id: c.id, label: c.label, hint: c.hint }))}
+        selected={selected}
+        onChange={(next) => setPrefs({ ...prefs, caps: { ...prefs.caps, [side]: next } })} />
+      <div style={{ fontFamily: FC, fontSize: 9, color: dim, lineHeight: 1.5, marginTop: 7 }}>
+        Smaller companies move faster in both directions. <b style={{ color: text }}>Small-</b> and
+        <b style={{ color: text }}> mid-caps</b> carry materially more volatility, thinner liquidity and
+        wider spreads than <b style={{ color: text }}>mega-caps</b>, and are more prone to gapping
+        through a stop. Deselect the tiers you don&apos;t want signals for.
+      </div>
+    </div>
+  );
+}
+
+function StudioTab({ accent, T, profile, onEditProfile, onOpenBroker, brokerData, onSelectPropFirm, assetClass, minConviction, setMinConviction, alertPrefs, setAlertPrefs }) {
   const surface = T?.surface ?? "#0b1320";
   const border = T?.border ?? "#172030";
   const text = T?.text ?? "#c8d8e8";
@@ -175,6 +321,15 @@ function StudioTab({ accent, T, profile, onEditProfile, onOpenBroker, brokerData
             <br /><br />
             Any signal above this level is saved into your <b style={{ color: text }}>Signal Feed</b> —
             from manual searches, background scans, and news-driven setups alike.
+          </div>
+          {/* V14.5: market-cap universe control, per side. Lives under SIGNAL
+              ENGINE because it shapes WHICH tickers the engine surfaces to you —
+              the same scope the conviction slider governs. */}
+          <MarketCapFilter side="options" prefs={alertPrefs} setPrefs={setAlertPrefs} accent={accent} T={T} />
+          <MarketCapFilter side="equity"  prefs={alertPrefs} setPrefs={setAlertPrefs} accent={accent} T={T} />
+          <div style={{ fontFamily: FC, fontSize: 9, color: dim, lineHeight: 1.5, marginTop: 10, paddingTop: 10, borderTop: `1px solid ${border}` }}>
+            Futures aren&apos;t listed here — NQ, ES, CL and GC are index and commodity
+            contracts, so they have no market cap to filter on.
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
             <span style={{ fontFamily: FM, fontSize: 9, color: dim }}>MIN CONVICTION TO FIRE</span>
@@ -233,7 +388,7 @@ function StudioTab({ accent, T, profile, onEditProfile, onOpenBroker, brokerData
 }
 
 // ─── MAIN ──────────────────────────────────────────────────────────────────────
-export default function BotDashboard({ accent = "#00d4aa", T, botName = "KRONOS", isMobile = false, isDev = false }) {
+export default function BotDashboard({ accent = "#00d4aa", T, botName = "KRONOS", isMobile = false, isDev = false, user = null }) {
   // V10.5: the bot's own appearance (panel style, text size, grid) — set in the
   // bot-scoped settings panel, live-updates without a reload.
   const botUI = useBotUI();
@@ -252,6 +407,18 @@ export default function BotDashboard({ accent = "#00d4aa", T, botName = "KRONOS"
   );
 
   const [tab, setTab] = useState("trading");
+  // V14.5 alert routing + market-cap universe prefs. Persisted locally on every
+  // change; the ALERTS tab re-registers the push subscription so the server-side
+  // filter matches what the UI shows.
+  const [alertPrefs, setAlertPrefsState] = useState(defaultPrefs);
+  useEffect(() => { setAlertPrefsState(loadAlertPrefs()); }, []);
+  const setAlertPrefs = useCallback((next) => {
+    const clean = normalizePrefs(next);
+    setAlertPrefsState(clean);
+    try { localStorage.setItem(ALERT_PREFS_KEY, JSON.stringify(clean)); } catch {}
+    // Let the signal feed re-filter immediately instead of on next mount.
+    try { window.dispatchEvent(new Event("kronos-alert-prefs-change")); } catch {}
+  }, []);
   const [etTime, setEtTime] = useState("--:--:-- ET");
   const [sessions, setSessions] = useState([]);
   const [vix, setVix] = useState(null);
@@ -448,7 +615,10 @@ export default function BotDashboard({ accent = "#00d4aa", T, botName = "KRONOS"
   const border = T?.border ?? "#172030";
   const text = T?.text ?? "#c8d8e8";
   const dim = T?.dim ?? "#3a4a5a";
-  const TABS = ["TRADING", "ANALYTICS", "STUDIO"];
+  // V14.5: ALERTS is a top-level destination, to the right of STUDIO. Alert
+  // routing is bot-scoped (which signals reach your phone), so it does not
+  // belong in the terminal-wide gear settings where it used to live.
+  const TABS = ["TRADING", "ANALYTICS", "STUDIO", "ALERTS"];
 
   // propRules: prop-firm limits are futures-only (item 9); minConviction applies to both.
   const propRules = useMemo(() => {
@@ -503,13 +673,25 @@ export default function BotDashboard({ accent = "#00d4aa", T, botName = "KRONOS"
         @keyframes bot-dot { 0%,100%{opacity:0.35;} 50%{opacity:1;} }
       `}</style>
 
-      {/* HEADER */}
+      {/* HEADER
+          V14.5 mobile fix: this was one space-between row with two children that
+          each assumed they'd get half the width. On a phone the session pills,
+          the BROKER pill and the FUT/OPT/INVEST toggle all overflowed their
+          boxes and rendered on top of each other ("NEW YORK" through "FUT").
+          On mobile it now stacks into rows that wrap, and the session pills get
+          their own full-width row so nothing can collide. */}
       <div style={{
-        display: "flex", justifyContent: "space-between", alignItems: "center",
-        padding: "10px 20px", borderBottom: `1px solid ${border}`,
+        display: "flex",
+        ...(isMobile
+          ? { flexDirection: "column", alignItems: "stretch", gap: 8, padding: "10px 12px" }
+          : { justifyContent: "space-between", alignItems: "center", padding: "10px 20px" }),
+        borderBottom: `1px solid ${border}`,
         background: `linear-gradient(180deg, ${surface}f2, ${surface}d8)`, backdropFilter: "blur(10px)", flexShrink: 0,
       }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0, flexWrap: "wrap" }}>
+        <div style={{
+          display: "flex", alignItems: "center", gap: isMobile ? 8 : 12, minWidth: 0, flexWrap: "wrap",
+          ...(isMobile ? { rowGap: 7 } : null),
+        }}>
           <div style={{ fontFamily: FC, fontSize: 19, fontWeight: 700, color: text, letterSpacing: -0.2 }}>{botName}</div>
           {/* Active trading sessions (item 12) — real clock math, not decoration */}
           <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
@@ -559,7 +741,15 @@ export default function BotDashboard({ accent = "#00d4aa", T, botName = "KRONOS"
             </div>
           )}
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0, position: "relative" }}>
+        <div style={{
+          display: "flex", alignItems: "center", position: "relative",
+          ...(isMobile
+            // Wrap instead of overflowing, and let the mode toggle take the room
+            // it needs — on a 375px screen this row cannot also sit beside the
+            // title block without the two overlapping.
+            ? { gap: 8, flexWrap: "wrap", rowGap: 8, width: "100%", justifyContent: "flex-start" }
+            : { gap: 10, flexShrink: 0 }),
+        }}>
           {/* V14: the bot-side mini chart was removed — it overlapped the
               multi-agent panel and duplicated the Chart page. The bot is a
               signal surface; charting lives on the Chart page. */}
@@ -868,6 +1058,17 @@ export default function BotDashboard({ accent = "#00d4aa", T, botName = "KRONOS"
           assetClass={assetClass}
           minConviction={minConviction}
           setMinConviction={setMinConviction}
+          alertPrefs={alertPrefs}
+          setAlertPrefs={setAlertPrefs}
+        />
+      )}
+
+      {/* ALERTS TAB (V14.5) */}
+      {tab === "alerts" && (
+        <AlertsTab
+          accent={accent} T={T} user={user}
+          alertPrefs={alertPrefs} setAlertPrefs={setAlertPrefs}
+          minConviction={minConviction}
         />
       )}
     </div>
