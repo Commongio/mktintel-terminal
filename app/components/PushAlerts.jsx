@@ -8,7 +8,7 @@
 // toggle that just does nothing would be worse than no toggle.
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import { getSupabase, supabaseConfigured } from "../../lib/supabase";
+import { getSupabase, supabaseConfigured, getAccessToken } from "../../lib/supabase";
 
 const FM = "'JetBrains Mono',monospace";
 const FC = "'Inter',sans-serif";
@@ -66,6 +66,38 @@ export default function PushAlerts({ T, accent, user, alertPrefs = null }) {
         const reg = await navigator.serviceWorker.register("/sw.js");
         const existing = await reg.pushManager.getSubscription();
         setSubscribed(!!existing);
+
+        // V14.7 SELF-HEAL. The toggle's state came purely from the BROWSER's
+        // subscription, but sends depend on a row in push_subscriptions — and the
+        // two can drift apart:
+        //   • the subscribe POST failed auth (expired token) and rolled back
+        //     server-side, yet a browser subscription survived;
+        //   • the row was pruned as dead after a 404/410;
+        //   • the row predates a schema change.
+        // In every case the UI cheerfully said "alerts on" while the server had
+        // nobody to send to — which is exactly what "the feed fills but my phone
+        // is silent" looks like. Re-upserting the existing subscription is
+        // idempotent (unique on endpoint), so this costs one request and
+        // guarantees the server agrees with the browser.
+        if (existing) {
+          const token = await getAccessToken();
+          if (token) {
+            let minConviction = 65;
+            try { minConviction = Number(localStorage.getItem("kronos_min_conviction")) || 65; } catch {}
+            let level = "fire";
+            try { level = localStorage.getItem("kronos_notify_level") || "fire"; } catch {}
+            await fetch("/api/push/subscribe", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+              body: JSON.stringify({
+                subscription: existing.toJSON(), minConviction, notifyLevel: level,
+                alertSides: prefsRef.current?.sides,
+                alertTimeframes: prefsRef.current?.timeframes,
+                alertCaps: prefsRef.current?.caps,
+              }),
+            }).catch(() => {}); // best-effort: never block the UI on a re-sync
+          }
+        }
       } catch { setSupported(false); }
     })();
   }, []);
@@ -94,7 +126,7 @@ export default function PushAlerts({ T, accent, user, alertPrefs = null }) {
       let minConviction = 65;
       try { minConviction = Number(localStorage.getItem("kronos_min_conviction")) || 65; } catch {}
 
-      const token = (await getSupabase()?.auth.getSession())?.data?.session?.access_token;
+      const token = await getAccessToken(); // V14.7: refreshes an expired token instead of sending a dead one
       const r = await fetch("/api/push/subscribe", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
@@ -135,7 +167,7 @@ export default function PushAlerts({ T, accent, user, alertPrefs = null }) {
       const reg = await navigator.serviceWorker.ready;
       const sub = await reg.pushManager.getSubscription();
       if (sub) {
-        const token = (await getSupabase()?.auth.getSession())?.data?.session?.access_token;
+        const token = await getAccessToken(); // V14.7: refreshes an expired token instead of sending a dead one
         await fetch("/api/push/subscribe", {
           method: "DELETE",
           headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
@@ -152,7 +184,7 @@ export default function PushAlerts({ T, accent, user, alertPrefs = null }) {
   const runDiagnose = useCallback(async () => {
     setBusy(true); setMsg(""); setDiag(null);
     try {
-      const token = (await getSupabase()?.auth.getSession())?.data?.session?.access_token;
+      const token = await getAccessToken(); // V14.7: refreshes an expired token instead of sending a dead one
       const r = await fetch("/api/push/diagnose", { headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) } });
       const d = await r.json();
       if (!r.ok) { setMsg(d.error || "Diagnostic failed."); setBusy(false); return; }
@@ -164,7 +196,7 @@ export default function PushAlerts({ T, accent, user, alertPrefs = null }) {
   const sendTest = useCallback(async () => {
     setBusy(true); setMsg("");
     try {
-      const token = (await getSupabase()?.auth.getSession())?.data?.session?.access_token;
+      const token = await getAccessToken(); // V14.7: refreshes an expired token instead of sending a dead one
       const r = await fetch("/api/push/test", {
         method: "POST",
         headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
