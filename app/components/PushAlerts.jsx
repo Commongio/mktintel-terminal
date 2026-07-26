@@ -148,6 +148,19 @@ export default function PushAlerts({ T, accent, user, alertPrefs = null }) {
     setBusy(false);
   }, []);
 
+  const [diag, setDiag] = useState(null);
+  const runDiagnose = useCallback(async () => {
+    setBusy(true); setMsg(""); setDiag(null);
+    try {
+      const token = (await getSupabase()?.auth.getSession())?.data?.session?.access_token;
+      const r = await fetch("/api/push/diagnose", { headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) } });
+      const d = await r.json();
+      if (!r.ok) { setMsg(d.error || "Diagnostic failed."); setBusy(false); return; }
+      setDiag(d);
+    } catch (e) { setMsg(`Diagnostic failed: ${e.message}`); }
+    setBusy(false);
+  }, []);
+
   const sendTest = useCallback(async () => {
     setBusy(true); setMsg("");
     try {
@@ -247,6 +260,38 @@ export default function PushAlerts({ T, accent, user, alertPrefs = null }) {
               </button>
             )}
           </div>
+
+          {/* V14.6: "test works but real signals never arrive" is the single most
+              confusing failure this feature has, because every filter that can
+              drop a push is invisible. This replays real signals through the
+              actual send-path gate and reports what it found. */}
+          {subscribed && (
+            <button onClick={runDiagnose} disabled={busy}
+              style={{
+                width: "100%", marginTop: 8, minHeight: 40, borderRadius: 8,
+                cursor: busy ? "default" : "pointer", fontFamily: FM, fontSize: 9.5,
+                fontWeight: 700, letterSpacing: 1, color: dim,
+                background: "transparent", border: `1px dashed ${border}`, opacity: busy ? 0.6 : 1,
+              }}>
+              WHY AM I NOT GETTING ALERTS?
+            </button>
+          )}
+
+          {diag && (
+            <div style={{ marginTop: 9, padding: "10px 11px", borderRadius: 8, background: surface, border: `1px solid ${border}` }}>
+              <div style={{ ...note, color: text, marginBottom: 7 }}>{diag.verdict}</div>
+              <div style={{ fontFamily: FM, fontSize: 8, color: dim, letterSpacing: 1, marginBottom: 5 }}>
+                {diag.devices} DEVICE{diag.devices === 1 ? "" : "S"} · {diag.deliverableOfLast15}/15 RECENT SIGNALS PASS FILTERS
+              </div>
+              {(diag.recent || []).slice(0, 6).map((r, i) => (
+                <div key={i} style={{ fontFamily: FM, fontSize: 8, color: dim, lineHeight: 1.5 }}>
+                  <span style={{ color: r.wouldPush ? "#00e676" : "#ff3d57" }}>{r.wouldPush ? "✓" : "✕"}</span>{" "}
+                  <span style={{ color: text }}>{r.symbol}</span> {r.side}/{r.interval} {r.status} {r.conviction}%
+                  {r.why ? ` — ${r.why}` : ""}
+                </div>
+              ))}
+            </div>
+          )}
           {msg && <div style={{ ...note, marginTop: 9, color: text }}>{msg}</div>}
         </>
       )}
