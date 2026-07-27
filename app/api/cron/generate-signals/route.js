@@ -60,6 +60,13 @@ const PORTFOLIO_UNIVERSE = {
 // batches, memoized for the lifetime of the run, and are strictly best-effort:
 // a failure yields null, and lib/alertPrefs treats an unknown cap as ALLOWED so
 // missing data can never silently hide a signal from someone.
+// V14.8: how long an instrument must stay quiet before a STALE re-write is
+// allowed to notify again. A genuine verdict change ignores this entirely.
+// 4h is the balance point: it surfaces a setup that has been valid all session
+// (the reported miss) without turning a 30-minute re-write cycle into a buzz
+// per instrument per half hour across the whole universe.
+const PUSH_COOLDOWN_MS = 4 * 60 * 60 * 1000;
+
 const _capCache = new Map();
 async function capFor(symbol) {
   const key = String(symbol || "").toUpperCase();
@@ -113,6 +120,30 @@ async function writeIfChanged(admin, { assetClass, symbol, interval }, buckets, 
   const stale = last && Date.now() - new Date(last.created_at).getTime() > 30 * 60_000;
   if (!changed && !stale) { buckets.skipped.push(`${assetClass}:${symbol}:${interval}`); return; }
 
+  // ── V14.8 PUSH COOLDOWN ────────────────────────────────────────────────────
+  // Push used to require `changed`, while the WRITE above also accepts `stale`.
+  // A signal holding the same verdict therefore got a fresh feed row every 30
+  // minutes and never notified — measured at 14 of 15 signals blocked purely by
+  // this. Now a stale re-write may notify too, but only if this instrument
+  // hasn't notified within COOLDOWN, so we don't buzz per-instrument every 30
+  // minutes. A genuine verdict change still notifies immediately, as before.
+  let cooldownElapsed = true;
+  if (!changed) {
+    const { data: lastPush, error: pushErr } = await admin.from("signals")
+      .select("pushed_at")
+      .eq("asset_class", assetClass).eq("symbol", symbol).eq("interval", interval)
+      .not("pushed_at", "is", null)
+      .order("pushed_at", { ascending: false }).limit(1).maybeSingle();
+    // 42703 = migration 012 not run. Fall back to the old behaviour (changed
+    // only) rather than pushing on every stale re-write, which would be the
+    // spam case the cooldown exists to prevent.
+    if (pushErr) cooldownElapsed = false;
+    else if (lastPush?.pushed_at) {
+      cooldownElapsed = Date.now() - new Date(lastPush.pushed_at).getTime() > PUSH_COOLDOWN_MS;
+    }
+  }
+  const willPush = (sig.status === "FIRE" || sig.status === "HOLD") && (changed || cooldownElapsed);
+
   const { error } = await insertSignal(admin, {
     asset_class: assetClass, symbol, interval,
     status: sig.status, direction: sig.direction, conviction: sig.conviction,
@@ -122,6 +153,11 @@ async function writeIfChanged(admin, { assetClass, symbol, interval }, buckets, 
     // reproducible — a company crossing a tier boundary later must not
     // retroactively change which alerts were correct. Futures have none.
     market_cap: assetClass === "futures" ? null : await capFor(symbol),
+    // V14.8: stamped at decision time so the cooldown is anchored even if the
+    // fan-out below throws. Marking a push we then failed to deliver only delays
+    // this instrument by one cooldown; NOT marking one we did deliver would
+    // reopen the every-30-minutes spam this exists to prevent.
+    pushed_at: willPush ? new Date().toISOString() : null,
   });
   if (error) { buckets.failed.push({ symbol: `${assetClass}:${symbol}:${interval}`, error: error.message }); return; }
   buckets.written.push(`${assetClass}:${symbol}:${interval}:${sig.status}`);
@@ -136,7 +172,7 @@ async function writeIfChanged(admin, { assetClass, symbol, interval }, buckets, 
   // DEVICE by notify_level (FIRE always; HOLD only for devices set to 'all') and
   // by conviction. This replaces the old hardcoded FIRE-only gate, which silently
   // dropped everything else with no way for a user to opt into more.
-  if ((sig.status === "FIRE" || sig.status === "HOLD") && changed) {
+  if (willPush) {
     try {
       const res = await sendSignalPush({
         asset_class: assetClass, symbol, interval,

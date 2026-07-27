@@ -70,8 +70,16 @@ export async function GET(request) {
   for (const [, rows] of byInstrument) {
     for (let i = 0; i < rows.length; i++) {
       const prev = rows[i + 1]; // next-older row for this instrument
-      const changed = !prev || prev.status !== rows[i].status || prev.direction !== rows[i].direction;
-      changedFor.set(rows[i], changed);
+      if (!prev) {
+        // No older row INSIDE THE WINDOW. That does not mean the verdict
+        // changed — it usually means the previous row simply fell outside the
+        // lookback. Treating it as "changed" is what produced a phantom
+        // "this one should have pushed", which sent us hunting a delivery bug
+        // that did not exist. Report it as unknown instead of guessing.
+        changedFor.set(rows[i], null);
+        continue;
+      }
+      changedFor.set(rows[i], prev.status !== rows[i].status || prev.direction !== rows[i].direction);
     }
   }
 
@@ -84,21 +92,29 @@ export async function GET(request) {
       return { device: String(s.id).slice(0, 8), blocked: blocked?.code ?? null, detail: blocked?.detail ?? null };
     });
     const passesFilters = perDevice.some((d) => !d.blocked);
-    const changed = changedFor.get(sig) !== false;
-    // The change gate runs BEFORE any per-device filtering in the cron, so when
-    // it blocks, that is the real reason — report it ahead of filter reasons.
-    const reason = !changed
-      ? "verdict unchanged since the previous row — the feed re-writes a stale signal every 30 min, but push only fires on a CHANGE"
-      : (perDevice.find((d) => d.blocked)?.detail ?? null);
-    const code = !changed ? "verdict_unchanged" : perDevice.find((d) => d.blocked)?.blocked;
+    const changed = changedFor.get(sig); // true | false | null (unknown)
+    const filterReason = perDevice.find((d) => d.blocked)?.detail ?? null;
+    const filterCode = perDevice.find((d) => d.blocked)?.blocked ?? null;
+
+    // A device filter blocks BEFORE delivery regardless of the change gate, so
+    // report it first when both apply — it's the one the user can act on.
+    let reason = null, code = null;
+    if (!passesFilters) { reason = filterReason; code = filterCode; }
+    else if (changed === false) {
+      reason = "verdict unchanged — the feed re-writes a stale signal every 30 min, but push fires on a CHANGE (or, since V14.8, once the 4h cooldown elapses)";
+      code = "verdict_unchanged";
+    } else if (changed === null) {
+      reason = "previous row for this instrument is outside the lookback — cannot tell whether the verdict changed";
+      code = "unknown_change";
+    }
     if (code) reasonCounts[code] = (reasonCounts[code] || 0) + 1;
     return {
       symbol: sig.symbol, side: sig.asset_class, interval: sig.interval,
       status: sig.status, conviction: sig.conviction,
       at: sig.created_at,
       passesFilters, changed,
-      wouldPush: passesFilters && changed,
-      why: passesFilters && changed ? null : reason,
+      wouldPush: passesFilters && changed === true,
+      why: reason,
     };
   });
 
