@@ -63,6 +63,11 @@ jobs:
             # Trim the body so the log stays readable but stays diagnosable.
             head -c 900 /tmp/scan.json 2>/dev/null || true
             echo
+            # The bridge telemetry sits at the END of the response, past the
+            # skipped/failed arrays, so the 900-byte trim above always cuts it
+            # off. Pull it out explicitly -- it is the one field that says
+            # whether KRONOS is reaching the Lab at all.
+            grep -o '"lab":{[^}]*}' /tmp/scan.json || echo 'lab: (field absent - deployment predates the telemetry commit)'
 
             # A single failed pass must not fail the workflow — the next tick picks
             # up the next slice. Only a total wipeout is worth a red run.
