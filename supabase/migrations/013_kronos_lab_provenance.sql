@@ -36,6 +36,30 @@ alter table public.signals add column if not exists conviction_raw integer;
 -- and the second silently contaminates every failure cluster built from the first.
 alter table public.signals add column if not exists degraded boolean;
 
+-- ── who graded this outcome ─────────────────────────────────────────────────
+-- Two writers set `state`, and they can race:
+--   lib/signalLifecycle.js       selects .eq("state","active") -- will not
+--                                overwrite an already-resolved row
+--   app/api/admin/signal-outcome .update({state, resolved_at}) by id, with NO
+--                                state guard -- a dev grade CAN overwrite a
+--                                state the lifecycle already set, and it
+--                                overwrites resolved_at too, so the ordering
+--                                is unrecoverable afterwards
+--
+-- Manual grading is discretionary, so it correlates with judgement about which
+-- signals looked bad. Metrics must stay sliceable by it, and right now the
+-- distinction is not recorded anywhere at all.
+--
+-- NOTE: this migration only makes the race *observable*. It does not fix it.
+-- The guard belongs in the admin route (a `.eq("state","active")` predicate, or
+-- an explicit override flag), which is a behaviour change to the trading app
+-- and is deliberately left out of this branch.
+alter table public.signals add column if not exists graded_by text;
+alter table public.signals add column if not exists graded_at timestamptz;
+
+comment on column public.signals.graded_by is
+  '''engine'' | ''manual''. Which writer set `state`. Never inferred -- manual grading is discretionary and must remain sliceable.';
+
 -- ── everything else ─────────────────────────────────────────────────────────
 -- structure (swept levels, FVGs, swings, events), confirmation (the object
 -- behind FIRE/HOLD), risk, bull_weight/bear_weight, uncapped_conviction,
