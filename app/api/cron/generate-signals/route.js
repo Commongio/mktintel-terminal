@@ -16,7 +16,7 @@
 // and rate-gated by time-of-day — position/long-horizon setups don't need
 // thousands of names or 2-minute freshness the way intraday scanning does.
 import { runSignalEngine, MODE_DEFAULT_INTERVAL, ENGINE_VERSION, MIN_SURFACE_CONVICTION } from "../../../../lib/signalEngine";
-import { emitSignal, deriveSetup, buildProvenance } from "../../../../lib/labEmitter";
+import { emitSignal, deriveSetup, buildProvenance, labEnabled } from "../../../../lib/labEmitter";
 import { getAdmin, serverConfigured, insertSignal } from "../../../../lib/supabaseServer";
 import { sendSignalPush } from "../../../../lib/push";
 import { gradeSignalLifecycle } from "../../../../lib/signalLifecycle";
@@ -191,7 +191,12 @@ async function writeIfChanged(admin, { assetClass, symbol, interval }, buckets, 
 
   // Fire-and-forget: emitSignal never throws and never blocks. If the Lab is
   // down, this run behaves exactly as it did before the emitter existed.
-  void emitSignal({
+  //
+  // The promise is collected only so the response can report how many emits
+  // succeeded -- a silent bridge and a working one look identical otherwise,
+  // and "no rows in the Lab" gives no clue which end is at fault. Awaited once
+  // at the very end of the run, never per-signal.
+  buckets.labEmits.push(emitSignal({
     raw, sig, last,
     row: {
       asset_class: assetClass, symbol, interval,
@@ -200,7 +205,7 @@ async function writeIfChanged(admin, { assetClass, symbol, interval }, buckets, 
       decision_time: new Date().toISOString(),
     },
     opts: { chopApplied: choppy, minConviction: MIN_SURFACE_CONVICTION },
-  });
+  }));
 
   // ── V11 M3: push fan-out ──────────────────────────────────────────────────
   // Gated on `changed`, NOT on `stale`. A stale re-write is the same verdict the
@@ -237,7 +242,7 @@ export async function GET(request) {
     return Response.json({ error: "Supabase not configured — signal feed disabled" }, { status: 503 });
   }
   const admin = getAdmin();
-  const buckets = { written: [], skipped: [], failed: [], pushed: [], pushFailed: [], demoted: [], halted: [] };
+  const buckets = { written: [], skipped: [], failed: [], pushed: [], pushFailed: [], demoted: [], halted: [], labEmits: [] };
 
   // V13.5: build the aggregate self-learning snapshot ONCE per run (reading the
   // shared signals table's own won/lost lifecycle), then every writeIfChanged
@@ -321,6 +326,11 @@ export async function GET(request) {
     catch (e) { lifecycle = { error: String(e.message) }; }
   }
 
+  // Awaited once, after every write is done -- never per-signal. Each emit is
+  // already bounded by its own 2.5s abort, so this cannot hang the run.
+  const labSettled = await Promise.allSettled(buckets.labEmits);
+  const labSent = labSettled.filter((r) => r.status === "fulfilled" && r.value === true).length;
+
   return Response.json({
     ok: true,
     written: buckets.written, skipped: buckets.skipped, failed: buckets.failed,
@@ -342,6 +352,15 @@ export async function GET(request) {
       runsPerFullSweep: rotationLength(),
       sweepMinutes: rotationLength() * (RUN_MS / 60000),
       ranOutOfTime,
+    },
+    // Bridge telemetry. Without this a silent bridge and a working one are
+    // indistinguishable from the outside, and "no rows in the Lab" says
+    // nothing about which end is at fault.
+    lab: {
+      enabled: labEnabled(),
+      attempted: buckets.labEmits.length,
+      sent: labSent,
+      failed: buckets.labEmits.length - labSent,
     },
     elapsedMs: Date.now() - startedAt,
     at: new Date().toISOString(),
