@@ -164,7 +164,7 @@ async function writeIfChanged(admin, { assetClass, symbol, interval }, buckets, 
   }
   const willPush = (sig.status === "FIRE" || sig.status === "HOLD") && (changed || cooldownElapsed);
 
-  const { error } = await insertSignal(admin, {
+  const { error, data: inserted } = await insertSignal(admin, {
     asset_class: assetClass, symbol, interval,
     status: sig.status, direction: sig.direction, conviction: sig.conviction,
     plan: sig.plan, agents: sig.agents, engine_version: ENGINE_VERSION,
@@ -202,6 +202,10 @@ async function writeIfChanged(admin, { assetClass, symbol, interval }, buckets, 
       asset_class: assetClass, symbol, interval,
       status: sig.status, direction: sig.direction, conviction: sig.conviction,
       plan: sig.plan, agents: sig.agents, engine_version: ENGINE_VERSION, source: "cron",
+      // KRONOS's own row id. Without it the Lab keys signals by setup_id:rev,
+      // and outcomes -- which reference this id -- arrive as orphans and get
+      // quarantined. The join has to exist before outcomes start flowing.
+      id: inserted?.id ?? null,
       decision_time: new Date().toISOString(),
     },
     opts: { chopApplied: choppy, minConviction: MIN_SURFACE_CONVICTION },
