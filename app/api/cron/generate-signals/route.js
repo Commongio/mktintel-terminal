@@ -16,6 +16,7 @@
 // and rate-gated by time-of-day — position/long-horizon setups don't need
 // thousands of names or 2-minute freshness the way intraday scanning does.
 import { runSignalEngine, MODE_DEFAULT_INTERVAL, ENGINE_VERSION, MIN_SURFACE_CONVICTION } from "../../../../lib/signalEngine";
+import { emitSignal, deriveSetup, buildProvenance } from "../../../../lib/labEmitter";
 import { getAdmin, serverConfigured, insertSignal } from "../../../../lib/supabaseServer";
 import { sendSignalPush } from "../../../../lib/push";
 import { gradeSignalLifecycle } from "../../../../lib/signalLifecycle";
@@ -83,6 +84,11 @@ async function capFor(symbol) {
 async function writeIfChanged(admin, { assetClass, symbol, interval }, buckets, stats, choppy) {
   const raw = await runSignalEngine({ assetClass, symbol, interval });
 
+  // Captured BEFORE the chop halt below mutates raw.status in place. Without
+  // this, a FIRE demoted to HOLD by chop is indistinguishable from one that
+  // was never a FIRE, and the chop gate's effect becomes unauditable.
+  const preGate = { status: raw.status, conviction: raw.conviction };
+
   // ── V13.6 CHOP HALT ─────────────────────────────────────────────────────────
   // When the broad market is in whipsaw, halt NEW actionable signals: any FIRE is
   // demoted to HOLD so nothing new is presented as tradeable. The setup is still
@@ -111,14 +117,28 @@ async function writeIfChanged(admin, { assetClass, symbol, interval }, buckets, 
     return;
   }
 
+  // Selects asset_class/symbol/interval too so the row can be compared as a
+  // whole by continuesFamily, and the setup columns so a re-write inherits its
+  // family's anchor instead of starting a new one. Migration 013; the columns
+  // are nullable, so this still works before that migration is run.
   const { data: last } = await admin.from("signals")
-    .select("status,direction,created_at")
+    .select("asset_class,symbol,interval,status,direction,created_at,setup_id,streak_started_at,revision")
     .eq("asset_class", assetClass).eq("symbol", symbol).eq("interval", interval)
     .order("created_at", { ascending: false }).limit(1).maybeSingle();
 
   const changed = !last || last.status !== sig.status || last.direction !== sig.direction;
   const stale = last && Date.now() - new Date(last.created_at).getTime() > 30 * 60_000;
   if (!changed && !stale) { buckets.skipped.push(`${assetClass}:${symbol}:${interval}`); return; }
+
+  // A stale re-write is a NEW ROW for the SAME setup, at a recomputed entry.
+  // Without a stable family id those rows read as independent observations,
+  // which understates variance in every rate computed downstream.
+  const setup = deriveSetup(last, { asset_class: assetClass, symbol, interval, status: sig.status, direction: sig.direction });
+  // `raw` is pre-gate, `sig` post-gate. The delta is applyAggregateGate's
+  // action and cannot be replayed later, because signalStats moves.
+  const provenance = buildProvenance(raw, sig, {
+    chopApplied: choppy, minConviction: MIN_SURFACE_CONVICTION, preGate,
+  });
 
   // ── V14.8 PUSH COOLDOWN ────────────────────────────────────────────────────
   // Push used to require `changed`, while the WRITE above also accepts `stale`.
@@ -158,9 +178,29 @@ async function writeIfChanged(admin, { assetClass, symbol, interval }, buckets, 
     // this instrument by one cooldown; NOT marking one we did deliver would
     // reopen the every-30-minutes spam this exists to prevent.
     pushed_at: willPush ? new Date().toISOString() : null,
+    // ── migration 013: what the engine computes and used to discard ─────────
+    setup_id: setup.setup_id,
+    streak_started_at: setup.streak_started_at,
+    revision: setup.revision,
+    conviction_raw: raw.conviction ?? null,
+    degraded: raw.degraded ?? null,
+    provenance,
   });
   if (error) { buckets.failed.push({ symbol: `${assetClass}:${symbol}:${interval}`, error: error.message }); return; }
   buckets.written.push(`${assetClass}:${symbol}:${interval}:${sig.status}`);
+
+  // Fire-and-forget: emitSignal never throws and never blocks. If the Lab is
+  // down, this run behaves exactly as it did before the emitter existed.
+  void emitSignal({
+    raw, sig, last,
+    row: {
+      asset_class: assetClass, symbol, interval,
+      status: sig.status, direction: sig.direction, conviction: sig.conviction,
+      plan: sig.plan, agents: sig.agents, engine_version: ENGINE_VERSION, source: "cron",
+      decision_time: new Date().toISOString(),
+    },
+    opts: { chopApplied: choppy, minConviction: MIN_SURFACE_CONVICTION },
+  });
 
   // ── V11 M3: push fan-out ──────────────────────────────────────────────────
   // Gated on `changed`, NOT on `stale`. A stale re-write is the same verdict the
