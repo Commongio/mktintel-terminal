@@ -16,7 +16,7 @@
 // and rate-gated by time-of-day — position/long-horizon setups don't need
 // thousands of names or 2-minute freshness the way intraday scanning does.
 import { runSignalEngine, MODE_DEFAULT_INTERVAL, ENGINE_VERSION, MIN_SURFACE_CONVICTION } from "../../../../lib/signalEngine";
-import { emitSignal, deriveSetup, buildProvenance, labEnabled } from "../../../../lib/labEmitter";
+import { emitSignal, deriveSetup, buildProvenance, labEnabled, labLastError } from "../../../../lib/labEmitter";
 import { getAdmin, serverConfigured, insertSignal } from "../../../../lib/supabaseServer";
 import { sendSignalPush } from "../../../../lib/push";
 import { gradeSignalLifecycle } from "../../../../lib/signalLifecycle";
@@ -361,6 +361,7 @@ export async function GET(request) {
       attempted: buckets.labEmits.length,
       sent: labSent,
       failed: buckets.labEmits.length - labSent,
+      error: labLastError(),
     },
     elapsedMs: Date.now() - startedAt,
     at: new Date().toISOString(),
