@@ -96,10 +96,13 @@ async function main() {
 
   for (const row of rows) {
     const decisionTime = row.created_at;
-    // graded_at is the honest resolution time (migration 013). Without it
-    // there is no defensible answer, and a guessed one would put a fabricated
-    // interval into the one database built to detect fabricated intervals.
-    const resolvedAt = row.graded_at ?? null;
+    // `resolved_at` (migration 006) is the real one, written on every
+    // transition at signalLifecycle.js:94 and by the admin override route.
+    // `graded_at` came later with migration 013 and NOTHING EVER WROTE IT --
+    // reading that first meant every row looked untimestamped and the whole
+    // backfill skipped itself. Kept as a fallback only in case it is ever
+    // wired up.
+    const resolvedAt = row.resolved_at ?? row.graded_at ?? null;
 
     if (!decisionTime || !resolvedAt) { stats.skipped_no_time++; continue; }
     if (Date.parse(resolvedAt) < Date.parse(decisionTime)) { stats.skipped_no_time++; continue; }
@@ -184,6 +187,11 @@ async function main() {
           setupId: setup.setup_id,
           state: row.state,
           plan: row.plan,
+          // Written by the grading cron at the moment it noticed, not at the
+          // moment price crossed t1 or the stop -- so it is accurate to within
+          // one scan interval (~5 min), not to the tick. That is a recorded
+          // fact with known precision, which is a different thing from a
+          // guess, and nothing downstream computes a duration from it.
           resolvedAt,
           mode: "engine",
           reason: row.state === "won" ? "t1_hit" : "stop_hit",
@@ -205,8 +213,8 @@ async function main() {
   console.log("\n" + JSON.stringify(stats, null, 2));
   if (stats.skipped_no_time) {
     console.log(`\n${stats.skipped_no_time} row(s) skipped for having no defensible resolution time.`);
-    console.log("Not a failure. graded_at arrived with migration 013; anything graded before that");
-    console.log("has no honest timestamp, and inventing one would be worse than omitting the row.");
+    console.log("Not a failure: a guessed timestamp would put a fabricated interval into the one");
+    console.log("database whose entire purpose is detecting fabricated intervals.");
   }
   if (!DRY && stats.sent) {
     console.log(`\n${stats.sent} signal(s) replayed. They will appear in the Lab flagged \`backfilled\``);
