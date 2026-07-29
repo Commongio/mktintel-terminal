@@ -33,15 +33,25 @@
  */
 
 import { createClient } from "@supabase/supabase-js";
-import { buildSignalPayload, emitOutcome, setupIdFor, labEnabled } from "../lib/labEmitter.js";
 // The contract is vendored at lib/labContract, not resolved from the Lab's
 // workspace -- this repo deploys on its own and cannot reach across to it.
+// Safe as a static import: it reads no environment at load time.
 import { buildEnvelope } from "../lib/labContract/envelope.js";
 
 // Next loads .env.local for you; a bare `node` run does not. Without this the
 // script reports "missing SUPABASE_URL" on a machine where everything is
-// configured, which sends you looking in the wrong place.
+// configured, which sends you looking in exactly the wrong place.
 try { process.loadEnvFile(".env.local"); } catch { /* absent, or already in env */ }
+
+// labEmitter is loaded DYNAMICALLY, and it has to be. It captures LAB_URL and
+// LAB_KEY into module constants at load time, and ESM evaluates every static
+// import before any module-level statement in this file -- so a static import
+// would read those variables before loadEnvFile() above had put them there.
+// The emitter would then report itself DISABLED with a fully configured
+// .env.local sitting on disk, and the run would refuse for a reason that is
+// not true.
+const { buildSignalPayload, emitOutcome, setupIdFor, labEnabled } =
+  await import("../lib/labEmitter.js");
 
 const args = process.argv.slice(2);
 const DRY = args.includes("--dry-run");
