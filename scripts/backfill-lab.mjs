@@ -27,13 +27,21 @@
  *   node scripts/backfill-lab.mjs --dry-run
  *   node scripts/backfill-lab.mjs --limit 200
  *
- * Requires in the environment: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY,
- * KRONOS_LAB_URL, KRONOS_LAB_HMAC_KEY (the same values Vercel holds).
+ * Reads .env.local automatically, so the values Vercel holds work locally too:
+ * NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, KRONOS_LAB_URL,
+ * KRONOS_LAB_HMAC_KEY.
  */
 
 import { createClient } from "@supabase/supabase-js";
 import { buildSignalPayload, emitOutcome, setupIdFor, labEnabled } from "../lib/labEmitter.js";
-import { buildEnvelope } from "@kronos-lab/contract/envelope";
+// The contract is vendored at lib/labContract, not resolved from the Lab's
+// workspace -- this repo deploys on its own and cannot reach across to it.
+import { buildEnvelope } from "../lib/labContract/envelope.js";
+
+// Next loads .env.local for you; a bare `node` run does not. Without this the
+// script reports "missing SUPABASE_URL" on a machine where everything is
+// configured, which sends you looking in the wrong place.
+try { process.loadEnvFile(".env.local"); } catch { /* absent, or already in env */ }
 
 const args = process.argv.slice(2);
 const DRY = args.includes("--dry-run");
@@ -45,13 +53,11 @@ const STATES = ["won", "lost"];
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-function must(name) {
-  const v = process.env[name];
-  if (!v) {
-    console.error(`missing ${name}`);
-    process.exit(1);
-  }
-  return v;
+/** Accepts any of several names, so a rename upstream is not a puzzle here. */
+function must(...names) {
+  for (const n of names) if (process.env[n]) return process.env[n];
+  console.error(`missing ${names.join(" or ")} — set it in .env.local`);
+  process.exit(1);
 }
 
 async function main() {
@@ -60,9 +66,12 @@ async function main() {
     process.exit(1);
   }
 
-  const db = createClient(must("SUPABASE_URL"), must("SUPABASE_SERVICE_ROLE_KEY"), {
-    auth: { persistSession: false },
-  });
+  const db = createClient(
+    // The app uses NEXT_PUBLIC_SUPABASE_URL; accept the bare name too.
+    must("NEXT_PUBLIC_SUPABASE_URL", "SUPABASE_URL"),
+    must("SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_SERVICE_KEY"),
+    { auth: { persistSession: false } },
+  );
 
   const { data: rows, error } = await db
     .from("signals")
@@ -139,7 +148,11 @@ async function main() {
         payload,
         idempotencyKey: `${setup.setup_id}:rev${setup.revision}`,
         producer: { system: "kronos", instance: "backfill", emitter_sdk_version: "backfill-1" },
-        secret: process.env.KRONOS_LAB_HMAC_KEY,
+        // A dry run signs with a placeholder. Nothing is transmitted, so the
+        // signature is never checked -- and requiring the real key just to
+        // count rows would mean copying a production secret onto a laptop for
+        // an operation that touches nothing.
+        secret: process.env.KRONOS_LAB_HMAC_KEY || (DRY ? "dry-run-placeholder-not-transmitted" : ""),
         keyId: process.env.KRONOS_LAB_HMAC_KEY_ID ?? "k1",
         // The real decision time, not now. This is what makes the Lab flag it
         // as a backfill — collapsing the two would hide exactly the thing the
