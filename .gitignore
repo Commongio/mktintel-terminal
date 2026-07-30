@@ -51,3 +51,8 @@ media-source/
 .obsidian/
 *.canvas
 2026-*.md
+
+# The one .env the repo commits: a template with no values in it. Without this
+# negation the `.env*` rules above would hide it and every new checkout would
+# have to guess which variables exist.
+!.env.example

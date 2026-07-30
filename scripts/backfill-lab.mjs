@@ -27,13 +27,31 @@
  *   node scripts/backfill-lab.mjs --dry-run
  *   node scripts/backfill-lab.mjs --limit 200
  *
- * Requires in the environment: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY,
- * KRONOS_LAB_URL, KRONOS_LAB_HMAC_KEY (the same values Vercel holds).
+ * Reads .env.local automatically, so the values Vercel holds work locally too:
+ * NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, KRONOS_LAB_URL,
+ * KRONOS_LAB_HMAC_KEY.
  */
 
 import { createClient } from "@supabase/supabase-js";
-import { buildSignalPayload, emitOutcome, setupIdFor, labEnabled } from "../lib/labEmitter.js";
-import { buildEnvelope } from "@kronos-lab/contract/envelope";
+// The contract is vendored at lib/labContract, not resolved from the Lab's
+// workspace -- this repo deploys on its own and cannot reach across to it.
+// Safe as a static import: it reads no environment at load time.
+import { buildEnvelope } from "../lib/labContract/envelope.js";
+
+// Next loads .env.local for you; a bare `node` run does not. Without this the
+// script reports "missing SUPABASE_URL" on a machine where everything is
+// configured, which sends you looking in exactly the wrong place.
+try { process.loadEnvFile(".env.local"); } catch { /* absent, or already in env */ }
+
+// labEmitter is loaded DYNAMICALLY, and it has to be. It captures LAB_URL and
+// LAB_KEY into module constants at load time, and ESM evaluates every static
+// import before any module-level statement in this file -- so a static import
+// would read those variables before loadEnvFile() above had put them there.
+// The emitter would then report itself DISABLED with a fully configured
+// .env.local sitting on disk, and the run would refuse for a reason that is
+// not true.
+const { buildSignalPayload, emitOutcome, setupIdFor, labEnabled } =
+  await import("../lib/labEmitter.js");
 
 const args = process.argv.slice(2);
 const DRY = args.includes("--dry-run");
@@ -45,13 +63,11 @@ const STATES = ["won", "lost"];
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-function must(name) {
-  const v = process.env[name];
-  if (!v) {
-    console.error(`missing ${name}`);
-    process.exit(1);
-  }
-  return v;
+/** Accepts any of several names, so a rename upstream is not a puzzle here. */
+function must(...names) {
+  for (const n of names) if (process.env[n]) return process.env[n];
+  console.error(`missing ${names.join(" or ")} — set it in .env.local`);
+  process.exit(1);
 }
 
 async function main() {
@@ -60,9 +76,12 @@ async function main() {
     process.exit(1);
   }
 
-  const db = createClient(must("SUPABASE_URL"), must("SUPABASE_SERVICE_ROLE_KEY"), {
-    auth: { persistSession: false },
-  });
+  const db = createClient(
+    // The app uses NEXT_PUBLIC_SUPABASE_URL; accept the bare name too.
+    must("NEXT_PUBLIC_SUPABASE_URL", "SUPABASE_URL"),
+    must("SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_SERVICE_KEY"),
+    { auth: { persistSession: false } },
+  );
 
   const { data: rows, error } = await db
     .from("signals")
@@ -87,10 +106,13 @@ async function main() {
 
   for (const row of rows) {
     const decisionTime = row.created_at;
-    // graded_at is the honest resolution time (migration 013). Without it
-    // there is no defensible answer, and a guessed one would put a fabricated
-    // interval into the one database built to detect fabricated intervals.
-    const resolvedAt = row.graded_at ?? null;
+    // `resolved_at` (migration 006) is the real one, written on every
+    // transition at signalLifecycle.js:94 and by the admin override route.
+    // `graded_at` came later with migration 013 and NOTHING EVER WROTE IT --
+    // reading that first meant every row looked untimestamped and the whole
+    // backfill skipped itself. Kept as a fallback only in case it is ever
+    // wired up.
+    const resolvedAt = row.resolved_at ?? row.graded_at ?? null;
 
     if (!decisionTime || !resolvedAt) { stats.skipped_no_time++; continue; }
     if (Date.parse(resolvedAt) < Date.parse(decisionTime)) { stats.skipped_no_time++; continue; }
@@ -139,7 +161,11 @@ async function main() {
         payload,
         idempotencyKey: `${setup.setup_id}:rev${setup.revision}`,
         producer: { system: "kronos", instance: "backfill", emitter_sdk_version: "backfill-1" },
-        secret: process.env.KRONOS_LAB_HMAC_KEY,
+        // A dry run signs with a placeholder. Nothing is transmitted, so the
+        // signature is never checked -- and requiring the real key just to
+        // count rows would mean copying a production secret onto a laptop for
+        // an operation that touches nothing.
+        secret: process.env.KRONOS_LAB_HMAC_KEY || (DRY ? "dry-run-placeholder-not-transmitted" : ""),
         keyId: process.env.KRONOS_LAB_HMAC_KEY_ID ?? "k1",
         // The real decision time, not now. This is what makes the Lab flag it
         // as a backfill — collapsing the two would hide exactly the thing the
@@ -171,6 +197,11 @@ async function main() {
           setupId: setup.setup_id,
           state: row.state,
           plan: row.plan,
+          // Written by the grading cron at the moment it noticed, not at the
+          // moment price crossed t1 or the stop -- so it is accurate to within
+          // one scan interval (~5 min), not to the tick. That is a recorded
+          // fact with known precision, which is a different thing from a
+          // guess, and nothing downstream computes a duration from it.
           resolvedAt,
           mode: "engine",
           reason: row.state === "won" ? "t1_hit" : "stop_hit",
@@ -192,8 +223,8 @@ async function main() {
   console.log("\n" + JSON.stringify(stats, null, 2));
   if (stats.skipped_no_time) {
     console.log(`\n${stats.skipped_no_time} row(s) skipped for having no defensible resolution time.`);
-    console.log("Not a failure. graded_at arrived with migration 013; anything graded before that");
-    console.log("has no honest timestamp, and inventing one would be worse than omitting the row.");
+    console.log("Not a failure: a guessed timestamp would put a fabricated interval into the one");
+    console.log("database whose entire purpose is detecting fabricated intervals.");
   }
   if (!DRY && stats.sent) {
     console.log(`\n${stats.sent} signal(s) replayed. They will appear in the Lab flagged \`backfilled\``);
