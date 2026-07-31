@@ -17,6 +17,7 @@
 // thousands of names or 2-minute freshness the way intraday scanning does.
 import { runSignalEngine, MODE_DEFAULT_INTERVAL, ENGINE_VERSION, MIN_SURFACE_CONVICTION } from "../../../../lib/signalEngine";
 import { emitSignal, deriveSetup, buildProvenance, labEnabled, labLastError } from "../../../../lib/labEmitter";
+import { buildRegime, marketContext } from "@/lib/regime";
 import { getAdmin, serverConfigured, insertSignal } from "../../../../lib/supabaseServer";
 import { sendSignalPush } from "../../../../lib/push";
 import { gradeSignalLifecycle } from "../../../../lib/signalLifecycle";
@@ -81,7 +82,7 @@ async function capFor(symbol) {
   } catch { _capCache.set(key, null); return null; }
 }
 
-async function writeIfChanged(admin, { assetClass, symbol, interval }, buckets, stats, choppy) {
+async function writeIfChanged(admin, { assetClass, symbol, interval }, buckets, stats, choppy, marketCtx) {
   const raw = await runSignalEngine({ assetClass, symbol, interval });
 
   // Captured BEFORE the chop halt below mutates raw.status in place. Without
@@ -208,7 +209,13 @@ async function writeIfChanged(admin, { assetClass, symbol, interval }, buckets, 
       id: inserted?.id ?? null,
       decision_time: new Date().toISOString(),
     },
-    opts: { chopApplied: choppy, minConviction: MIN_SURFACE_CONVICTION },
+    opts: {
+      chopApplied: choppy, minConviction: MIN_SURFACE_CONVICTION,
+      // Stamped here, at the moment of the decision. The Lab could compute all
+      // of it later and must not: a regime looked up after the fact attaches
+      // knowledge to a decision that did not have it.
+      regime: buildRegime(raw?.regime, marketCtx),
+    },
   }));
 
   // ── V11 M3: push fan-out ──────────────────────────────────────────────────
@@ -263,6 +270,14 @@ export async function GET(request) {
   catch { /* if regime is unknowable, don't halt */ }
   const choppy = Boolean(regime.choppy);
 
+  // Broad-market context, fetched ONCE and stamped onto every signal this run.
+  // Cached inside marketContext() as well, but reading it here makes the
+  // once-per-run intent explicit rather than a property of a module-level
+  // cache someone could later shorten.
+  let marketCtx = null;
+  try { marketCtx = await marketContext(); }
+  catch { /* regime is optional; a signal without it is still a signal */ }
+
   // V10.3: the day's most-actives are PINNED into every run (movers are never
   // missed); the rest of the run is a rotating slice of the full universe.
   const mostActives = await fetchMostActives(16);
@@ -281,7 +296,7 @@ export async function GET(request) {
     const universe = scanUniverse(assetClass, assetClass === "options" ? mostActives : [], cursor);
     for (const symbol of universe) {
       if (!timeLeft()) { ranOutOfTime = true; break; }
-      try { await writeIfChanged(admin, { assetClass, symbol, interval }, buckets, stats, choppy); }
+      try { await writeIfChanged(admin, { assetClass, symbol, interval }, buckets, stats, choppy, marketCtx); }
       catch (e) { buckets.failed.push({ symbol: `${assetClass}:${symbol}`, error: String(e.message) }); }
     }
     if (ranOutOfTime) break;
@@ -301,7 +316,7 @@ export async function GET(request) {
       if (!intervalAllowed(assetClass, interval)) continue;
       for (const symbol of PORTFOLIO_UNIVERSE[assetClass]) {
         if (!timeLeft()) { ranOutOfTime = true; return; }
-        try { await writeIfChanged(admin, { assetClass, symbol, interval }, buckets, stats, choppy); portfolio[flag] = true; }
+        try { await writeIfChanged(admin, { assetClass, symbol, interval }, buckets, stats, choppy, marketCtx); portfolio[flag] = true; }
         catch (e) { buckets.failed.push({ symbol: `${assetClass}:${symbol}:${interval}`, error: String(e.message) }); }
       }
     }
