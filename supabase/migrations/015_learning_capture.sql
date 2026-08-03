@@ -23,6 +23,11 @@ alter table public.signals
   -- drawdown means the same on NG as on XOM.
   add column if not exists mae_r numeric,
   add column if not exists mfe_r numeric,
+  -- And in percent of entry. R says how a trade did against its own risk;
+  -- percent is the only unit in which a breakout is visible at all -- a 100%
+  -- run on a wide stop can be under 2R and look unremarkable.
+  add column if not exists peak_gain_pct numeric,
+  add column if not exists peak_loss_pct numeric,
   -- Grading passes this signal has survived. The horizon is open-ended, so
   -- this is the only measure of how long a verdict actually takes.
   add column if not exists bars_seen integer not null default 0,
@@ -45,7 +50,7 @@ create index if not exists signals_ambiguous_idx
 do $$
 declare col text;
 begin
-  foreach col in array array['mae_r','mfe_r','bars_seen','path_ambiguous','superseded_by','regime'] loop
+  foreach col in array array['mae_r','mfe_r','peak_gain_pct','peak_loss_pct','bars_seen','path_ambiguous','superseded_by','regime'] loop
     if exists (select 1 from information_schema.columns
                 where table_schema='public' and table_name='signals' and column_name=col) then
       execute format('revoke select (%I) on public.signals from authenticated', col);
