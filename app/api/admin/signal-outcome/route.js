@@ -8,10 +8,19 @@
 //
 // Owner-gated by the same isOwner()/OWNER_EMAILS allowlist as the rest of /admin.
 import { getAdmin, getUserFromRequest, isOwner, serverConfigured } from "../../../../lib/supabaseServer";
+import { emitOutcome } from "../../../../lib/labEmitter";
 
 const REASON_TO_STATE = {
   stopped_out: "lost",        // hit the stop / trade failed → counts against win-rate
   bad_rr: "invalidated",      // R:R turned negative before triggering → not a graded loss, but gone
+  // Finer reasons, because "why" is the part worth keeping. A signal killed
+  // four minutes in because it collapsed is a different judgement from one
+  // closed in profit, and collapsing both to "lost" throws away the only
+  // input here a model cannot reconstruct.
+  went_red_fast: "lost",
+  broke_down: "lost",
+  stale: "invalidated",
+  broke_out: "won",
   // V14: wins are teaching data too. Grading a deletion as a WIN lets the
   // self-learning loop reinforce the setup signature instead of only ever
   // learning from failures (which biases the aggregate gate pessimistic).
@@ -36,8 +45,14 @@ export async function POST(request) {
   }
 
   const admin = getAdmin();
+  // Read first: the emit needs the geometry and the decision time, and after
+  // the update resolved_at is overwritten so the interval is unrecoverable.
+  const { data: before } = await admin.from("signals")
+    .select("id,symbol,plan,setup_id,created_at,direction").eq("id", id).maybeSingle();
+
+  const resolvedAt = new Date().toISOString();
   const { data, error: upErr } = await admin.from("signals")
-    .update({ state, resolved_at: new Date().toISOString() })
+    .update({ state, resolved_at: resolvedAt })
     .eq("id", id)
     .select("id,symbol,state");
   // 42703 = no `state` column (migration 006 not run) — report clearly.
@@ -46,5 +61,31 @@ export async function POST(request) {
     return Response.json({ error: upErr.message }, { status: 500 });
   }
   if (!data?.length) return Response.json({ error: "Signal not found" }, { status: 404 });
-  return Response.json({ ok: true, id, state, reason });
+
+  // Mirror to the Lab. Fire-and-forget and awaited only so the response can
+  // say whether it landed -- emitOutcome is total and cannot throw in here.
+  //
+  // This is the gap that mattered: a dev deleting a signal was the single
+  // richest input in the system and it reached nothing outside this table.
+  // Worse, the removals are not random -- the bad-looking ones get killed --
+  // so leaving them out measured the engine on a population already curated
+  // in its favour.
+  const minutes = before?.created_at
+    ? Math.max(0, Math.round((Date.parse(resolvedAt) - Date.parse(before.created_at)) / 60000))
+    : null;
+  const sent = await emitOutcome({
+    signalId: id,
+    setupId: before?.setup_id ?? null,
+    state,
+    plan: before?.plan ?? null,
+    resolvedAt,
+    mode: "manual",
+    actor: user?.email ?? "owner",
+    reason,
+    disposition: reason,
+    dispositionNote: typeof body?.note === "string" ? body.note.slice(0, 500) : null,
+    minutesToDisposition: minutes,
+  });
+
+  return Response.json({ ok: true, id, state, reason, mirrored_to_lab: sent });
 }
