@@ -350,9 +350,25 @@ function FeedRow({ r, T, accent, highlight, onDelete, isDev, onDevGrade }) {
           boxShadow: "0 8px 30px rgba(0,0,0,0.6)", padding: 6,
         }}>
           <div style={{ fontFamily: FM, fontSize: 7, color: dim, letterSpacing: 1, padding: "3px 6px 5px" }}>WHY REMOVE? (LOGS OUTCOME)</div>
-          {/* V14: wins are gradeable too — "closed with profit" teaches the loop
-              which setups WORK, not just which ones fail. */}
-          {[["closed_profit", "Closed with profit", "#00e676"], ["stopped_out", "Stopped out", "#ff3d57"], ["bad_rr", "R:R turned negative", "#f7c948"]].map(([reason, label, c]) => (
+          {/* Grouped by what the call was WORTH, because that is the question
+              the Lab is trying to answer. The two "called it" rows are the ones
+              that were missing and the most valuable of the set: a signal that
+              ran 40% teaches something completely different from one that
+              crawled to target, and both used to be recorded as plain wins.
+
+              Direction-relative wording. "Rallied" and "dumped" describe where
+              price went, which inverts on a SHORT — a short that dumps is a
+              WIN. These say what happened relative to the CALL, so the labels
+              read correctly for either side. */}
+          {[
+            ["called_it_big",  "Called it — major move", "#00e676"],
+            ["closed_profit",  "Closed with profit",     "#00e676"],
+            ["reversed_hard",  "Reversed hard against",  "#ff3d57"],
+            ["stopped_out",    "Stopped out",            "#ff3d57"],
+            ["went_red_fast",  "Went red immediately",   "#ff3d57"],
+            ["bad_rr",         "R:R turned negative",    "#f7c948"],
+            ["stale",          "Went stale",             "#f7c948"],
+          ].map(([reason, label, c]) => (
             <button key={reason}
               onClick={() => { setDevMenu(false); onDevGrade?.(r, reason); }}
               style={{ display: "block", width: "100%", textAlign: "left", padding: "7px 8px", borderRadius: 6, background: "transparent", border: "none", color: c, fontFamily: FM, fontSize: 9.5, fontWeight: 700, cursor: "pointer" }}>

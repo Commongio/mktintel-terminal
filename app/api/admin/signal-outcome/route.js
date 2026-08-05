@@ -57,7 +57,12 @@ export async function POST(request) {
   const reason = body?.reason;
   const state = REASON_TO_STATE[reason];
   if (!id || !state) {
-    return Response.json({ error: "Expected { id, reason: 'stopped_out' | 'bad_rr' | 'closed_profit' }" }, { status: 400 });
+    // Derived from the map rather than hardcoded. The old literal listed three
+    // reasons and had already drifted from a map holding more, so a valid
+    // request could be refused with a message naming only the originals.
+    return Response.json({
+      error: `Expected { id, reason } where reason is one of: ${Object.keys(REASON_TO_STATE).join(", ")}`,
+    }, { status: 400 });
   }
 
   const admin = getAdmin();
