@@ -360,7 +360,7 @@ export const CometLayer = forwardRef(function CometLayer({ T }, ref) {
       canvas.width = hostRect.width; canvas.height = hostRect.height;
       const fr = fromEl.getBoundingClientRect();
       const tr = toEl.getBoundingClientRect();
-      const dir = signal.direction === "SHORT" ? "255,61,87" : "0,230,118";
+      const dir = signal.direction === "SHORT" ? "255,92,122" : "62,213,152";
       activeRef.current.push({
         t0: performance.now(),
         dur: 1400,

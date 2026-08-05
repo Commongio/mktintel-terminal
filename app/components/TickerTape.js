@@ -164,7 +164,7 @@ export default function TickerTape({ accent = "#4C9E92", T, speed = 60 }) {
     if (vals.length > 0) {
       const bulls = vals.filter((q) => q.changePercent >= 0).length;
       const pct = bulls / vals.length;
-      setTickerBg(pct >= 0.60 ? "rgba(0,230,118,0.05)" : pct <= 0.40 ? "rgba(255,61,87,0.05)" : "transparent");
+      setTickerBg(pct >= 0.60 ? "rgba(62,213,152,0.05)" : pct <= 0.40 ? "rgba(255,92,122,0.05)" : "transparent");
     }
   }, [symbols]);
 

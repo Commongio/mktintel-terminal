@@ -317,7 +317,7 @@ function FeedRow({ r, T, accent, highlight, onDelete, isDev, onDevGrade }) {
   return (
     <div ref={rowRef} onClick={toggle} style={{
       padding: "10px 12px", borderBottom: `1px solid ${border}55`, cursor: "pointer",
-      background: won ? "rgba(0,230,118,0.06)" : highlight ? `${sc}14` : "transparent",
+      background: won ? "rgba(62,213,152,0.06)" : highlight ? `${sc}14` : "transparent",
       transition: "background 0.8s ease",
       position: "relative",
     }}>
@@ -326,7 +326,7 @@ function FeedRow({ r, T, accent, highlight, onDelete, isDev, onDevGrade }) {
         <span style={{
           position: "absolute", top: 8, right: 30, zIndex: 2,
           fontFamily: FM, fontSize: 7.5, fontWeight: 800, letterSpacing: 1.5, color: "#4FA97B",
-          background: "rgba(0,230,118,0.12)", border: "1px solid rgba(0,230,118,0.4)",
+          background: "rgba(62,213,152,0.12)", border: "1px solid rgba(62,213,152,0.4)",
           borderRadius: 4, padding: "2px 6px",
         }}> WON</span>
       )}

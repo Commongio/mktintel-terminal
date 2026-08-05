@@ -73,7 +73,7 @@ export default function ShadowAccountPanel({ accent = "#4C9E92", T, assetClass =
           <button onClick={evaluate} disabled={loading} style={{ fontFamily: FM, fontSize: 8, color: accent, background: "none", border: `1px solid ${accent}30`, borderRadius: 5, padding: "3px 8px", cursor: "pointer" }}>
             {loading ? "..." : "RE-GRADE"}
           </button>
-          <button onClick={clear} style={{ fontFamily: FM, fontSize: 8, color: "#C9576B", background: "none", border: "1px solid rgba(255,61,87,0.25)", borderRadius: 5, padding: "3px 8px", cursor: "pointer" }}>CLEAR</button>
+          <button onClick={clear} style={{ fontFamily: FM, fontSize: 8, color: "#C9576B", background: "none", border: "1px solid rgba(255,92,122,0.25)", borderRadius: 5, padding: "3px 8px", cursor: "pointer" }}>CLEAR</button>
         </div>
       </div>
 
@@ -209,7 +209,7 @@ export function PaperTradingPanel({ accent = "#4C9E92", T, paperMode, setPaperMo
         </span>
         <button onClick={reset} style={{
           fontFamily: FM, fontSize: 8, color: "#C9576B", background: "none",
-          border: "1px solid rgba(255,61,87,0.25)", borderRadius: 5, padding: "3px 8px", cursor: "pointer",
+          border: "1px solid rgba(255,92,122,0.25)", borderRadius: 5, padding: "3px 8px", cursor: "pointer",
         }}>RESET</button>
       </div>
     </div>

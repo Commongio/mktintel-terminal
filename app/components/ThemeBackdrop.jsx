@@ -79,7 +79,7 @@ function CanvasThemes({ theme, accent }) {
           // ~21/255 on-canvas — under a panel even slightly tinted, that rounds to
           // invisible, which is why "the themes stopped displaying". These are the
           // BACKDROP; they need to actually register behind translucent panels.
-          const cols = [ac(0.42), "rgba(126,184,247,0.36)", "rgba(167,139,250,0.34)"];
+          const cols = [ac(0.42), "rgba(127,169,216,0.36)", "rgba(160,153,224,0.34)"];
           ctx.strokeStyle = cols[r0.hue % 3];
           ctx.lineWidth = 46; ctx.lineCap = "round";
           ctx.filter = "blur(18px)"; ctx.stroke(); ctx.filter = "none";

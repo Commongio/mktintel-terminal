@@ -292,8 +292,8 @@ export default function MultiAgentSignal({ accent = "#4C9E92", T, symbol = "NQ",
           {data.risk && (
             <div style={{
               padding: "8px 11px", borderRadius: 8, marginTop: 6,
-              background: data.risk.approved ? "rgba(0,230,118,0.05)" : "rgba(255,61,87,0.05)",
-              border: `1px solid ${data.risk.approved ? "rgba(0,230,118,0.2)" : "rgba(255,61,87,0.2)"}`,
+              background: data.risk.approved ? "rgba(62,213,152,0.05)" : "rgba(255,92,122,0.05)",
+              border: `1px solid ${data.risk.approved ? "rgba(62,213,152,0.2)" : "rgba(255,92,122,0.2)"}`,
             }}>
               <div style={{ fontFamily: FM, fontSize: 8, fontWeight: 800, letterSpacing: 1.5, marginBottom: 4, color: data.risk.approved ? "#4FA97B" : "#C9576B" }}>
                 RISK GATE — {data.risk.approved ? "APPROVED" : "BLOCKED"}

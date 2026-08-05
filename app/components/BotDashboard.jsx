@@ -701,8 +701,8 @@ export default function BotDashboard({ accent = "#4C9E92", T, botName = "KRONOS"
               return (
                 <div key={s} style={{
                   display: "flex", alignItems: "center", gap: 4, padding: "3px 8px", borderRadius: 20,
-                  border: `1px solid ${on ? "rgba(0,230,118,0.35)" : border}`,
-                  background: on ? "rgba(0,230,118,0.07)" : "transparent",
+                  border: `1px solid ${on ? "rgba(62,213,152,0.35)" : border}`,
+                  background: on ? "rgba(62,213,152,0.07)" : "transparent",
                 }}>
                   <div style={{ width: 5, height: 5, borderRadius: "50%", background: on ? "#4FA97B" : "#2a3648", boxShadow: on ? "0 0 6px #4FA97B" : "none", animation: on ? "bot-dot 1.8s ease-in-out infinite" : "none" }} />
                   <span style={{ fontFamily: FM, fontSize: 7.5, fontWeight: 700, letterSpacing: 1.5, color: on ? "#4FA97B" : dim }}>{s}</span>
@@ -729,7 +729,7 @@ export default function BotDashboard({ accent = "#4C9E92", T, botName = "KRONOS"
           {assetClass === "futures" && propRules?.firmName && (
             <div style={{
               display: "flex", alignItems: "center", gap: 6, padding: "3px 10px", borderRadius: 20,
-              border: "1px solid rgba(247,201,72,0.3)", background: "rgba(247,201,72,0.07)",
+              border: "1px solid rgba(224,178,95,0.3)", background: "rgba(224,178,95,0.07)",
             }}>
               <span style={{ fontFamily: FM, fontSize: 8, fontWeight: 700, letterSpacing: 1, color: "#C9A15B" }}>
                 EVAL: {propRules.firmName} {propRules.accountLabel}

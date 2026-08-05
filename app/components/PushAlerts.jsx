@@ -276,8 +276,8 @@ export default function PushAlerts({ T, accent, user, alertPrefs = null }) {
                 flex: 1, minWidth: 130, minHeight: 44, borderRadius: 8, cursor: busy ? "default" : "pointer",
                 fontFamily: FM, fontSize: 10, fontWeight: 700, letterSpacing: 1,
                 color: subscribed ? "#C9576B" : accent,
-                background: subscribed ? "rgba(255,61,87,0.08)" : `${accent}12`,
-                border: `1px solid ${subscribed ? "rgba(255,61,87,0.35)" : `${accent}35`}`,
+                background: subscribed ? "rgba(255,92,122,0.08)" : `${accent}12`,
+                border: `1px solid ${subscribed ? "rgba(255,92,122,0.35)" : `${accent}35`}`,
                 opacity: busy ? 0.6 : 1,
               }}>
               {busy ? "…" : subscribed ? "TURN OFF ALERTS" : "TURN ON ALERTS"}

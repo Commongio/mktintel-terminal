@@ -249,7 +249,7 @@ export function BrokerSideBySidePopup({ accent, T, onDone, onSkip }) {
       )}
 
       {blocked && (
-        <div style={{ fontFamily: FC, fontSize: 10.5, color: "#C9A15B", background: "rgba(247,201,72,0.07)", border: "1px solid rgba(247,201,72,0.25)", borderRadius: 8, padding: "9px 12px", marginBottom: 12, lineHeight: 1.55 }}>
+        <div style={{ fontFamily: FC, fontSize: 10.5, color: "#C9A15B", background: "rgba(224,178,95,0.07)", border: "1px solid rgba(224,178,95,0.25)", borderRadius: 8, padding: "9px 12px", marginBottom: 12, lineHeight: 1.55 }}>
            Popup blocked by the browser. Allow popups for this site, or open your broker manually and
           drag its window to the right half of your screen (terminal on the left).
         </div>

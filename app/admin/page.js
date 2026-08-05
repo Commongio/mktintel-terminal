@@ -122,8 +122,8 @@ export default function AdminCodesPage() {
         {[["codes", "REGISTRATION CODES"], ["brain", "BRAIN ACCESS"]].map(([id, label]) => (
           <button key={id} onClick={() => setAdminTab(id)} style={{
             padding: "7px 14px", borderRadius: 7, fontFamily: FM, fontSize: 9, fontWeight: 700, letterSpacing: 1.5,
-            color: adminTab === id ? C.accent : C.dim, background: adminTab === id ? "rgba(0,212,170,0.08)" : "transparent",
-            border: `1px solid ${adminTab === id ? "rgba(0,212,170,0.3)" : C.border}`,
+            color: adminTab === id ? C.accent : C.dim, background: adminTab === id ? "rgba(92,191,177,0.08)" : "transparent",
+            border: `1px solid ${adminTab === id ? "rgba(92,191,177,0.3)" : C.border}`,
           }}>{label}</button>
         ))}
       </div>
@@ -143,7 +143,7 @@ export default function AdminCodesPage() {
           <input value={genLabel} onChange={(e) => setGenLabel(e.target.value)} placeholder="e.g. discord-wave-2"
             style={{ width: "100%", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 7, padding: "8px 10px", color: C.text, fontFamily: FM, fontSize: 12 }} />
         </div>
-        <button onClick={generate} disabled={genBusy} style={{ padding: "9px 18px", background: "rgba(0,212,170,0.1)", border: "1px solid rgba(0,212,170,0.35)", borderRadius: 8, color: C.accent, fontFamily: FM, fontSize: 10, fontWeight: 700, letterSpacing: 2 }}>
+        <button onClick={generate} disabled={genBusy} style={{ padding: "9px 18px", background: "rgba(92,191,177,0.1)", border: "1px solid rgba(92,191,177,0.35)", borderRadius: 8, color: C.accent, fontFamily: FM, fontSize: 10, fontWeight: 700, letterSpacing: 2 }}>
           {genBusy ? "GENERATING..." : "+ GENERATE"}
         </button>
         <button onClick={exportCSV} style={{ padding: "9px 14px", background: "transparent", border: `1px solid ${C.border}`, borderRadius: 8, color: C.dim, fontFamily: FM, fontSize: 10, letterSpacing: 1 }}>
@@ -156,8 +156,8 @@ export default function AdminCodesPage() {
         {["all", "unused", "used", "revoked"].map((s) => (
           <button key={s} onClick={() => { setStatus(s); setPage(1); }} style={{
             padding: "6px 14px", borderRadius: 6, fontFamily: FM, fontSize: 9, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase",
-            color: status === s ? C.accent : C.dim, background: status === s ? "rgba(0,212,170,0.08)" : "transparent",
-            border: `1px solid ${status === s ? "rgba(0,212,170,0.3)" : C.border}`,
+            color: status === s ? C.accent : C.dim, background: status === s ? "rgba(92,191,177,0.08)" : "transparent",
+            border: `1px solid ${status === s ? "rgba(92,191,177,0.3)" : C.border}`,
           }}>{s}</button>
         ))}
         <input value={q} onChange={(e) => { setQ(e.target.value.toUpperCase()); setPage(1); }} placeholder="SEARCH CODE..."
@@ -181,7 +181,7 @@ export default function AdminCodesPage() {
             <span style={{ fontSize: 9, color: C.dim }}>{c.redeemed_at ? new Date(c.redeemed_at).toLocaleString() : "—"}</span>
             <span style={{ fontSize: 9, color: C.dim, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.batch_label || "—"}</span>
             {c.status === "unused"
-              ? <button onClick={() => revoke(c.code)} style={{ fontSize: 8, color: C.red, background: "none", border: "1px solid rgba(255,77,109,0.3)", borderRadius: 5, padding: "3px 8px", fontFamily: FM, letterSpacing: 1 }}>REVOKE</button>
+              ? <button onClick={() => revoke(c.code)} style={{ fontSize: 8, color: C.red, background: "none", border: "1px solid rgba(255,92,122,0.3)", borderRadius: 5, padding: "3px 8px", fontFamily: FM, letterSpacing: 1 }}>REVOKE</button>
               : <span />}
           </div>
         ))}
@@ -363,7 +363,7 @@ function BrainPanel({ C, FM }) {
   const boxSx = { background: C.panel, border: `1px solid ${C.border}`, borderRadius: 12, padding: 16, marginBottom: 16 };
   const labelSx = { fontSize: 8, color: C.dim, letterSpacing: 2, marginBottom: 7, fontWeight: 700 };
   const inputSx = { width: "100%", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 7, padding: "9px 10px", color: C.text, fontFamily: FM, fontSize: 11 };
-  const btnSx = { padding: "9px 18px", background: "rgba(0,212,170,0.1)", border: "1px solid rgba(0,212,170,0.35)", borderRadius: 8, color: C.accent, fontFamily: FM, fontSize: 10, fontWeight: 700, letterSpacing: 2 };
+  const btnSx = { padding: "9px 18px", background: "rgba(92,191,177,0.1)", border: "1px solid rgba(92,191,177,0.35)", borderRadius: 8, color: C.accent, fontFamily: FM, fontSize: 10, fontWeight: 700, letterSpacing: 2 };
 
   return (
     <div>
@@ -416,7 +416,7 @@ function BrainPanel({ C, FM }) {
                 <div style={{ fontSize: 8, color: C.dim, letterSpacing: 1, marginBottom: 6 }}>BEST SETUP SIGNATURES (learned from wins)</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 12 }}>
                   {lossLog.bestSetups.map((s) => (
-                    <div key={s.key} style={{ display: "flex", justifyContent: "space-between", fontSize: 10, padding: "5px 8px", borderRadius: 6, background: "rgba(0,230,118,0.06)" }}>
+                    <div key={s.key} style={{ display: "flex", justifyContent: "space-between", fontSize: 10, padding: "5px 8px", borderRadius: 6, background: "rgba(62,213,152,0.06)" }}>
                       <span style={{ color: C.text, fontFamily: FM }}>{s.key}</span>
                       <span style={{ color: s.winRate >= 60 ? C.accent : C.gold, fontWeight: 700 }}>{s.winRate}% · {s.wins}/{s.n}</span>
                     </div>
@@ -429,7 +429,7 @@ function BrainPanel({ C, FM }) {
                 <div style={{ fontSize: 8, color: C.dim, letterSpacing: 1, marginBottom: 6 }}>RECENT LOSSES ({lossLog.recentLosers.length})</div>
                 <div style={{ maxHeight: 200, overflowY: "auto", display: "flex", flexDirection: "column", gap: 3 }}>
                   {lossLog.recentLosers.map((l, i) => (
-                    <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 9.5, padding: "4px 8px", borderRadius: 5, background: "rgba(255,77,109,0.06)" }}>
+                    <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 9.5, padding: "4px 8px", borderRadius: 5, background: "rgba(255,92,122,0.06)" }}>
                       <span style={{ color: C.text, fontFamily: FM }}>{l.direction} {l.symbol} · {l.asset_class}/{l.interval}</span>
                       <span style={{ color: C.dim }}>{l.conviction}% · {l.resolved_at ? new Date(l.resolved_at).toLocaleDateString() : ""}</span>
                     </div>
@@ -533,7 +533,7 @@ function BrainPanel({ C, FM }) {
       <div style={boxSx}>
         <div style={labelSx}>V13 POPUP — DEV CONTROLS</div>
         <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
-          <button onClick={resetAll} disabled={resetBusy} style={{ ...btnSx, background: "rgba(255,77,109,0.08)", border: "1px solid rgba(255,77,109,0.3)", color: C.red }}>
+          <button onClick={resetAll} disabled={resetBusy} style={{ ...btnSx, background: "rgba(255,92,122,0.08)", border: "1px solid rgba(255,92,122,0.3)", color: C.red }}>
             RESET FOR ALL USERS
           </button>
         </div>
@@ -592,8 +592,8 @@ function BrainPanel({ C, FM }) {
             disabled={purgeBusy || !purgePreview?.matched}
             style={{
               ...btnSx, flex: 1,
-              background: purgePreview?.matched ? "rgba(255,77,109,0.08)" : "transparent",
-              border: `1px solid ${purgePreview?.matched ? "rgba(255,77,109,0.3)" : C.border}`,
+              background: purgePreview?.matched ? "rgba(255,92,122,0.08)" : "transparent",
+              border: `1px solid ${purgePreview?.matched ? "rgba(255,92,122,0.3)" : C.border}`,
               color: purgePreview?.matched ? C.red : C.dim,
               opacity: purgePreview?.matched ? 1 : 0.5,
             }}>
@@ -634,7 +634,7 @@ function BrainPanel({ C, FM }) {
           Opens the KRONOS bot and launches a Comet on the latest live signal (or a demo if none is live), so you can confirm the effect end-to-end.
         </div>
         <button onClick={() => { try { localStorage.setItem("kronos_dev_test_chop", "1"); } catch {} window.location.href = "/"; }}
-          style={{ ...btnSx, width: "100%", background: "rgba(247,201,72,0.1)", border: "1px solid rgba(247,201,72,0.35)", color: C.gold }}>
+          style={{ ...btnSx, width: "100%", background: "rgba(224,178,95,0.1)", border: "1px solid rgba(224,178,95,0.35)", color: C.gold }}>
            OPEN BOT & PREVIEW CHOP BANNER
         </button>
         <div style={{ fontSize: 8.5, color: C.dim, marginTop: 8, lineHeight: 1.5 }}>
