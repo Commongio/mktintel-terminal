@@ -76,23 +76,24 @@ export default function LightweightChart({
     const chart = createChart(wrapRef.current, {
       autoSize: true,
       layout: {
-        // NOT transparent. A transparent chart renders directly over the theme
-        // backdrop, so every candle competes with whatever glow happens to sit
-        // behind it -- and the starfield's bright centre falls right where the
-        // price action usually is. No amount of candle saturation fixes that,
-        // because the problem is the surface, not the series: contrast is a
-        // relationship, and one side of it was moving.
+        // Transparent so the terminal's theme backdrop shows through. This is
+        // LOAD-BEARING, not styling: the transparent/solid theme control works
+        // by compositing against whatever sits behind the chart, so giving the
+        // chart a surface of its own silently disables that control.
         //
-        // Near-opaque rather than fully so, keeping a trace of the theme at the
-        // edges while the price sits on a predictable dark surface.
-        background: { type: ColorType.Solid, color: "rgba(6,9,16,0.94)" },
+        // A near-opaque background was tried here to stop candles competing
+        // with the backdrop glow. It did improve contrast and it broke the
+        // theme switcher, which is a bad trade -- the fix for a washed-out
+        // chart belongs in the backdrop or in the candle colours, not in taking
+        // the surface away from the thing that owns it.
+        background: { type: ColorType.Solid, color: "transparent" },
         textColor: dim,
         fontFamily: FM,
         attributionLogo: false,
       },
       grid: {
-        vertLines: { color: `${border}44` },
-        horzLines: { color: `${border}44` },
+        vertLines: { color: `${border}55` },
+        horzLines: { color: `${border}55` },
       },
       crosshair: { mode: CrosshairMode.Normal },
       rightPriceScale: { borderColor: border, scaleMargins: { top: 0.08, bottom: 0.26 } },
@@ -100,16 +101,10 @@ export default function LightweightChart({
     });
 
     const candleSeries = chart.addSeries(CandlestickSeries, {
-      // Deliberately more saturated than the surrounding UI. Chrome recedes on
-      // purpose; the series a chart exists to show should not. The global
-      // desaturation pass should never have reached in here -- candles are
-      // data, and #4FA97B against near-black reads as a muted swatch rather
-      // than a price move.
-      upColor: "#3ED598", downColor: "#FF5C7A",
-      // Wicks a half-step brighter than the bodies. At one or two pixels wide
-      // a wick loses far more apparent intensity than a solid body, so
-      // matching them exactly leaves the wicks looking washed out next to it.
-      wickUpColor: "#5BE8AF", wickDownColor: "#FF7A92",
+      // Full-chroma on purpose. Candles sit over a live backdrop rather than a
+      // fixed surface, so they need more separation than static UI chrome does.
+      upColor: "#00e676", downColor: "#ff3d57",
+      wickUpColor: "#00e676", wickDownColor: "#ff3d57",
       borderVisible: false,
     });
 
@@ -153,7 +148,7 @@ export default function LightweightChart({
     if (!chart) return;
     chart.applyOptions({
       layout: { textColor: dim },
-      grid: { vertLines: { color: `${border}44` }, horzLines: { color: `${border}44` } },
+      grid: { vertLines: { color: `${border}55` }, horzLines: { color: `${border}55` } },
       rightPriceScale: { borderColor: border },
       timeScale: { borderColor: border },
     });
@@ -173,9 +168,7 @@ export default function LightweightChart({
       candleRef.current?.setData(candles);
       volRef.current?.setData(candles.map((c) => ({
         time: c.time, value: c.volume,
-        // Matched to the candle colours above, and kept at low alpha: volume
-        // is context beneath the price, not a second thing competing with it.
-        color: c.close >= c.open ? "rgba(62,213,152,0.30)" : "rgba(255,92,122,0.30)",
+        color: c.close >= c.open ? "rgba(0,230,118,0.28)" : "rgba(255,61,87,0.28)",
       })));
       chartRef.current?.timeScale().fitContent();
       // V14 PRICE-AXIS RESCALE: fitContent() only fits the TIME axis. Dragging the
