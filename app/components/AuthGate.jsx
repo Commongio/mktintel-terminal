@@ -3,6 +3,7 @@
 // When Supabase is configured: real sign-in / sign-up (signup burns a one-time
 // registration code). When it isn't: falls back to the legacy AccessGate so the
 // terminal keeps working as a single-user local app.
+import Icon from "./Icons";
 import { useState, useEffect } from "react";
 import AccessGate from "./AccessGate";
 import { getSupabase, supabaseConfigured } from "../../lib/supabase";
@@ -179,7 +180,7 @@ function SupabaseGate({ onAccess }) {
               placeholder="KRN-XXXXXX" onEnter={submit} icon={<span style={{ color: "#8ba0b8", fontSize: 12 }}>#</span>} />
           )}
 
-          {error && <div style={{ fontFamily: FM, fontSize: 9.5, color: "#ff6b81", letterSpacing: 0.5, margin: "8px 0 10px", textAlign: "center", lineHeight: 1.5 }}>⚠ {error}</div>}
+          {error && <div style={{ fontFamily: FM, fontSize: 9.5, color: "#ff6b81", letterSpacing: 0.5, margin: "8px 0 10px", textAlign: "center", lineHeight: 1.5 }}> {error}</div>}
           {notice && <div style={{ fontFamily: FM, fontSize: 9.5, color: LOGIN_BLUE_BRIGHT, letterSpacing: 0.5, margin: "8px 0 10px", textAlign: "center" }}>{notice}</div>}
 
           <button onClick={submit} disabled={!canSubmit || loading} style={{
@@ -237,10 +238,10 @@ export function DevBypassBadge() {
     <div style={{
       position: "fixed", bottom: 8, left: 8, zIndex: 99999, pointerEvents: "none",
       fontFamily: FM, fontSize: 8, fontWeight: 800, letterSpacing: 1.5,
-      color: "#f7c948", background: "rgba(247,201,72,0.10)",
+      color: "#C9A15B", background: "rgba(247,201,72,0.10)",
       border: "1px solid rgba(247,201,72,0.40)", borderRadius: 5, padding: "3px 8px",
     }}>
-      ⚠ DEV AUTH BYPASS · LOCAL MODE
+       DEV AUTH BYPASS · LOCAL MODE
     </div>
   );
 }

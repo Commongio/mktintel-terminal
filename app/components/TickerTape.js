@@ -1,4 +1,5 @@
 "use client";
+import Icon from "./Icons";
 import { useState, useEffect, useRef, useCallback } from "react";
 import TickerLogo from "./TickerLogo";
 import { COMPANY_NAMES } from "../../lib/companyNames";
@@ -46,10 +47,10 @@ function TapeEditModal({ onClose, symbols, setSymbols, accent, T }) {
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
           <span style={{ fontFamily: FM, fontSize: 11, fontWeight: 700, color: accent, letterSpacing: 2 }}>
-            ✎ EDIT TICKER TAPE
+             EDIT TICKER TAPE
           </span>
           <button onClick={onClose} style={{ color: T?.dim ?? "#3a4a5a", fontSize: 18, background: "none", border: "none", cursor: "pointer" }}>
-            ✕
+            
           </button>
         </div>
         <div style={{ fontFamily: FM, fontSize: 8, color: T?.dim ?? "#3a4a5a", letterSpacing: 1, marginBottom: 10, lineHeight: 1.6 }}>
@@ -116,7 +117,7 @@ function TapeEditModal({ onClose, symbols, setSymbols, accent, T }) {
   );
 }
 
-export default function TickerTape({ accent = "#00d4aa", T, speed = 60 }) {
+export default function TickerTape({ accent = "#4C9E92", T, speed = 60 }) {
   const [symbols, setSymbols] = useState(() => {
     try {
       const s = localStorage.getItem("kronos_tape");
@@ -229,7 +230,7 @@ export default function TickerTape({ accent = "#00d4aa", T, speed = 60 }) {
           {items.map((sym, i) => {
             const q = quotes[sym];
             const up = q && (q.change ?? q.changePercent ?? 0) >= 0;
-            const clr = up ? "#00e676" : "#ff3d57";
+            const clr = up ? "#4FA97B" : "#C9576B";
             // Live provider name first (Yahoo shortName/longName); if the quote
             // hasn't loaded yet or a failover provider degraded to name===symbol
             // (common from datacenter IPs — see lib/marketData.js), fall back to
@@ -300,7 +301,7 @@ export default function TickerTape({ accent = "#00d4aa", T, speed = 60 }) {
             zIndex: 2,
           }}
         >
-          ✎
+          
         </button>
       </div>
     </>

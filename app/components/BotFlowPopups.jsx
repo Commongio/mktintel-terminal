@@ -3,6 +3,7 @@
 // Step 1: OPTIONS or FUTURES mode select (drives the signal engine's data + logic).
 // Step 2: broker side-by-side setup — opens the user's trading platform in a
 // second browser window positioned for split-screen manual execution.
+import Icon from "./Icons";
 import { useState } from "react";
 
 const FM = "'JetBrains Mono',monospace";
@@ -62,7 +63,7 @@ export function BotEntryWarning({ accent, T, onAcknowledge, reviewMode = false }
   return (
     <Shell accent={accent} T={T} onClose={reviewMode ? onAcknowledge : undefined}>
       <div style={{ textAlign: "center", marginBottom: 16 }}>
-        <div style={{ fontSize: 30, marginBottom: 8 }}>⚠️</div>
+        <div style={{ fontSize: 30, marginBottom: 8 }}><Icon name="warning" size={14} /></div>
         <div style={{ fontFamily: FC, fontSize: 19, fontWeight: 700, color: text, letterSpacing: -0.1 }}>RISK DISCLOSURE</div>
         <div style={{ fontFamily: FM, fontSize: 8, color: dim, letterSpacing: 2, marginTop: 6 }}>REQUIRED ACKNOWLEDGMENT · AVAILABLE ANYTIME IN BOT SETTINGS</div>
       </div>
@@ -106,9 +107,9 @@ export function ModeSelectPopup({ accent, T, onSelect }) {
     try { return JSON.parse(localStorage.getItem("kronos_cadence") || '["all"]'); } catch { return ["all"]; }
   });
   const MODES = [
-    { id: "futures", icon: "📈", title: "FUTURES", desc: "NQ · MNQ · ES · CL · GC — Kronos Map structure + technicals + news sentiment on futures candles. Intraday (≤1 day) — LONG / SHORT.", color: "#7eb8f7" },
-    { id: "options", icon: "🎯", title: "OPTIONS", desc: "SPY · QQQ · NVDA · AAPL + more — underlying structure + live options flow (put/call, unusual activity, IV). Up to ~2 weeks — CALLS / PUTS.", color: "#a78bfa" },
-    { id: "equity", icon: "📊", title: "INVEST", desc: "AAPL · MSFT · NVDA + large caps — the same multi-agent engine on daily/weekly candles for portfolio growth. BUY / HOLD / SELL.", color: "#34d399" },
+    { id: "futures", icon: "", title: "FUTURES", desc: "NQ · MNQ · ES · CL · GC — Kronos Map structure + technicals + news sentiment on futures candles. Intraday (≤1 day) — LONG / SHORT.", color: "#6F94BE" },
+    { id: "options", icon: "", title: "OPTIONS", desc: "SPY · QQQ · NVDA · AAPL + more — underlying structure + live options flow (put/call, unusual activity, IV). Up to ~2 weeks — CALLS / PUTS.", color: "#8B84C4" },
+    { id: "equity", icon: "", title: "INVEST", desc: "AAPL · MSFT · NVDA + large caps — the same multi-agent engine on daily/weekly candles for portfolio growth. BUY / HOLD / SELL.", color: "#34d399" },
   ];
 
   const toggleCadence = (id) => {
@@ -248,8 +249,8 @@ export function BrokerSideBySidePopup({ accent, T, onDone, onSkip }) {
       )}
 
       {blocked && (
-        <div style={{ fontFamily: FC, fontSize: 10.5, color: "#f7c948", background: "rgba(247,201,72,0.07)", border: "1px solid rgba(247,201,72,0.25)", borderRadius: 8, padding: "9px 12px", marginBottom: 12, lineHeight: 1.55 }}>
-          ⚠ Popup blocked by the browser. Allow popups for this site, or open your broker manually and
+        <div style={{ fontFamily: FC, fontSize: 10.5, color: "#C9A15B", background: "rgba(247,201,72,0.07)", border: "1px solid rgba(247,201,72,0.25)", borderRadius: 8, padding: "9px 12px", marginBottom: 12, lineHeight: 1.55 }}>
+           Popup blocked by the browser. Allow popups for this site, or open your broker manually and
           drag its window to the right half of your screen (terminal on the left).
         </div>
       )}

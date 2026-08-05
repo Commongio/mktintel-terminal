@@ -15,6 +15,7 @@
 //
 // Annotations are declarative: this component renders the `annotations` prop and
 // owns no drawing state of its own. See lib/chartAnnotations.js.
+import Icon from "./Icons";
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import {
@@ -48,7 +49,7 @@ export default function LightweightChart({
   symbol = "AAPL",
   interval = "1d",
   T,
-  accent = "#00d4aa",
+  accent = "#4C9E92",
   annotations = [],
   onPriceUpdate,
 }) {
@@ -92,8 +93,8 @@ export default function LightweightChart({
     });
 
     const candleSeries = chart.addSeries(CandlestickSeries, {
-      upColor: "#00e676", downColor: "#ff3d57",
-      wickUpColor: "#00e676", wickDownColor: "#ff3d57",
+      upColor: "#4FA97B", downColor: "#C9576B",
+      wickUpColor: "#4FA97B", wickDownColor: "#C9576B",
       borderVisible: false,
     });
 
@@ -229,7 +230,7 @@ export default function LightweightChart({
         const to = { time: snapToCandle(a.to.time, candlesRef.current), value: a.to.price };
         if (from.time === to.time) continue; // degenerate — would throw
         const line = chart.addSeries(LineSeries, {
-          color: a.color || "#a78bfa",
+          color: a.color || "#8B84C4",
           lineWidth: 2,
           priceLineVisible: false,
           lastValueVisible: false,
@@ -269,7 +270,7 @@ export default function LightweightChart({
               {meta.price.toLocaleString(undefined, { maximumFractionDigits: 2 })}
             </span>
             {meta.chg != null && (
-              <span style={{ fontFamily: FM, fontSize: 10, fontWeight: 700, color: pos ? "#00e676" : "#ff3d57" }}>
+              <span style={{ fontFamily: FM, fontSize: 10, fontWeight: 700, color: pos ? "#4FA97B" : "#C9576B" }}>
                 {pos ? "▲" : "▼"} {Math.abs(meta.chg).toFixed(2)}%
               </span>
             )}
@@ -277,7 +278,7 @@ export default function LightweightChart({
         )}
         {meta?.degraded && (
           <span title="Primary data source failed; showing failover data"
-            style={{ fontFamily: FM, fontSize: 7, color: "#f7c948", letterSpacing: 1 }}>⚠ FAILOVER</span>
+            style={{ fontFamily: FM, fontSize: 7, color: "#C9A15B", letterSpacing: 1 }}> FAILOVER</span>
         )}
       </div>
 
@@ -288,7 +289,7 @@ export default function LightweightChart({
       )}
       {state === "error" && (
         <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", gap: 8, alignItems: "center", justifyContent: "center", zIndex: 2, padding: 20, textAlign: "center" }}>
-          <span style={{ fontFamily: FM, fontSize: 10, color: "#ff3d57", letterSpacing: 1 }}>⚠ {meta?.error || "Chart unavailable"}</span>
+          <span style={{ fontFamily: FM, fontSize: 10, color: "#C9576B", letterSpacing: 1 }}> {meta?.error || "Chart unavailable"}</span>
           <button onClick={load} style={{
             fontFamily: FM, fontSize: 9, color: accent, background: `${accent}12`,
             border: `1px solid ${accent}30`, borderRadius: 6, padding: "5px 12px", cursor: "pointer", letterSpacing: 1,

@@ -3,6 +3,7 @@
 // Replaces KronosSignalEngine.jsx. Shows the multi-agent vote, trade plan,
 // FIRE/HOLD/SCAN status, logs every FIRE signal to the Shadow Account,
 // and manages paper trading positions.
+import Icon from "./Icons";
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import TickerLogo from "./TickerLogo";
@@ -11,9 +12,9 @@ import { directionLabel, directionColor } from "../../lib/signalLabels";
 const FM = "'JetBrains Mono',monospace";
 const FC = "'Inter',sans-serif";
 
-const dirColor = (d) => d === "LONG" ? "#00e676" : d === "SHORT" ? "#ff3d57" : "#9DB4CC";
-const sigColor = (s) => s === "bullish" ? "#00e676" : s === "bearish" ? "#ff3d57" : "#9DB4CC";
-const statusColor = (s) => s === "FIRE" ? "#00e676" : s === "HOLD" ? "#f7c948" : "#7eb8f7";
+const dirColor = (d) => d === "LONG" ? "#4FA97B" : d === "SHORT" ? "#C9576B" : "#9DB4CC";
+const sigColor = (s) => s === "bullish" ? "#4FA97B" : s === "bearish" ? "#C9576B" : "#9DB4CC";
+const statusColor = (s) => s === "FIRE" ? "#4FA97B" : s === "HOLD" ? "#C9A15B" : "#6F94BE";
 
 // ── Shadow account helpers (localStorage) ─────────────────────────────────────
 export function logShadowSignal(sig) {
@@ -83,7 +84,7 @@ export const AGENT_INFO = {
 
 // Small (i) with a rich hover card. Pure CSS hover (no JS state) so it can't get
 // stuck open when the panel re-renders under the cursor.
-export function InfoDot({ info, accent = "#00d4aa", T }) {
+export function InfoDot({ info, accent = "#4C9E92", T }) {
   if (!info) return null;
   const panel = T?.panel ?? "#0A1018";
   const border = T?.border ?? "#1A2535";
@@ -140,7 +141,7 @@ function AgentCard({ a, T, accent }) {
   );
 }
 
-export default function MultiAgentSignal({ accent = "#00d4aa", T, symbol = "NQ", interval = "15min", assetClass = "futures", propRules = null, paperMode = false, onPaperTrade = null, onFire = null }) {
+export default function MultiAgentSignal({ accent = "#4C9E92", T, symbol = "NQ", interval = "15min", assetClass = "futures", propRules = null, paperMode = false, onPaperTrade = null, onFire = null }) {
   const surface = T?.surface ?? "#0A1018";
   const border  = T?.border  ?? "#1A2535";
   const text    = T?.text    ?? "#E2EDF8";
@@ -217,7 +218,7 @@ export default function MultiAgentSignal({ accent = "#00d4aa", T, symbol = "NQ",
       </div>
 
       {error && (
-        <div style={{ padding: "10px 14px", fontFamily: FM, fontSize: 9, color: "#ff3d57" }}>⚠ {error}</div>
+        <div style={{ padding: "10px 14px", fontFamily: FM, fontSize: 9, color: "#C9576B" }}> {error}</div>
       )}
 
       {data && (
@@ -244,16 +245,16 @@ export default function MultiAgentSignal({ accent = "#00d4aa", T, symbol = "NQ",
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
               <span style={{ fontFamily: FM, fontSize: 7.5, color: dim, letterSpacing: 2 }}>SIGNAL STATUS</span>
               <span style={{ fontFamily: FM, fontSize: 14, fontWeight: 900, color: statusColor(st), letterSpacing: 0.5, textAlign: "right" }}>
-                {st === "FIRE" ? `⚡ FIRE — ${directionLabel(data.direction, assetClass)}` : st === "HOLD" ? `HOLD — ${directionLabel(data.direction, assetClass)} forming` : "SCANNING"}
+                {st === "FIRE" ? ` FIRE — ${directionLabel(data.direction, assetClass)}` : st === "HOLD" ? `HOLD — ${directionLabel(data.direction, assetClass)} forming` : "SCANNING"}
               </span>
             </div>
           </div>
 
           {/* Bull vs Bear weight bar */}
           <div style={{ display: "flex", height: 6, borderRadius: 3, overflow: "hidden", marginBottom: 12, background: "#1A2535" }}>
-            <div style={{ width: `${data.bullWeight}%`, background: "#00e676", transition: "width 0.6s" }} />
+            <div style={{ width: `${data.bullWeight}%`, background: "#4FA97B", transition: "width 0.6s" }} />
             <div style={{ flex: 1 }} />
-            <div style={{ width: `${data.bearWeight}%`, background: "#ff3d57", transition: "width 0.6s" }} />
+            <div style={{ width: `${data.bearWeight}%`, background: "#C9576B", transition: "width 0.6s" }} />
           </div>
 
           {/* Trade plan */}
@@ -263,7 +264,7 @@ export default function MultiAgentSignal({ accent = "#00d4aa", T, symbol = "NQ",
               background: "#05080F", border: `1px solid ${dirColor(data.direction)}30`,
             }}>
               <div style={{ fontFamily: FM, fontSize: 7, color: dim, letterSpacing: 2, marginBottom: 7 }}>TRADE PLAN</div>
-              {[["ENTRY", data.plan.entry, text], ["STOP", data.plan.stop, "#ff3d57"], ["T1 (1.5R)", data.plan.t1, "#00e676"], ["T2 (3R)", data.plan.t2, "#00e676"]].map(([l, v, c]) => (
+              {[["ENTRY", data.plan.entry, text], ["STOP", data.plan.stop, "#C9576B"], ["T1 (1.5R)", data.plan.t1, "#4FA97B"], ["T2 (3R)", data.plan.t2, "#4FA97B"]].map(([l, v, c]) => (
                 <div key={l} style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                   <span style={{ fontFamily: FM, fontSize: 8, color: dim, letterSpacing: 1 }}>{l}</span>
                   <span style={{ fontFamily: FM, fontSize: 11, fontWeight: 700, color: c }}>${Number(v).toFixed(2)}</span>
@@ -272,7 +273,7 @@ export default function MultiAgentSignal({ accent = "#00d4aa", T, symbol = "NQ",
               {data.plan.contractGuidance && (
                 <div style={{ marginTop: 6, paddingTop: 6, borderTop: `1px solid ${border}` }}>
                   <span style={{ fontFamily: FM, fontSize: 7, color: dim, letterSpacing: 2 }}>CONTRACT GUIDANCE</span>
-                  <div style={{ fontFamily: FM, fontSize: 9.5, fontWeight: 700, color: "#a78bfa", marginTop: 3, lineHeight: 1.5 }}>
+                  <div style={{ fontFamily: FM, fontSize: 9.5, fontWeight: 700, color: "#8B84C4", marginTop: 3, lineHeight: 1.5 }}>
                     {data.plan.contractGuidance}
                   </div>
                 </div>
@@ -294,7 +295,7 @@ export default function MultiAgentSignal({ accent = "#00d4aa", T, symbol = "NQ",
               background: data.risk.approved ? "rgba(0,230,118,0.05)" : "rgba(255,61,87,0.05)",
               border: `1px solid ${data.risk.approved ? "rgba(0,230,118,0.2)" : "rgba(255,61,87,0.2)"}`,
             }}>
-              <div style={{ fontFamily: FM, fontSize: 8, fontWeight: 800, letterSpacing: 1.5, marginBottom: 4, color: data.risk.approved ? "#00e676" : "#ff3d57" }}>
+              <div style={{ fontFamily: FM, fontSize: 8, fontWeight: 800, letterSpacing: 1.5, marginBottom: 4, color: data.risk.approved ? "#4FA97B" : "#C9576B" }}>
                 RISK GATE — {data.risk.approved ? "APPROVED" : "BLOCKED"}
               </div>
               {(data.risk.reasons || []).map((r, i) => (

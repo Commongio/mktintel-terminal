@@ -1,3 +1,4 @@
+import Icon from "./Icons";
 import { useState } from "react";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -61,32 +62,32 @@ const ONBOARDING_STEPS = [
     id:      "experience",
     label:   "What's your trading experience?",
     options: ["Beginner", "Intermediate", "Advanced"],
-    icon:    "📈",
+    icon:    "",
   },
   {
     id:      "riskTolerance",
     label:   "What's your risk tolerance?",
     options: ["Conservative", "Balanced", "Aggressive", "Adaptive"],
-    icon:    "⚖️",
+    icon:    "",
     hint:    "Adaptive = Kronos reads VIX and adjusts automatically",
   },
   {
     id:      "accountSize",
     label:   "What's your account size?",
     options: ["Under $5K", "$5K – $25K", "$25K – $100K", "$100K+"],
-    icon:    "💼",
+    icon:    "",
   },
   {
     id:      "platform",
     label:   "What platform do you trade on?",
     options: ["Robinhood", "Webull", "Tradier", "IBKR"],
-    icon:    "🖥️",
+    icon:    "",
   },
   {
     id:      "maxLoss",
     label:   "Max daily loss limit ($)",
     options: null, // text input
-    icon:    "🛑",
+    icon:    "",
     hint:    "Kronos will not recommend trades after you hit this limit",
   },
 ];

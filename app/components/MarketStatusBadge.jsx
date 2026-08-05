@@ -21,10 +21,10 @@ export function getMarketStatus() {
     return { label: "MARKET OPEN", sub: "Regular hours", color: "#00ff88" };
   }
   if (mins >= PRE_OPEN && mins < MKT_OPEN) {
-    return { label: "PRE-MARKET", sub: "Thin liquidity", color: "#f7c948" };
+    return { label: "PRE-MARKET", sub: "Thin liquidity", color: "#C9A15B" };
   }
   if (mins >= MKT_CLOSE && mins < AH_CLOSE) {
-    return { label: "AFTER-HOURS", sub: "Thin liquidity", color: "#f7c948" };
+    return { label: "AFTER-HOURS", sub: "Thin liquidity", color: "#C9A15B" };
   }
   return { label: "MARKET CLOSED", sub: "Next session ahead", color: "#3a4a5a" };
 }
@@ -45,7 +45,7 @@ export function getFuturesSessionStatus() {
   if (day === 6) return { label: "SESSION CLOSED", sub: "Weekend — reopens Sunday 6PM ET", color: "#3a4a5a" };
   if (day === 0 && mins < M18) return { label: "SESSION CLOSED", sub: "Reopens Sunday 6PM ET", color: "#3a4a5a" };
   if (day === 5 && mins >= M17) return { label: "SESSION CLOSED", sub: "Weekend — reopens Sunday 6PM ET", color: "#3a4a5a" };
-  if (day >= 1 && day <= 4 && mins >= M17 && mins < M18) return { label: "DAILY BREAK", sub: "Reopens 6PM ET", color: "#f7c948" };
+  if (day >= 1 && day <= 4 && mins >= M17 && mins < M18) return { label: "DAILY BREAK", sub: "Reopens 6PM ET", color: "#C9A15B" };
   return { label: "GLOBEX ACTIVE", sub: "Futures scanning 24/5", color: "#00ff88" };
 }
 

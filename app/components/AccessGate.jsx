@@ -1,4 +1,5 @@
 "use client";
+import Icon from "./Icons";
 import { useState, useEffect } from "react";
 
 const FM = "'JetBrains Mono',monospace";
@@ -121,8 +122,8 @@ export default function AccessGate({ onAccess }) {
           left:c===0?16:"auto", right:c===1?16:"auto",
           width:28, height:28, opacity:0.3,
         }}>
-          <div style={{position:"absolute",width:18,height:2,background:"#00d4aa",top:r===0?0:"auto",bottom:r===1?0:"auto",left:c===0?0:"auto",right:c===1?0:"auto"}}/>
-          <div style={{position:"absolute",height:18,width:2,background:"#00d4aa",top:r===0?0:"auto",bottom:r===1?0:"auto",left:c===0?0:"auto",right:c===1?0:"auto"}}/>
+          <div style={{position:"absolute",width:18,height:2,background:"#4C9E92",top:r===0?0:"auto",bottom:r===1?0:"auto",left:c===0?0:"auto",right:c===1?0:"auto"}}/>
+          <div style={{position:"absolute",height:18,width:2,background:"#4C9E92",top:r===0?0:"auto",bottom:r===1?0:"auto",left:c===0?0:"auto",right:c===1?0:"auto"}}/>
         </div>
       ))}
 
@@ -133,19 +134,19 @@ export default function AccessGate({ onAccess }) {
           {[118,106,94].map((s,i)=>(
             <div key={s} style={{
               position:"absolute", width:s, height:s, borderRadius:"50%",
-              border:`1px solid #00d4aa${["07","11","1c"][i]}`,
+              border:`1px solid #4C9E92${["07","11","1c"][i]}`,
               animation:`ag-pulse ${2.2+i*0.55}s ease-in-out infinite`,
               animationDelay:`${i*0.2}s`,
             }}/>
           ))}
           <div style={{
             position:"absolute", width:90, height:90, borderRadius:"50%",
-            border:"1px solid #00d4aa1e", animation:"ag-spinF 18s linear infinite",
+            border:"1px solid #4C9E921e", animation:"ag-spinF 18s linear infinite",
           }}>
             {[...Array(8)].map((_,i)=>(
               <div key={i} style={{
                 position:"absolute", width:"100%", height:1, top:"50%",
-                background:"linear-gradient(90deg,transparent,#00d4aa14,#00d4aa24,#00d4aa14,transparent)",
+                background:"linear-gradient(90deg,transparent,#4C9E9214,#4C9E9224,#4C9E9214,transparent)",
                 transform:`rotate(${i*22.5}deg)`, transformOrigin:"center",
               }}/>
             ))}
@@ -157,13 +158,13 @@ export default function AccessGate({ onAccess }) {
           }}/>
           <div style={{
             position:"absolute", width:50, height:50, borderRadius:"50%",
-            background:"radial-gradient(circle at 36% 32%,#00d4aa55,#00d4aa1a 55%,transparent 78%)",
+            background:"radial-gradient(circle at 36% 32%,#4C9E9255,#4C9E921a 55%,transparent 78%)",
             animation:"ag-pulse 2.8s ease-in-out infinite",
           }}/>
           <div style={{
             width:26, height:26, borderRadius:"50%",
-            background:"radial-gradient(circle at 34% 30%,#ffffff,#00d4aaee 42%,#00d4aa88 68%,transparent)",
-            boxShadow:"0 0 16px #00d4aa70,0 0 32px #00d4aa35",
+            background:"radial-gradient(circle at 34% 30%,#ffffff,#4C9E92ee 42%,#4C9E9288 68%,transparent)",
+            boxShadow:"0 0 16px #4C9E9270,0 0 32px #4C9E9235",
           }}/>
         </div>
 
@@ -175,7 +176,7 @@ export default function AccessGate({ onAccess }) {
           <div style={{ fontFamily:FM, fontSize:8, color:"#2a3a4a", letterSpacing:4, fontWeight:700 }}>
             TRADING INTELLIGENCE TERMINAL
           </div>
-          <div style={{ width:60, height:1, background:"linear-gradient(90deg,transparent,#00d4aa40,transparent)", margin:"10px auto 0" }}/>
+          <div style={{ width:60, height:1, background:"linear-gradient(90deg,transparent,#4C9E9240,transparent)", margin:"10px auto 0" }}/>
         </div>
 
         {/* Card */}
@@ -189,13 +190,13 @@ export default function AccessGate({ onAccess }) {
           transition:"border-color 0.3s",
         }}>
           <div style={{ fontFamily:FM, fontSize:8, letterSpacing:3, marginBottom:18, textAlign:"center",
-            color: isLocked ? "#ff4d6d80" : "#2a3a4a", fontWeight:700 }}>
+            color: isLocked ? "#C9576B80" : "#2a3a4a", fontWeight:700 }}>
             {isLocked ? "TERMINAL LOCKED — UNAUTHORIZED ACCESS DETECTED" : "ENTER ACCESS CODE"}
           </div>
 
           {isLocked ? (
             <div style={{ textAlign:"center" }}>
-              <div style={{ fontFamily:FM, fontSize:44, fontWeight:800, color:"#ff4d6d",
+              <div style={{ fontFamily:FM, fontSize:44, fontWeight:800, color:"#C9576B",
                 letterSpacing:4, marginBottom:6, fontVariantNumeric:"tabular-nums" }}>
                 {mins}:{secs}
               </div>
@@ -213,7 +214,7 @@ export default function AccessGate({ onAccess }) {
                 borderRadius:9, padding:"12px 14px", marginBottom:10,
                 transition:"border-color 0.15s",
               }}>
-                <span style={{ color:"#00d4aa", fontSize:13, animation:"ag-blink 1.2s infinite", flexShrink:0 }}>▸</span>
+                <span style={{ color:"#4C9E92", fontSize:13, animation:"ag-blink 1.2s infinite", flexShrink:0 }}>▸</span>
                 <input
                   value={code}
                   onChange={e=>setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g,""))}
@@ -233,9 +234,9 @@ export default function AccessGate({ onAccess }) {
 
               {/* Error */}
               {error && (
-                <div style={{ fontFamily:FM, fontSize:9, color:"#ff4d6d", letterSpacing:1,
+                <div style={{ fontFamily:FM, fontSize:9, color:"#C9576B", letterSpacing:1,
                   marginBottom:10, textAlign:"center", lineHeight:1.5 }}>
-                  ⚠ {error}
+                   {error}
                 </div>
               )}
 
@@ -245,7 +246,7 @@ export default function AccessGate({ onAccess }) {
                   {[...Array(MAX_ATTEMPTS)].map((_,i)=>(
                     <div key={i} style={{
                       width:6, height:6, borderRadius:"50%",
-                      background: i < (MAX_ATTEMPTS - attempts) ? "#00d4aa" : "#ff4d6d30",
+                      background: i < (MAX_ATTEMPTS - attempts) ? "#4C9E92" : "#C9576B30",
                       transition:"background 0.3s",
                     }}/>
                   ))}
@@ -260,7 +261,7 @@ export default function AccessGate({ onAccess }) {
                   : "transparent",
                 border:`1px solid ${code.trim()&&!loading?"rgba(0,212,170,0.38)":"#16253a"}`,
                 borderRadius:8,
-                color: code.trim()&&!loading ? "#00d4aa" : "#2a3a4a",
+                color: code.trim()&&!loading ? "#4C9E92" : "#2a3a4a",
                 fontFamily:FM, fontSize:11, fontWeight:700, letterSpacing:3,
                 cursor: code.trim()&&!loading ? "pointer" : "default",
                 transition:"all 0.15s",

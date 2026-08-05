@@ -3,6 +3,7 @@
 // Five stops (Terminal → Data → Chart → Kronos → Settings); each stop switches
 // the app to that view and walks through its features in beginner language.
 // Auto-shows once on first launch after signup; relaunchable from Settings.
+import Icon from "./Icons";
 import { useState, useEffect } from "react";
 
 const FM = "'JetBrains Mono',monospace";
@@ -22,7 +23,7 @@ const FC = "'Inter',sans-serif";
 //   • Standard feature names — "AI Assistant"/"AI Desk", never "Chatty".
 const STOPS = [
   {
-    id: "terminal", view: "terminal", title: "Trading Terminal", icon: "🖥",
+    id: "terminal", view: "terminal", title: "Trading Terminal", icon: "",
     intro: "Your central dashboard: watchlist, AI Desk, and live news in a single view.",
     items: [
       ["AI Desk (center)", "An integrated market analyst. Enter natural-language queries (\"what's moving today?\", \"analyze NVDA\") to scan the broader market — not only your watchlist. The AI can also navigate the platform, load charts, and adjust settings on command."],
@@ -31,7 +32,7 @@ const STOPS = [
     ],
   },
   {
-    id: "data", view: "data", title: "Data", icon: "📊",
+    id: "data", view: "data", title: "Data", icon: "",
     intro: "Market intelligence: movers, calendars, filings, and sector performance.",
     items: [
       ["Movers & calendars", "Top gainers, decliners, and most-active issues. Adjacent panels cover earnings dates, economic releases, and upcoming IPOs."],
@@ -40,7 +41,7 @@ const STOPS = [
     ],
   },
   {
-    id: "chart", view: "chart", title: "Charts", icon: "📈",
+    id: "chart", view: "chart", title: "Charts", icon: "",
     intro: "Native charting with the AI Desk alongside.",
     items: [
       ["Symbol loading", "Enter a symbol to load it. Symbol and timeframe persist across sessions, and the price axis rescales automatically on symbol change."],
@@ -49,7 +50,7 @@ const STOPS = [
     ],
   },
   {
-    id: "bot", view: "bot", title: "Kronos Bot", icon: "🌌",
+    id: "bot", view: "bot", title: "Kronos Bot", icon: "",
     intro: "The signal engine. Scans continuously and grades every setup on conviction.",
     items: [
       ["Three modes", "FUT for futures (intraday only), OPT for options (short-dated, current-week expiry), and INVEST for long-term positions with a stated take-profit month. The active mode scopes everything displayed."],
@@ -58,7 +59,7 @@ const STOPS = [
     ],
   },
   {
-    id: "settings", view: "terminal", title: "Configuration", icon: "⚙",
+    id: "settings", view: "terminal", title: "Configuration", icon: "",
     intro: "Appearance, alerts, and account-level persistence.",
     items: [
       ["Appearance", "Settings provides animated backdrops, custom image or video backgrounds, accent colors, typefaces, and text sizing. Side panels support transparency."],
@@ -68,7 +69,7 @@ const STOPS = [
   },
 ];
 
-export default function TourGuide({ accent = "#00d4aa", T, onClose, onSwitchView }) {
+export default function TourGuide({ accent = "#4C9E92", T, onClose, onSwitchView }) {
   const [stop, setStop] = useState(0);
   const [item, setItem] = useState(0);
   const s = STOPS[stop];
@@ -106,7 +107,7 @@ export default function TourGuide({ accent = "#00d4aa", T, onClose, onSwitchView
             <div key={st.id} style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
               <div style={{ height: 3, borderRadius: 2, background: i < stop ? accent : i === stop ? `${accent}70` : "rgba(127,127,127,0.2)", transition: "background 0.3s" }} />
               <span style={{ fontFamily: FM, fontSize: 6.5, letterSpacing: 1, color: i === stop ? accent : "#5a6a7d", textAlign: "center" }}>
-                {i < stop ? "✓ " : ""}{st.title.split(" ").pop().toUpperCase()}
+                {i < stop ? " " : ""}{st.title.split(" ").pop().toUpperCase()}
               </span>
             </div>
           ))}
