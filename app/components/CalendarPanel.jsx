@@ -33,7 +33,7 @@ const dayLabel = (d) => {
 export default function CalendarPanel({ T, accent, onPick, fill = false }) {
   const text = T?.text ?? "#E2EDF8";
   const dim = T?.dim ?? "#9DB4CC";
-  const border = T?.border ?? "#1A2535";
+  const border = T?.border ?? "#24313F";
   const surface = T?.surface ?? "#0A1018";
 
   const [tab, setTab] = useState("earnings");
@@ -96,7 +96,7 @@ export default function CalendarPanel({ T, accent, onPick, fill = false }) {
         {/* ── EARNINGS ── */}
         {tab === "earnings" && (
           earn.state === "loading" ? <Msg dim={dim}>Loading earnings calendar…</Msg>
-          : earn.state === "error" ? <Msg color="#C9576B"> Earnings feed unavailable.</Msg>
+          : earn.state === "error" ? <Msg color="#E5697E"> Earnings feed unavailable.</Msg>
           : earn.state === "empty" ? <Msg dim={dim}>No earnings scheduled in the window.</Msg>
           : earn.rows.map((e, i) => (
             <div key={e.symbol + e.date + i} onClick={() => onPick?.(e.symbol)}
@@ -109,14 +109,14 @@ export default function CalendarPanel({ T, accent, onPick, fill = false }) {
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     <span style={{ fontFamily: FM, fontSize: 11.5, fontWeight: 800, color: text }}>{e.symbol}</span>
                     {e.when && <span style={{ fontFamily: FM, fontSize: 7, fontWeight: 800, color: accent, background: `${accent}14`, borderRadius: 3, padding: "1px 4px" }}>{e.when}</span>}
-                    {e.reported && <span style={{ fontFamily: FM, fontSize: 7, fontWeight: 800, color: "#4FA97B" }}>REPORTED</span>}
+                    {e.reported && <span style={{ fontFamily: FM, fontSize: 7, fontWeight: 800, color: "#5FCB96" }}>REPORTED</span>}
                   </div>
                   <div style={{ fontFamily: FM, fontSize: 8, color: dim }}>{dayLabel(e.date)}{e.quarter ? ` · Q${e.quarter}` : ""}</div>
                 </div>
               </div>
               <div style={{ textAlign: "right", flexShrink: 0 }}>
                 <div style={{ fontFamily: FM, fontSize: 9, color: dim }}>EPS est {e.epsEst != null ? e.epsEst.toFixed(2) : "—"}
-                  {e.epsActual != null && <span style={{ color: e.epsActual >= (e.epsEst ?? 0) ? "#4FA97B" : "#C9576B", fontWeight: 800 }}> → {e.epsActual.toFixed(2)}</span>}
+                  {e.epsActual != null && <span style={{ color: e.epsActual >= (e.epsEst ?? 0) ? "#5FCB96" : "#E5697E", fontWeight: 800 }}> → {e.epsActual.toFixed(2)}</span>}
                 </div>
                 <div style={{ fontFamily: FM, fontSize: 8, color: dim }}>rev est {fmtBig(e.revEst)}</div>
               </div>
@@ -128,15 +128,15 @@ export default function CalendarPanel({ T, accent, onPick, fill = false }) {
         {tab === "econ" && (
           <>
             {econ.note && (
-              <div style={{ fontFamily: FM, fontSize: 7.5, color: "#C9A15B", padding: "6px 11px", borderBottom: `1px solid ${border}55`, lineHeight: 1.4 }}>
+              <div style={{ fontFamily: FM, fontSize: 7.5, color: "#E0B25F", padding: "6px 11px", borderBottom: `1px solid ${border}55`, lineHeight: 1.4 }}>
                  {econ.note}
               </div>
             )}
             {econ.state === "loading" ? <Msg dim={dim}>Loading US economic calendar…</Msg>
-            : econ.state === "error" ? <Msg color="#C9A15B">Economic calendar temporarily unavailable. It usually recovers shortly.</Msg>
+            : econ.state === "error" ? <Msg color="#E0B25F">Economic calendar temporarily unavailable. It usually recovers shortly.</Msg>
             : econ.state === "empty" ? <Msg dim={dim}>No high/medium-impact US events in the window.</Msg>
             : econ.rows.map((e, i) => {
-              const clr = e.folder === "red" ? "#C9576B" : "#C9A15B"; // high=red, medium=amber
+              const clr = e.folder === "red" ? "#E5697E" : "#E0B25F"; // high=red, medium=amber
               const openFF = e.ffUrl ? () => window.open(e.ffUrl, "_blank", "noopener,noreferrer") : undefined;
               return (
                 <div key={e.title + e.date + i} onClick={openFF} title={openFF ? "Open this day on ForexFactory ↗" : undefined}
@@ -160,11 +160,11 @@ export default function CalendarPanel({ T, accent, onPick, fill = false }) {
         {/* ── UPCOMING IPOs — Finnhub IPO calendar ── */}
         {tab === "ipo" && (
           ipo.state === "loading" ? <Msg dim={dim}>Loading IPO calendar…</Msg>
-          : ipo.state === "error" ? <Msg color="#C9576B"> IPO feed unavailable.</Msg>
+          : ipo.state === "error" ? <Msg color="#E5697E"> IPO feed unavailable.</Msg>
           : ipo.state === "empty" ? <Msg dim={dim}>No IPOs scheduled in the window.</Msg>
           : ipo.rows.map((e, i) => {
             const priced = e.priced;
-            const statusClr = priced ? "#4FA97B" : e.status === "withdrawn" ? "#C9576B" : "#C9A15B";
+            const statusClr = priced ? "#5FCB96" : e.status === "withdrawn" ? "#E5697E" : "#E0B25F";
             const statusLbl = (e.status || "expected").toUpperCase();
             const meta = [e.exchange, fmtShares(e.shares)].filter(Boolean).join(" · ");
             return (

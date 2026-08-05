@@ -47,7 +47,7 @@ export default function BrokerConnect({ accent, T, onClose }) {
   const surface = T?.surface ?? "#0b1320";
   const border  = T?.border  ?? "#172030";
   const text    = T?.text    ?? "#c8d8e8";
-  const dim     = T?.dim     ?? "#3a4a5a";
+  const dim     = T?.dim     ?? "#45566A";
 
   const [selectedBroker, setSelectedBroker] = useState(null);
   const [creds,          setCreds]          = useState({});
@@ -168,7 +168,7 @@ export default function BrokerConnect({ accent, T, onClose }) {
 
           <div style={{ display: "flex", flexWrap: "wrap", gap: 16, marginBottom: 16, padding: "14px 16px", background: "#060910", borderRadius: 10, border: `1px solid ${border}` }}>
             <PortfolioStat label="ACCOUNT BALANCE" value={p.balance != null ? `$${Number(p.balance).toLocaleString(undefined,{maximumFractionDigits:0})}` : "—"} accent={text} dim={dim} />
-            <PortfolioStat label="DAY P&L" value={p.dayPnl != null ? `${p.dayPnl >= 0 ? "+" : ""}$${Number(p.dayPnl).toLocaleString(undefined,{maximumFractionDigits:0})}` : "—"} accent={p.dayPnl >= 0 ? "#00ff88" : "#C9576B"} dim={dim} />
+            <PortfolioStat label="DAY P&L" value={p.dayPnl != null ? `${p.dayPnl >= 0 ? "+" : ""}$${Number(p.dayPnl).toLocaleString(undefined,{maximumFractionDigits:0})}` : "—"} accent={p.dayPnl >= 0 ? "#00ff88" : "#E5697E"} dim={dim} />
             <PortfolioStat label="MARGIN USED" value={p.margin != null ? `$${Number(p.margin).toLocaleString(undefined,{maximumFractionDigits:0})}` : "—"} accent={text} dim={dim} />
             <PortfolioStat label="OPTIONS BP" value={p.optionsBP != null ? `$${Number(p.optionsBP).toLocaleString(undefined,{maximumFractionDigits:0})}` : "—"} accent={text} dim={dim} />
           </div>
@@ -196,7 +196,7 @@ export default function BrokerConnect({ accent, T, onClose }) {
             )}
             <button onClick={disconnect} style={{
               flex: 1, padding: "10px 0", fontFamily: FM, fontSize: 10, fontWeight: 700, letterSpacing: 2,
-              color: "#C9576B", background: "rgba(255,77,109,0.08)", border: "1px solid rgba(255,77,109,0.25)", borderRadius: 8, cursor: "pointer",
+              color: "#E5697E", background: "rgba(255,77,109,0.08)", border: "1px solid rgba(255,77,109,0.25)", borderRadius: 8, cursor: "pointer",
             }}>
               DISCONNECT
             </button>
@@ -234,7 +234,7 @@ export default function BrokerConnect({ accent, T, onClose }) {
                   <span style={{ fontFamily: FM, fontSize: 12, fontWeight: 700, color: text }}>{b.label}</span>
                   <span style={{
                     fontFamily: FM, fontSize: 7, fontWeight: 700, padding: "2px 7px", borderRadius: 10,
-                    color: b.live ? "#00ff88" : "#C9A15B",
+                    color: b.live ? "#00ff88" : "#E0B25F",
                     background: b.live ? "rgba(0,255,136,0.1)" : "rgba(247,201,72,0.1)",
                   }}>
                     {b.live ? "AUTOMATED" : "MANUAL"}
@@ -257,7 +257,7 @@ export default function BrokerConnect({ accent, T, onClose }) {
                 <div style={{ fontFamily: FM, fontSize: 8, color: dim, marginBottom: 12, lineHeight: 1.6 }}>
                   Get a free sandbox token at developer.tradier.com — no funding required for sandbox testing.
                 </div>
-                {error && <div style={{ fontFamily: FM, fontSize: 9, color: "#C9576B", marginBottom: 10 }}> {error}</div>}
+                {error && <div style={{ fontFamily: FM, fontSize: 9, color: "#E5697E", marginBottom: 10 }}> {error}</div>}
                 <button onClick={connectTradier} disabled={loading || !creds.token || !creds.accountId} style={{
                   width: "100%", padding: "11px 0", fontFamily: FM, fontSize: 11, fontWeight: 700, letterSpacing: 2,
                   color: accent, background: `${accent}10`, border: `1px solid ${accent}30`, borderRadius: 8,
@@ -274,7 +274,7 @@ export default function BrokerConnect({ accent, T, onClose }) {
                 <div style={{ fontFamily: FM, fontSize: 8, color: dim, marginBottom: 12, lineHeight: 1.6 }}>
                   Requires IBKR Client Portal Gateway running locally and you logged in via its web login page first.
                 </div>
-                {error && <div style={{ fontFamily: FM, fontSize: 9, color: "#C9576B", marginBottom: 10 }}> {error}</div>}
+                {error && <div style={{ fontFamily: FM, fontSize: 9, color: "#E5697E", marginBottom: 10 }}> {error}</div>}
                 <button onClick={connectIBKR} disabled={loading} style={{
                   width: "100%", padding: "11px 0", fontFamily: FM, fontSize: 11, fontWeight: 700, letterSpacing: 2,
                   color: accent, background: `${accent}10`, border: `1px solid ${accent}30`, borderRadius: 8,
@@ -293,7 +293,7 @@ export default function BrokerConnect({ accent, T, onClose }) {
                 <div style={{ fontFamily: FM, fontSize: 8, color: dim, marginBottom: 12, lineHeight: 1.6 }}>
                   Schwab uses OAuth2. Register an app at developer.schwab.com and set the redirect URI. This will open the Schwab consent page to authorize Kronos.
                 </div>
-                {error && <div style={{ fontFamily: FM, fontSize: 9, color: "#C9576B", marginBottom: 10 }}> {error}</div>}
+                {error && <div style={{ fontFamily: FM, fontSize: 9, color: "#E5697E", marginBottom: 10 }}> {error}</div>}
                 <button onClick={async () => {
                   setLoading(true); setError("");
                   try {
@@ -316,7 +316,7 @@ export default function BrokerConnect({ accent, T, onClose }) {
 
             {["webull", "robinhood", "thinkorswim"].includes(selectedBroker) && (
               <>
-                <div style={{ fontFamily: FM, fontSize: 8, color: "#C9A15B", marginBottom: 14, lineHeight: 1.6, background: "rgba(247,201,72,0.06)", border: "1px solid rgba(247,201,72,0.2)", borderRadius: 8, padding: "10px 12px" }}>
+                <div style={{ fontFamily: FM, fontSize: 8, color: "#E0B25F", marginBottom: 14, lineHeight: 1.6, background: "rgba(247,201,72,0.06)", border: "1px solid rgba(247,201,72,0.2)", borderRadius: 8, padding: "10px 12px" }}>
                   {BROKERS.find(b => b.id === selectedBroker)?.label} doesn't offer a public retail API yet. Enter your numbers manually — Kronos will use them for context until automated sync is available.
                 </div>
                 <Field label="ACCOUNT BALANCE ($)" value={manual.balance} onChange={v => setManual(m => ({...m, balance: v.replace(/[^0-9.]/g,"")}))} placeholder="10000" dim={dim} border={border} text={text} />

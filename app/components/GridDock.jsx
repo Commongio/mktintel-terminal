@@ -14,8 +14,8 @@ export const DEFAULT_TERMINAL_LAYOUT = [
   { i: "news",      x: 9, y: 0, w: 3, h: 12, minW: 2, minH: 4 },
 ];
 
-export default function GridDock({ layout, onLayoutChange, editMode, items, accent = "#4C9E92", T, collapsed = {}, onToggleCollapse }) {
-  const border = T?.border ?? "#1A2535";
+export default function GridDock({ layout, onLayoutChange, editMode, items, accent = "#5CBFB1", T, collapsed = {}, onToggleCollapse }) {
+  const border = T?.border ?? "#24313F";
   const dim = T?.dim ?? "#9DB4CC";
   const { width } = useContainerWidth();
 

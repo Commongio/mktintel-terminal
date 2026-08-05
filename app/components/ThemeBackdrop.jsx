@@ -119,7 +119,7 @@ function CanvasThemes({ theme, accent }) {
   return <canvas ref={ref} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none" }} aria-hidden="true" />;
 }
 
-export default function ThemeBackdrop({ theme = "none", accent = "#4C9E92", filter = "none", tint = "", tintStrength = 0.5 }) {
+export default function ThemeBackdrop({ theme = "none", accent = "#5CBFB1", filter = "none", tint = "", tintStrength = 0.5 }) {
   if (theme === "none") return null;
 
   const videoSrc = isVideoTheme(theme) ? videoThemeSrc(theme) : null;

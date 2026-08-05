@@ -9,7 +9,7 @@ const FD = "'Fraunces',serif";
 export const PROP_FIRMS = {
   topstep: {
     name: "TopStep",
-    color: "#6F94BE",
+    color: "#7FA9D8",
     accounts: [
       { label: "$50K Express", balance: 50000, dailyLoss: 1000, trailingDD: 2000, profitTarget: 3000, maxContracts: { NQ: 3, MNQ: 30, ES: 3, MES: 30 } },
       { label: "$100K Express", balance: 100000, dailyLoss: 2000, trailingDD: 3000, profitTarget: 6000, maxContracts: { NQ: 6, MNQ: 60, ES: 6, MES: 60 } },
@@ -47,7 +47,7 @@ export const PROP_FIRMS = {
   },
   ftmo: {
     name: "FTMO",
-    color: "#4C9E92",
+    color: "#5CBFB1",
     accounts: [
       { label: "$10K Challenge",  balance: 10000,  dailyLoss: 500,  trailingDD: 1000, profitTarget: 1000, maxContracts: null },
       { label: "$25K Challenge",  balance: 25000,  dailyLoss: 1250, trailingDD: 2500, profitTarget: 2500, maxContracts: null },
@@ -68,7 +68,7 @@ export const PROP_FIRMS = {
   },
   e8: {
     name: "E8 Funding",
-    color: "#8B84C4",
+    color: "#A099E0",
     accounts: [
       { label: "$25K",  balance: 25000,  dailyLoss: 1250, trailingDD: 2000, profitTarget: 2000,  maxContracts: null },
       { label: "$50K",  balance: 50000,  dailyLoss: 2500, trailingDD: 4000, profitTarget: 4000,  maxContracts: null },
@@ -87,7 +87,7 @@ export const PROP_FIRMS = {
   },
   the5ers: {
     name: "The5ers",
-    color: "#C9A15B",
+    color: "#E0B25F",
     accounts: [
       { label: "Bootcamp $100K",     balance: 100000, dailyLoss: 4000, trailingDD: 8000,  profitTarget: 8000,  maxContracts: null },
       { label: "High Stakes $100K",  balance: 100000, dailyLoss: 5000, trailingDD: 10000, profitTarget: 10000, maxContracts: null },
@@ -104,7 +104,7 @@ export const PROP_FIRMS = {
   },
   myfundedfx: {
     name: "MyFundedFX",
-    color: "#C9576B",
+    color: "#E5697E",
     accounts: [
       { label: "$10K",  balance: 10000,  dailyLoss: 500,  trailingDD: 500,  profitTarget: 1000, maxContracts: null },
       { label: "$25K",  balance: 25000,  dailyLoss: 1250, trailingDD: 1250, profitTarget: 2500, maxContracts: null },
@@ -124,7 +124,7 @@ export const PROP_FIRMS = {
   },
   lucid: {
     name: "Lucid Funded",
-    color: "#4FA97B",
+    color: "#5FCB96",
     accounts: [
       { label: "$25K",  balance: 25000,  dailyLoss: 1250, trailingDD: 2500, profitTarget: 2500,  maxContracts: null },
       { label: "$50K",  balance: 50000,  dailyLoss: 2500, trailingDD: 5000, profitTarget: 5000,  maxContracts: null },
@@ -145,7 +145,7 @@ export const PROP_FIRMS = {
 function EvalGauge({ label, current, limit, color, invert = false }) {
   const pct = Math.min(100, Math.abs((current / limit) * 100));
   const danger = invert ? pct > 75 : pct > 75;
-  const gc = danger ? "#C9576B" : pct > 50 ? "#C9A15B" : color;
+  const gc = danger ? "#E5697E" : pct > 50 ? "#E0B25F" : color;
   return (
     <div style={{ marginBottom: 12 }}>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
@@ -154,7 +154,7 @@ function EvalGauge({ label, current, limit, color, invert = false }) {
           ${Math.abs(current).toLocaleString()} / ${limit.toLocaleString()}
         </span>
       </div>
-      <div style={{ height: 5, background: "#1A2535", borderRadius: 3, overflow: "hidden" }}>
+      <div style={{ height: 5, background: "#24313F", borderRadius: 3, overflow: "hidden" }}>
         <div style={{
           height: "100%", width: `${pct}%`,
           background: `linear-gradient(90deg, ${gc}80, ${gc})`,
@@ -171,7 +171,7 @@ function EvalGauge({ label, current, limit, color, invert = false }) {
 export default function PropFirmPanel({ accent, T, onFirmSelect }) {
   const bg      = T?.bg      ?? "#05080F";
   const surface = T?.surface ?? "#0A1018";
-  const border  = T?.border  ?? "#1A2535";
+  const border  = T?.border  ?? "#24313F";
   const text    = T?.text    ?? "#E2EDF8";
   const dim     = T?.dim     ?? "#9DB4CC";
 
@@ -305,7 +305,7 @@ export default function PropFirmPanel({ accent, T, onFirmSelect }) {
                     label="PROFIT TARGET PROGRESS"
                     current={Math.max(0, evalData.totalPnl)}
                     limit={account.profitTarget}
-                    color="#4FA97B"
+                    color="#5FCB96"
                   />
 
                   {/* Key numbers */}

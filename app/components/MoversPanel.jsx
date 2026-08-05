@@ -21,7 +21,7 @@ function fmtVol(v) {
 export default function MoversPanel({ T, accent, onPick, fill = false }) {
   const text = T?.text ?? "#E2EDF8";
   const dim = T?.dim ?? "#9DB4CC";
-  const border = T?.border ?? "#1A2535";
+  const border = T?.border ?? "#24313F";
   const surface = T?.surface ?? "#0A1018";
 
   const [tab, setTab] = useState("gainers");
@@ -62,11 +62,11 @@ export default function MoversPanel({ T, accent, onPick, fill = false }) {
 
       <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
         {state === "loading" && <div style={{ padding: 14, fontFamily: FM, fontSize: 9, color: dim }}>Loading market movers…</div>}
-        {state === "error" && <div style={{ padding: 14, fontFamily: FM, fontSize: 9, color: "#C9576B" }}> Movers feed unavailable — retrying next cycle.</div>}
+        {state === "error" && <div style={{ padding: 14, fontFamily: FM, fontSize: 9, color: "#E5697E" }}> Movers feed unavailable — retrying next cycle.</div>}
         {state === "empty" && <div style={{ padding: 14, fontFamily: FM, fontSize: 9, color: dim }}>No movers right now.</div>}
         {rows.map((r) => {
           const up = (r.changePct ?? 0) >= 0;
-          const clr = up ? "#4FA97B" : "#C9576B";
+          const clr = up ? "#5FCB96" : "#E5697E";
           return (
             <div key={r.symbol} onClick={() => onPick?.(r.symbol)}
               style={{

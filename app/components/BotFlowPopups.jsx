@@ -58,7 +58,7 @@ export const BOT_WARNING_KEY = "kronos_bot_warning_seen";
 export function BotEntryWarning({ accent, T, onAcknowledge, reviewMode = false }) {
   const text = T?.text ?? "#E2EDF8";
   const dim = T?.dim ?? "#9DB4CC";
-  const border = T?.border ?? "#1A2535";
+  const border = T?.border ?? "#24313F";
   const surface = T?.surface ?? "#0D1520";
   return (
     <Shell accent={accent} T={T} onClose={reviewMode ? onAcknowledge : undefined}>
@@ -100,15 +100,15 @@ const CADENCES = [
 export function ModeSelectPopup({ accent, T, onSelect }) {
   const text = T?.text ?? "#E2EDF8";
   const dim = T?.dim ?? "#9DB4CC";
-  const border = T?.border ?? "#1A2535";
+  const border = T?.border ?? "#24313F";
   const [phase, setPhase] = useState("mode");
   const [pendingMode, setPendingMode] = useState(null);
   const [picked, setPicked] = useState(() => {
     try { return JSON.parse(localStorage.getItem("kronos_cadence") || '["all"]'); } catch { return ["all"]; }
   });
   const MODES = [
-    { id: "futures", icon: "", title: "FUTURES", desc: "NQ · MNQ · ES · CL · GC — Kronos Map structure + technicals + news sentiment on futures candles. Intraday (≤1 day) — LONG / SHORT.", color: "#6F94BE" },
-    { id: "options", icon: "", title: "OPTIONS", desc: "SPY · QQQ · NVDA · AAPL + more — underlying structure + live options flow (put/call, unusual activity, IV). Up to ~2 weeks — CALLS / PUTS.", color: "#8B84C4" },
+    { id: "futures", icon: "", title: "FUTURES", desc: "NQ · MNQ · ES · CL · GC — Kronos Map structure + technicals + news sentiment on futures candles. Intraday (≤1 day) — LONG / SHORT.", color: "#7FA9D8" },
+    { id: "options", icon: "", title: "OPTIONS", desc: "SPY · QQQ · NVDA · AAPL + more — underlying structure + live options flow (put/call, unusual activity, IV). Up to ~2 weeks — CALLS / PUTS.", color: "#A099E0" },
     { id: "equity", icon: "", title: "INVEST", desc: "AAPL · MSFT · NVDA + large caps — the same multi-agent engine on daily/weekly candles for portfolio growth. BUY / HOLD / SELL.", color: "#34d399" },
   ];
 
@@ -191,7 +191,7 @@ export function BrokerSideBySidePopup({ accent, T, onDone, onSkip }) {
   const text = T?.text ?? "#E2EDF8";
   const dim = T?.dim ?? "#9DB4CC";
   const surface = T?.surface ?? "#0D1520";
-  const border = T?.border ?? "#1A2535";
+  const border = T?.border ?? "#24313F";
 
   const [selected, setSelected] = useState(() => {
     try { return localStorage.getItem("kronos_broker_preset") || "topstepx"; } catch { return "topstepx"; }
@@ -249,7 +249,7 @@ export function BrokerSideBySidePopup({ accent, T, onDone, onSkip }) {
       )}
 
       {blocked && (
-        <div style={{ fontFamily: FC, fontSize: 10.5, color: "#C9A15B", background: "rgba(247,201,72,0.07)", border: "1px solid rgba(247,201,72,0.25)", borderRadius: 8, padding: "9px 12px", marginBottom: 12, lineHeight: 1.55 }}>
+        <div style={{ fontFamily: FC, fontSize: 10.5, color: "#E0B25F", background: "rgba(247,201,72,0.07)", border: "1px solid rgba(247,201,72,0.25)", borderRadius: 8, padding: "9px 12px", marginBottom: 12, lineHeight: 1.55 }}>
            Popup blocked by the browser. Allow popups for this site, or open your broker manually and
           drag its window to the right half of your screen (terminal on the left).
         </div>

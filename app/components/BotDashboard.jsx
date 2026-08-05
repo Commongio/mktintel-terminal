@@ -45,11 +45,11 @@ const FC = "'Inter',sans-serif";
 //   options → up to ~2-week swing: high-risk, so no month+/year horizons.
 //   equity  → daily / weekly / monthly: long-horizon portfolio growth.
 const MODE_CONFIG = {
-  futures: { symbols: ["NQ", "MNQ", "ES", "MES", "YM", "RTY", "CL", "GC"], intervals: ALLOWED_INTERVALS.futures, defaultSymbol: "NQ", defaultInterval: "15min", color: "#6F94BE" },
+  futures: { symbols: ["NQ", "MNQ", "ES", "MES", "YM", "RTY", "CL", "GC"], intervals: ALLOWED_INTERVALS.futures, defaultSymbol: "NQ", defaultInterval: "15min", color: "#7FA9D8" },
   // V10.3: options quick-picks are MAJOR INDICES only — any other ticker is
   // reached through the search box, so the row stays clean instead of a wall of
   // arbitrary large caps.
-  options: { symbols: ["SPY", "QQQ"], intervals: ALLOWED_INTERVALS.options, defaultSymbol: "SPY", defaultInterval: "1h", color: "#8B84C4" },
+  options: { symbols: ["SPY", "QQQ"], intervals: ALLOWED_INTERVALS.options, defaultSymbol: "SPY", defaultInterval: "1h", color: "#A099E0" },
   // V13.5: INVEST — grow-the-portfolio mode. Buy/Hold/Sell on large caps.
   equity:  { symbols: ["AAPL", "MSFT", "NVDA", "AMZN"], intervals: ALLOWED_INTERVALS.equity, defaultSymbol: "AAPL", defaultInterval: "1w", color: "#34d399" },
 };
@@ -63,7 +63,7 @@ const INTERVAL_HORIZON = {
   "4h": "SWING", "1d": "DAILY", "1w": "MONTHLY", "1mo": "YEARLY",
 };
 
-const vixColor = (v) => (v == null ? "#9DB4CC" : v < 15 ? "#22d3ee" : v < 20 ? "#8B84C4" : v < 30 ? "#f59e0b" : "#ef4444");
+const vixColor = (v) => (v == null ? "#9DB4CC" : v < 15 ? "#22d3ee" : v < 20 ? "#A099E0" : v < 30 ? "#f59e0b" : "#ef4444");
 
 // ─── ORB LEGEND TOOLTIP ────────────────────────────────────────────────────────
 function OrbTooltip({ dim, border, surface, text }) {
@@ -87,7 +87,7 @@ function OrbTooltip({ dim, border, surface, text }) {
           </div>
           {[
             ["#22d3ee", "Cool blue/teal — VIX under 15, calm market"],
-            ["#8B84C4", "Violet/white — VIX 15–20, normal range"],
+            ["#A099E0", "Violet/white — VIX 15–20, normal range"],
             ["#f59e0b", "Amber — VIX 20–30, elevated volatility"],
             ["#ef4444", "Red — VIX 30+, fear territory"],
           ].map(([c, label]) => (
@@ -120,7 +120,7 @@ function Stat({ label, value, accent }) {
 function AnalyticsTab({ accent, T, paperMode, setPaperMode, assetClass }) {
   const surface = T?.surface ?? "#0b1320";
   const border = T?.border ?? "#172030";
-  const dim = T?.dim ?? "#3a4a5a";
+  const dim = T?.dim ?? "#45566A";
   const [paper, setPaper] = useState(() => getPaperState(assetClass));
   useEffect(() => { setPaper(getPaperState(assetClass)); }, [assetClass, paperMode]);
 
@@ -147,7 +147,7 @@ function AnalyticsTab({ accent, T, paperMode, setPaperMode, assetClass }) {
                 const maxV = Math.max(...curve, 1), minV = Math.min(...curve, 0), range = maxV - minV || 1;
                 const pts = curve.map((v, i) => `${10 + (i / Math.max(curve.length - 1, 1)) * 460},${110 - ((v - minV) / range) * 100}`).join(" ");
                 const up = curve[curve.length - 1] >= 0;
-                return <polyline points={pts} fill="none" stroke={up ? "#4FA97B" : "#C9576B"} strokeWidth="2" />;
+                return <polyline points={pts} fill="none" stroke={up ? "#5FCB96" : "#E5697E"} strokeWidth="2" />;
               })()}
             </svg>
           ) : (
@@ -171,7 +171,7 @@ function AlertsTab({ accent, T, user, alertPrefs, setAlertPrefs, minConviction }
   const surface = T?.surface ?? "#0b1320";
   const border = T?.border ?? "#172030";
   const text = T?.text ?? "#c8d8e8";
-  const dim = T?.dim ?? "#3a4a5a";
+  const dim = T?.dim ?? "#45566A";
   const card = { background: surface, border: `1px solid ${border}`, borderRadius: 12, padding: "14px 16px" };
   const head = { fontFamily: FM, fontSize: 9, color: dim, letterSpacing: 2, marginBottom: 8 };
   const note = { fontFamily: FC, fontSize: 10, color: dim, lineHeight: 1.55 };
@@ -232,7 +232,7 @@ function AlertsTab({ accent, T, user, alertPrefs, setAlertPrefs, minConviction }
 // would silently mute the user, which is never what a mis-tap meant).
 function ChipMultiSelect({ options, selected, onChange, accent, T, columns = 2 }) {
   const border = T?.border ?? "#172030";
-  const dim = T?.dim ?? "#3a4a5a";
+  const dim = T?.dim ?? "#45566A";
   const text = T?.text ?? "#c8d8e8";
   const toggle = (id) => {
     const on = selected.includes(id);
@@ -273,7 +273,7 @@ function ChipMultiSelect({ options, selected, onChange, accent, T, columns = 2 }
 // cap exists — futures are index/commodity contracts, so the control is hidden
 // there rather than shown as a filter that does nothing.
 function MarketCapFilter({ side, prefs, setPrefs, accent, T }) {
-  const dim = T?.dim ?? "#3a4a5a";
+  const dim = T?.dim ?? "#45566A";
   const text = T?.text ?? "#c8d8e8";
   if (!CAP_FILTERABLE_SIDES.includes(side)) return null;
   const selected = prefs.caps?.[side] ?? CAP_IDS;
@@ -300,7 +300,7 @@ function StudioTab({ accent, T, profile, onEditProfile, onOpenBroker, brokerData
   const surface = T?.surface ?? "#0b1320";
   const border = T?.border ?? "#172030";
   const text = T?.text ?? "#c8d8e8";
-  const dim = T?.dim ?? "#3a4a5a";
+  const dim = T?.dim ?? "#45566A";
 
   return (
     <div style={{ flex: 1, overflowY: "auto", padding: 20 }}>
@@ -389,7 +389,7 @@ function StudioTab({ accent, T, profile, onEditProfile, onOpenBroker, brokerData
 }
 
 // ─── MAIN ──────────────────────────────────────────────────────────────────────
-export default function BotDashboard({ accent = "#4C9E92", T, botName = "KRONOS", isMobile = false, isDev = false, user = null }) {
+export default function BotDashboard({ accent = "#5CBFB1", T, botName = "KRONOS", isMobile = false, isDev = false, user = null }) {
   // V10.5: the bot's own appearance (panel style, text size, grid) — set in the
   // bot-scoped settings panel, live-updates without a reload.
   const botUI = useBotUI();
@@ -615,7 +615,7 @@ export default function BotDashboard({ accent = "#4C9E92", T, botName = "KRONOS"
   const surface = T?.surface ?? "#0b1320";
   const border = T?.border ?? "#172030";
   const text = T?.text ?? "#c8d8e8";
-  const dim = T?.dim ?? "#3a4a5a";
+  const dim = T?.dim ?? "#45566A";
   // V14.5: ALERTS is a top-level destination, to the right of STUDIO. Alert
   // routing is bot-scoped (which signals reach your phone), so it does not
   // belong in the terminal-wide gear settings where it used to live.
@@ -704,8 +704,8 @@ export default function BotDashboard({ accent = "#4C9E92", T, botName = "KRONOS"
                   border: `1px solid ${on ? "rgba(0,230,118,0.35)" : border}`,
                   background: on ? "rgba(0,230,118,0.07)" : "transparent",
                 }}>
-                  <div style={{ width: 5, height: 5, borderRadius: "50%", background: on ? "#4FA97B" : "#2a3648", boxShadow: on ? "0 0 6px #4FA97B" : "none", animation: on ? "bot-dot 1.8s ease-in-out infinite" : "none" }} />
-                  <span style={{ fontFamily: FM, fontSize: 7.5, fontWeight: 700, letterSpacing: 1.5, color: on ? "#4FA97B" : dim }}>{s}</span>
+                  <div style={{ width: 5, height: 5, borderRadius: "50%", background: on ? "#5FCB96" : "#2a3648", boxShadow: on ? "0 0 6px #5FCB96" : "none", animation: on ? "bot-dot 1.8s ease-in-out infinite" : "none" }} />
+                  <span style={{ fontFamily: FM, fontSize: 7.5, fontWeight: 700, letterSpacing: 1.5, color: on ? "#5FCB96" : dim }}>{s}</span>
                 </div>
               );
             })}
@@ -731,11 +731,11 @@ export default function BotDashboard({ accent = "#4C9E92", T, botName = "KRONOS"
               display: "flex", alignItems: "center", gap: 6, padding: "3px 10px", borderRadius: 20,
               border: "1px solid rgba(247,201,72,0.3)", background: "rgba(247,201,72,0.07)",
             }}>
-              <span style={{ fontFamily: FM, fontSize: 8, fontWeight: 700, letterSpacing: 1, color: "#C9A15B" }}>
+              <span style={{ fontFamily: FM, fontSize: 8, fontWeight: 700, letterSpacing: 1, color: "#E0B25F" }}>
                 EVAL: {propRules.firmName} {propRules.accountLabel}
               </span>
               {propRules.dailyLossLimit && (
-                <span style={{ fontFamily: FM, fontSize: 8, color: Math.abs(Math.min(0, propRules.dailyLossUsed)) / propRules.dailyLossLimit > 0.5 ? "#C9576B" : "#9DB4CC" }}>
+                <span style={{ fontFamily: FM, fontSize: 8, color: Math.abs(Math.min(0, propRules.dailyLossUsed)) / propRules.dailyLossLimit > 0.5 ? "#E5697E" : "#9DB4CC" }}>
                   DL: ${Math.abs(Math.min(0, propRules.dailyLossUsed)).toFixed(0)}/${propRules.dailyLossLimit}
                 </span>
               )}
@@ -906,7 +906,7 @@ export default function BotDashboard({ accent = "#4C9E92", T, botName = "KRONOS"
             <div style={{ display: "flex", gap: 8, position: "relative", zIndex: 1 }}>
               {[
                 { label: "MODE", value: assetClass.toUpperCase(), color: modeCfg.color },
-                { label: "LAST SIGNAL", value: latestSignal ? `${latestSignal.direction ? directionLabel(latestSignal.direction, assetClass) : ""} ${latestSignal.symbol ?? ""}`.trim() || "—" : "—", color: latestSignal?.direction === "SHORT" ? "#C9576B" : "#4FA97B" },
+                { label: "LAST SIGNAL", value: latestSignal ? `${latestSignal.direction ? directionLabel(latestSignal.direction, assetClass) : ""} ${latestSignal.symbol ?? ""}`.trim() || "—" : "—", color: latestSignal?.direction === "SHORT" ? "#E5697E" : "#5FCB96" },
                 { label: "CONVICTION", value: latestSignal?.conviction != null ? `${latestSignal.conviction}%` : "—", color: accent },
               ].map((s) => (
                 <div key={s.label} style={{
@@ -926,8 +926,8 @@ export default function BotDashboard({ accent = "#4C9E92", T, botName = "KRONOS"
             <div style={{ ...panelSx, display: "flex", alignItems: "center", gap: 10, position: "relative", zIndex: 1, padding: "6px 12px", borderRadius: 20 }}>
               {[
                 { c: "#9DB4CC", t: "<78% SILENT", conv: null },
-                { c: "#C9A15B", t: "78–90% PULSE", conv: 85 },
-                { c: "#4FA97B", t: "90%+ COMET", conv: 95 },
+                { c: "#E0B25F", t: "78–90% PULSE", conv: 85 },
+                { c: "#5FCB96", t: "90%+ COMET", conv: 95 },
               ].map((x, i) => (
                 <div key={x.t}
                   onClick={x.conv ? () => testCue(x.conv) : undefined}

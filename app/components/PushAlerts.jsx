@@ -33,7 +33,7 @@ const isStandalone = () =>
 export default function PushAlerts({ T, accent, user, alertPrefs = null }) {
   const text = T?.text ?? "#E2EDF8";
   const dim = T?.dim ?? "#9DB4CC";
-  const border = T?.border ?? "#1A2535";
+  const border = T?.border ?? "#24313F";
   const surface = T?.surface ?? "#0A1018";
 
   const [supported, setSupported] = useState(null); // null = still checking
@@ -228,7 +228,7 @@ export default function PushAlerts({ T, accent, user, alertPrefs = null }) {
       {needsInstall ? (
         // The single most confusing mobile failure mode, handled explicitly.
         <div style={note}>
-          <b style={{ color: "#C9A15B" }}>Install KRONOS to your home screen first.</b><br />
+          <b style={{ color: "#E0B25F" }}>Install KRONOS to your home screen first.</b><br />
           On iPhone, Apple only allows notifications for apps added to the home screen.
           Tap <b style={{ color: text }}>Share</b> → <b style={{ color: text }}>Add to Home Screen</b>,
           then open KRONOS from that icon and come back here. (Requires iOS 16.4 or later.)
@@ -275,7 +275,7 @@ export default function PushAlerts({ T, accent, user, alertPrefs = null }) {
               style={{
                 flex: 1, minWidth: 130, minHeight: 44, borderRadius: 8, cursor: busy ? "default" : "pointer",
                 fontFamily: FM, fontSize: 10, fontWeight: 700, letterSpacing: 1,
-                color: subscribed ? "#C9576B" : accent,
+                color: subscribed ? "#E5697E" : accent,
                 background: subscribed ? "rgba(255,61,87,0.08)" : `${accent}12`,
                 border: `1px solid ${subscribed ? "rgba(255,61,87,0.35)" : `${accent}35`}`,
                 opacity: busy ? 0.6 : 1,
@@ -318,7 +318,7 @@ export default function PushAlerts({ T, accent, user, alertPrefs = null }) {
               </div>
               {(diag.recent || []).slice(0, 6).map((r, i) => (
                 <div key={i} style={{ fontFamily: FM, fontSize: 8, color: dim, lineHeight: 1.5 }}>
-                  <span style={{ color: r.wouldPush ? "#4FA97B" : "#C9576B" }}>{r.wouldPush ? "" : ""}</span>{" "}
+                  <span style={{ color: r.wouldPush ? "#5FCB96" : "#E5697E" }}>{r.wouldPush ? "" : ""}</span>{" "}
                   <span style={{ color: text }}>{r.symbol}</span> {r.side}/{r.interval} {r.status} {r.conviction}%
                   {r.why ? ` — ${r.why}` : ""}
                 </div>

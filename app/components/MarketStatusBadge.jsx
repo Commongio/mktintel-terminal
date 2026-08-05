@@ -9,7 +9,7 @@ export function getMarketStatus() {
   const mins = now.getHours() * 60 + now.getMinutes();
 
   if (day === 0 || day === 6) {
-    return { label: "MARKET CLOSED", sub: "Weekend", color: "#3a4a5a" };
+    return { label: "MARKET CLOSED", sub: "Weekend", color: "#45566A" };
   }
 
   const PRE_OPEN   = 4 * 60;        // 4:00 AM
@@ -21,12 +21,12 @@ export function getMarketStatus() {
     return { label: "MARKET OPEN", sub: "Regular hours", color: "#00ff88" };
   }
   if (mins >= PRE_OPEN && mins < MKT_OPEN) {
-    return { label: "PRE-MARKET", sub: "Thin liquidity", color: "#C9A15B" };
+    return { label: "PRE-MARKET", sub: "Thin liquidity", color: "#E0B25F" };
   }
   if (mins >= MKT_CLOSE && mins < AH_CLOSE) {
-    return { label: "AFTER-HOURS", sub: "Thin liquidity", color: "#C9A15B" };
+    return { label: "AFTER-HOURS", sub: "Thin liquidity", color: "#E0B25F" };
   }
-  return { label: "MARKET CLOSED", sub: "Next session ahead", color: "#3a4a5a" };
+  return { label: "MARKET CLOSED", sub: "Next session ahead", color: "#45566A" };
 }
 
 // V13: futures trade nearly around the clock (CME Globex: Sun 6PM ET open ->
@@ -42,10 +42,10 @@ export function getFuturesSessionStatus() {
   const mins = now.getHours() * 60 + now.getMinutes();
   const M17 = 17 * 60, M18 = 18 * 60; // 5:00 PM / 6:00 PM ET
 
-  if (day === 6) return { label: "SESSION CLOSED", sub: "Weekend — reopens Sunday 6PM ET", color: "#3a4a5a" };
-  if (day === 0 && mins < M18) return { label: "SESSION CLOSED", sub: "Reopens Sunday 6PM ET", color: "#3a4a5a" };
-  if (day === 5 && mins >= M17) return { label: "SESSION CLOSED", sub: "Weekend — reopens Sunday 6PM ET", color: "#3a4a5a" };
-  if (day >= 1 && day <= 4 && mins >= M17 && mins < M18) return { label: "DAILY BREAK", sub: "Reopens 6PM ET", color: "#C9A15B" };
+  if (day === 6) return { label: "SESSION CLOSED", sub: "Weekend — reopens Sunday 6PM ET", color: "#45566A" };
+  if (day === 0 && mins < M18) return { label: "SESSION CLOSED", sub: "Reopens Sunday 6PM ET", color: "#45566A" };
+  if (day === 5 && mins >= M17) return { label: "SESSION CLOSED", sub: "Weekend — reopens Sunday 6PM ET", color: "#45566A" };
+  if (day >= 1 && day <= 4 && mins >= M17 && mins < M18) return { label: "DAILY BREAK", sub: "Reopens 6PM ET", color: "#E0B25F" };
   return { label: "GLOBEX ACTIVE", sub: "Futures scanning 24/5", color: "#00ff88" };
 }
 
@@ -76,7 +76,7 @@ export function FuturesSessionBadge({ T }) {
 
 export default function MarketStatusBadge({ accent, T }) {
   const [status, setStatus] = useState(getMarketStatus());
-  const dim = T?.dim ?? "#3a4a5a";
+  const dim = T?.dim ?? "#45566A";
 
   useEffect(() => {
     const t = setInterval(() => setStatus(getMarketStatus()), 15000);

@@ -46,7 +46,7 @@ function getFOMCStatus() {
   return { active: false, upcoming: upcoming?.meeting[0] ?? null };
 }
 
-export default function FOMCOverlay({ accent = "#4C9E92" }) {
+export default function FOMCOverlay({ accent = "#5CBFB1" }) {
   const [status,   setStatus]   = useState(null);
   const [expanded, setExpanded] = useState(false);
   const [dismissed,setDismissed]= useState(false);
@@ -67,7 +67,7 @@ export default function FOMCOverlay({ accent = "#4C9E92" }) {
 
   if (!status?.active || dismissed) return null;
 
-  const borderColor = status.pressConf ? "#C9576B" : "#C9A15B";
+  const borderColor = status.pressConf ? "#E5697E" : "#E0B25F";
   const glowColor   = status.pressConf ? "rgba(255,77,109,0.25)" : "rgba(247,201,72,0.20)";
 
   return (
@@ -101,7 +101,7 @@ export default function FOMCOverlay({ accent = "#4C9E92" }) {
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <div style={{
                   width: 7, height: 7, borderRadius: "50%",
-                  background: status.pressConf ? "#C9576B" : "#C9A15B",
+                  background: status.pressConf ? "#E5697E" : "#E0B25F",
                   boxShadow: `0 0 8px ${borderColor}`,
                   animation: "fomc-pulse 1.2s ease-in-out infinite",
                 }}/>
@@ -111,11 +111,11 @@ export default function FOMCOverlay({ accent = "#4C9E92" }) {
               </div>
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                 <a href={FED_CHANNEL_URL} target="_blank" rel="noopener noreferrer"
-                  style={{ fontFamily: FM, fontSize: 8, color: "#3a4a5a", letterSpacing: 1, textDecoration: "none" }}>
+                  style={{ fontFamily: FM, fontSize: 8, color: "#45566A", letterSpacing: 1, textDecoration: "none" }}>
                   OPEN YT
                 </a>
                 <button onClick={dismiss} style={{
-                  background: "transparent", border: "none", color: "#3a4a5a",
+                  background: "transparent", border: "none", color: "#45566A",
                   cursor: "pointer", fontSize: 14, lineHeight: 1, padding: "0 2px",
                 }}>×</button>
               </div>
@@ -125,7 +125,7 @@ export default function FOMCOverlay({ accent = "#4C9E92" }) {
             {status.pressConf && (
               <div style={{
                 padding: "6px 14px", fontFamily: FM, fontSize: 8,
-                color: "#C9A15B", letterSpacing: 1,
+                color: "#E0B25F", letterSpacing: 1,
                 background: "rgba(247,201,72,0.05)", borderBottom: `1px solid ${borderColor}15`,
               }}>
                 Press Conference: {status.pressTime} — Fed Chair live statement
@@ -145,7 +145,7 @@ export default function FOMCOverlay({ accent = "#4C9E92" }) {
 
             {!status.pressConf && (
               <div style={{
-                padding: "8px 14px", fontFamily: FM, fontSize: 8, color: "#3a4a5a",
+                padding: "8px 14px", fontFamily: FM, fontSize: 8, color: "#45566A",
                 letterSpacing: 1, textAlign: "center",
               }}>
                 Press conference: {status.pressTime} on {status.endDate}

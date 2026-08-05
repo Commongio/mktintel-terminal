@@ -25,7 +25,7 @@ class SectionBoundary extends Component {
   render() {
     if (this.state.failed) {
       return (
-        <div style={{ padding: 12, borderRadius: 10, border: "1px solid #1A2535", background: "#0A1018", fontFamily: FM, fontSize: 9, color: "#9DB4CC" }}>
+        <div style={{ padding: 12, borderRadius: 10, border: "1px solid #24313F", background: "#0A1018", fontFamily: FM, fontSize: 9, color: "#9DB4CC" }}>
           {this.props.label} unavailable right now.
         </div>
       );
@@ -91,7 +91,7 @@ const whenLabel = { bmo: "PRE-MKT", amc: "AFTER CLOSE", dmh: "MID-DAY", PRE: "PR
 export default function TickerOverview({ symbol, T, accent, messages, input, setInput, send, loading, onBack, onSymbolChange, fontSize = 14 }) {
   const text = T?.text ?? "#E2EDF8";
   const dim = T?.dim ?? "#9DB4CC";
-  const border = T?.border ?? "#1A2535";
+  const border = T?.border ?? "#24313F";
   const surface = T?.surface ?? "#0A1018";
 
   const [quote, setQuote] = useState(null);
@@ -148,7 +148,7 @@ export default function TickerOverview({ symbol, T, accent, messages, input, set
   }, [symbol, setInput]);
 
   const up = (quote?.changePercent ?? 0) >= 0;
-  const clr = up ? "#4FA97B" : "#C9576B";
+  const clr = up ? "#5FCB96" : "#E5697E";
   const card = { background: surface, border: `1px solid ${border}`, borderRadius: 10, padding: 12 };
 
   return (
@@ -219,20 +219,20 @@ export default function TickerOverview({ symbol, T, accent, messages, input, set
       <Section title="TECHNICALS" T={T} accent={accent} note={tech?.source ? `via ${tech.source}` : ""}>
         <div style={{ ...card, display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(96px, 1fr))", gap: "14px 18px" }}>
           <Stat label="RSI (14)" value={fmt(tech?.rsi, 1)} T={T}
-            color={tech?.rsi == null ? dim : tech.rsi >= 70 ? "#C9576B" : tech.rsi <= 30 ? "#4FA97B" : text} />
+            color={tech?.rsi == null ? dim : tech.rsi >= 70 ? "#E5697E" : tech.rsi <= 30 ? "#5FCB96" : text} />
           <Stat label="STOCH RSI" value={fmt(tech?.stochRsi, 0)} T={T}
-            color={tech?.stochRsi == null ? dim : tech.stochRsi >= 80 ? "#C9576B" : tech.stochRsi <= 20 ? "#4FA97B" : text} />
+            color={tech?.stochRsi == null ? dim : tech.stochRsi >= 80 ? "#E5697E" : tech.stochRsi <= 20 ? "#5FCB96" : text} />
           <Stat label="MACD HIST" value={fmt(tech?.macd?.hist, 3)} T={T}
-            color={tech?.macd ? (tech.macd.hist >= 0 ? "#4FA97B" : "#C9576B") : dim} />
+            color={tech?.macd ? (tech.macd.hist >= 0 ? "#5FCB96" : "#E5697E") : dim} />
           <Stat label="EMA 20" value={fmt(tech?.ema?.e20)} T={T} color={emaColor(tech?.price, tech?.ema?.e20, text, dim)} />
           <Stat label="EMA 50" value={fmt(tech?.ema?.e50)} T={T} color={emaColor(tech?.price, tech?.ema?.e50, text, dim)} />
           <Stat label="EMA 200" value={fmt(tech?.ema?.e200)} T={T} color={emaColor(tech?.price, tech?.ema?.e200, text, dim)} />
           <Stat label="BOLL %B" value={tech?.bollinger?.pctB != null ? tech.bollinger.pctB + "%" : "—"} T={T}
-            color={tech?.bollinger?.pctB == null ? dim : tech.bollinger.pctB >= 100 ? "#C9576B" : tech.bollinger.pctB <= 0 ? "#4FA97B" : text} />
+            color={tech?.bollinger?.pctB == null ? dim : tech.bollinger.pctB >= 100 ? "#E5697E" : tech.bollinger.pctB <= 0 ? "#5FCB96" : text} />
           <Stat label="ATR (14)" value={fmt(tech?.atr)} T={T} color={text} />
           <Stat label="VWAP 20d" value={fmt(tech?.vwap)} T={T} color={emaColor(tech?.price, tech?.vwap, text, dim)} />
           <Stat label="REL VOL" value={tech?.relVolume != null ? tech.relVolume.toFixed(2) + "×" : "—"} T={T}
-            color={tech?.relVolume == null ? dim : tech.relVolume >= 1.5 ? "#C9A15B" : text} />
+            color={tech?.relVolume == null ? dim : tech.relVolume >= 1.5 ? "#E0B25F" : text} />
         </div>
       </Section>
 
@@ -270,8 +270,8 @@ export default function TickerOverview({ symbol, T, accent, messages, input, set
             ) : signals.map((s) => (
               <div key={s.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0", borderBottom: `1px solid ${border}55` }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontFamily: FM, fontSize: 9, fontWeight: 800, color: s.direction === "LONG" ? "#4FA97B" : s.direction === "SHORT" ? "#C9576B" : dim }}>{s.direction} {s.interval}</span>
-                  {s.state === "won" && <span style={{ fontFamily: FM, fontSize: 7.5, fontWeight: 800, color: "#4FA97B" }}> WON</span>}
+                  <span style={{ fontFamily: FM, fontSize: 9, fontWeight: 800, color: s.direction === "LONG" ? "#5FCB96" : s.direction === "SHORT" ? "#E5697E" : dim }}>{s.direction} {s.interval}</span>
+                  {s.state === "won" && <span style={{ fontFamily: FM, fontSize: 7.5, fontWeight: 800, color: "#5FCB96" }}> WON</span>}
                 </div>
                 <span style={{ fontFamily: FM, fontSize: 11, fontWeight: 800, color: accent }}>{s.conviction}%</span>
               </div>
@@ -284,7 +284,7 @@ export default function TickerOverview({ symbol, T, accent, messages, input, set
               <div style={{ fontFamily: FC, fontSize: 11, color: dim }}>No recent headlines for {symbol}.</div>
             ) : news.slice(0, 6).map((n, i) => {
               const sc = n.impact?.score;
-              const scClr = sc == null ? dim : sc >= 70 ? "#C9576B" : sc >= 45 ? "#C9A15B" : dim;
+              const scClr = sc == null ? dim : sc >= 70 ? "#E5697E" : sc >= 45 ? "#E0B25F" : dim;
               return (
                 <a key={n.id || i} href={n.url || undefined} target="_blank" rel="noopener noreferrer"
                   style={{ display: "block", padding: "7px 0", borderBottom: `1px solid ${border}55`, textDecoration: "none" }}>
@@ -377,4 +377,4 @@ function Row({ children }) {
 }
 
 const fmt = (v, p = 2) => (v == null || Number.isNaN(v) ? "—" : Number(v).toFixed(p));
-const emaColor = (price, ema, text, dim) => (ema == null || price == null ? dim : price >= ema ? "#4FA97B" : "#C9576B");
+const emaColor = (price, ema, text, dim) => (ema == null || price == null ? dim : price >= ema ? "#5FCB96" : "#E5697E");

@@ -86,7 +86,7 @@ function deriveTheme(bg,text){
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 const DEFAULT_BG="#05080F",DEFAULT_TEXT="#E2EDF8";
-const ACCENTS={teal:"#4C9E92",blue:"#6F94BE",purple:"#8B84C4",orange:"#ff6b35",gold:"#C9A15B",red:"#C9576B"};
+const ACCENTS={teal:"#5CBFB1",blue:"#7FA9D8",purple:"#A099E0",orange:"#ff6b35",gold:"#E0B25F",red:"#E5697E"};
 const THEME_DEFAULTS={mainBg:DEFAULT_BG,mainText:DEFAULT_TEXT,leftBg:DEFAULT_BG,leftText:DEFAULT_TEXT,rightBg:DEFAULT_BG,rightText:DEFAULT_TEXT,accent:"teal",density:"comfortable",leftWidth:290,rightWidth:310,chartRightWidth:340};
 const TRUMP_RE=/trump|truth social|tariff|executive order|maga|mar-a-lago|president trump|trade war/i;
 const QUICK_CHART_SYMS=["SPY","QQQ","NVDA","AAPL","TSLA","META","AMD","MSFT","PLTR","MSTR","AMZN","GOOGL"];
@@ -120,7 +120,7 @@ function migrateTheme(t){
 // The AI picks colors by NAME (an enum in the tool schema) rather than emitting
 // hex — a free-text hex field invites invalid values and lets the model pick
 // something illegible against the theme.
-const AI_DRAW_COLORS={teal:"#4C9E92",blue:"#6F94BE",purple:"#8B84C4",green:"#4FA97B",red:"#C9576B",gold:"#C9A15B"};
+const AI_DRAW_COLORS={teal:"#5CBFB1",blue:"#7FA9D8",purple:"#A099E0",green:"#5FCB96",red:"#E5697E",gold:"#E0B25F"};
 
 // ─── V11 MOBILE (M1) ──────────────────────────────────────────────────────────
 // Phone layout is one full-screen panel at a time behind a bottom tab bar. The
@@ -183,7 +183,7 @@ function MobileTabBar({active,onSelect,accent,T,alertCount=0}){
             <span style={{fontFamily:FONT_MONO,fontSize:7.5,letterSpacing:0.4,fontWeight:700,color:on?accent:T.dim,whiteSpace:"nowrap"}}>{t.label}</span>
             {/* Breaking-news dot must reach you from any tab — same rule as desktop. */}
             {t.id==="data"&&alertCount>0&&(
-              <span style={{position:"absolute",top:6,right:"50%",marginRight:-16,width:6,height:6,borderRadius:"50%",background:"#C9576B",animation:"news-pulse 1.1s ease-in-out infinite"}}/>
+              <span style={{position:"absolute",top:6,right:"50%",marginRight:-16,width:6,height:6,borderRadius:"50%",background:"#E5697E",animation:"news-pulse 1.1s ease-in-out infinite"}}/>
             )}
           </button>
         );
@@ -492,8 +492,8 @@ const WatchlistRow=memo(function WatchlistRow({symbol,quote,name,onClick,T,densi
     return()=>{live=false;};
   },[symbol]);
   if(!quote) return <div style={{padding:pad,borderRadius:7,marginBottom:5,background:T.surface,border:`1px solid ${T.border}`}}><span style={{fontFamily:FONT_MONO,fontSize:10,color:T.dim}}>{symbol} loading...</span></div>;
-  if(quote.error) return <div style={{padding:pad,borderRadius:7,marginBottom:5,background:T.surface,border:`1px solid ${T.border}`}}><span style={{fontFamily:FONT_MONO,fontSize:10,color:"#C9576B"}}>{symbol} — unavailable</span></div>;
-  const up=(quote.changePercent??0)>=0,clr=up?"#4C9E92":"#C9576B";
+  if(quote.error) return <div style={{padding:pad,borderRadius:7,marginBottom:5,background:T.surface,border:`1px solid ${T.border}`}}><span style={{fontFamily:FONT_MONO,fontSize:10,color:"#E5697E"}}>{symbol} — unavailable</span></div>;
+  const up=(quote.changePercent??0)>=0,clr=up?"#5CBFB1":"#E5697E";
   return(
     <div onClick={()=>onClick({symbol,name,...quote})}
       style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:pad,borderRadius:7,marginBottom:5,background:T.surface,border:`1px solid ${T.border}`,cursor:"pointer",transition:"background 0.12s"}}
@@ -513,14 +513,14 @@ const WatchlistRow=memo(function WatchlistRow({symbol,quote,name,onClick,T,densi
           <div style={{fontFamily:FONT_MONO,fontSize:9,color:T.dim,marginTop:2,display:"flex",flexDirection:"column",alignItems:"flex-end"}}>
             {techData[symbol].rsi!=null&&(
               <span style={{
-                color: Number(techData[symbol].rsi)>70?"#C9576B":Number(techData[symbol].rsi)<30?"#4FA97B":"#9DB4CC",
+                color: Number(techData[symbol].rsi)>70?"#E5697E":Number(techData[symbol].rsi)<30?"#5FCB96":"#9DB4CC",
                 fontWeight:700
               }}>
                 RSI {Number(techData[symbol].rsi).toFixed(0)}
               </span>
             )}
             {techData[symbol].macd?.macd!=null&&(
-              <span style={{color:Number(techData[symbol].macd.macd)>=0?"#4FA97B":"#C9576B",fontWeight:700}}>
+              <span style={{color:Number(techData[symbol].macd.macd)>=0?"#5FCB96":"#E5697E",fontWeight:700}}>
                 MACD {Number(techData[symbol].macd.macd).toFixed(2)}
               </span>
             )}
@@ -604,7 +604,7 @@ const NewsCard=memo(function NewsCard({item,onDiveDeep,T}){
   const isTrump=TRUMP_RE.test((item.headline||"")+(item.summary||""));
   const age=item.datetime?Math.round((Date.now()-item.datetime)/60000):null;
   const ageLabel=age==null?"":age<1?"just now":age<60?`${age}m ago`:`${Math.round(age/60)}h ago`;
-  const bc=isTrump?"#ff6b35":"#C9A15B";
+  const bc=isTrump?"#ff6b35":"#E0B25F";
   return(
     <div onClick={()=>onDiveDeep(item)}
       style={{background:`${bc}08`,border:`1px solid ${bc}1a`,borderLeft:`3px solid ${bc}`,borderRadius:7,padding:"9px 11px",marginBottom:6,cursor:"pointer",transition:"all 0.2s"}}
@@ -656,7 +656,7 @@ function WatchlistModal({onClose,watchlist,onAdd,onRemove,onReset,accent,T}){
                   <span style={{fontFamily:FONT_CHAT,fontSize:10,color:T.dim,marginLeft:8}}>{(r.name||"").slice(0,26)}</span>
                 </div>
                 {watchlist.includes(r.symbol)
-                  ?<button onClick={()=>onRemove(r.symbol)} style={{background:"rgba(255,77,109,0.12)",border:"1px solid rgba(255,77,109,0.28)",color:"#C9576B",borderRadius:5,padding:"2px 9px",fontFamily:FONT_MONO,fontSize:10,cursor:"pointer",fontWeight:700,flexShrink:0}}>REMOVE</button>
+                  ?<button onClick={()=>onRemove(r.symbol)} style={{background:"rgba(255,77,109,0.12)",border:"1px solid rgba(255,77,109,0.28)",color:"#E5697E",borderRadius:5,padding:"2px 9px",fontFamily:FONT_MONO,fontSize:10,cursor:"pointer",fontWeight:700,flexShrink:0}}>REMOVE</button>
                   :<button onClick={()=>onAdd(r.symbol,r.name)} style={{background:`${accent}12`,border:`1px solid ${accent}28`,color:accent,borderRadius:5,padding:"2px 9px",fontFamily:FONT_MONO,fontSize:10,cursor:"pointer",fontWeight:700,flexShrink:0}}>+ ADD</button>}
               </div>
             ))}
@@ -812,7 +812,7 @@ function DataSyncStatus({user,T,accent}){
       border:`1px solid ${synced?`${accent}30`:"rgba(247,201,72,0.35)"}`}}>
       <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:6}}>
         <span style={{fontSize:11}}>{synced?"":""}</span>
-        <span style={{fontFamily:FONT_MONO,fontSize:9,fontWeight:800,letterSpacing:1.5,color:synced?accent:"#C9A15B"}}>
+        <span style={{fontFamily:FONT_MONO,fontSize:9,fontWeight:800,letterSpacing:1.5,color:synced?accent:"#E0B25F"}}>
           {synced?"YOUR DATA IS SAVED TO YOUR ACCOUNT":"LOCAL TO THIS DEVICE ONLY"}
         </span>
       </div>
@@ -919,7 +919,7 @@ function SettingsPanel(props){
                         </span>
                         {t.mb!=null&&(
                           <span title={`${t.mb} MB — downloaded once, then cached by the browser`}
-                            style={{flexShrink:0,fontFamily:FONT_MONO,fontSize:7,color:t.mb>=3?"#C9A15B":T.dim,border:`1px solid ${t.mb>=3?"#C9A15B40":T.border}`,borderRadius:4,padding:"2px 5px"}}>{t.mb}MB</span>
+                            style={{flexShrink:0,fontFamily:FONT_MONO,fontSize:7,color:t.mb>=3?"#E0B25F":T.dim,border:`1px solid ${t.mb>=3?"#E0B25F40":T.border}`,borderRadius:4,padding:"2px 5px"}}>{t.mb}MB</span>
                         )}
                       </button>
                     ))}
@@ -938,14 +938,14 @@ function SettingsPanel(props){
                   <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:10}}>
                     {/* "none" swatch + curated presets + custom picker */}
                     <button onClick={()=>setThemeSel(prev=>({...prev,tint:""}))} title="No tint"
-                      style={{width:26,height:26,borderRadius:7,cursor:"pointer",background:"repeating-conic-gradient(#3a4a5a 0% 25%, transparent 0% 50%) 50% / 10px 10px",border:!themeSel?.tint?`2px solid ${accent}`:`2px solid transparent`,boxShadow:!themeSel?.tint?`0 0 8px ${accent}`:"none"}}/>
-                    {["#4C9E92","#6F94BE","#8B84C4","#ff6b6b","#C9A15B","#ff8a5b","#22d3ee","#ec4899","#4ade80","#ffffff"].map(c=>(
+                      style={{width:26,height:26,borderRadius:7,cursor:"pointer",background:"repeating-conic-gradient(#45566A 0% 25%, transparent 0% 50%) 50% / 10px 10px",border:!themeSel?.tint?`2px solid ${accent}`:`2px solid transparent`,boxShadow:!themeSel?.tint?`0 0 8px ${accent}`:"none"}}/>
+                    {["#5CBFB1","#7FA9D8","#A099E0","#ff6b6b","#E0B25F","#ff8a5b","#22d3ee","#ec4899","#4ade80","#ffffff"].map(c=>(
                       <button key={c} onClick={()=>setThemeSel(prev=>({...prev,tint:c}))} title={c}
                         style={{width:26,height:26,borderRadius:7,background:c,cursor:"pointer",border:themeSel?.tint===c?"2px solid #fff":"2px solid transparent",boxShadow:themeSel?.tint===c?`0 0 10px ${c}`:"none",transition:"all 0.15s"}}/>
                     ))}
                     <label title="Custom color" style={{width:26,height:26,borderRadius:7,cursor:"pointer",position:"relative",overflow:"hidden",border:`2px solid ${T.border}`,display:"flex",alignItems:"center",justifyContent:"center",background:"conic-gradient(red,#ff0,lime,cyan,blue,magenta,red)"}}>
                       <span style={{fontFamily:FONT_MONO,fontSize:12,color:"#fff",textShadow:"0 0 3px #000",fontWeight:800}}>+</span>
-                      <input type="color" value={themeSel?.tint||"#4C9E92"} onChange={e=>setThemeSel(prev=>({...prev,tint:e.target.value}))} style={{position:"absolute",inset:0,opacity:0,cursor:"pointer"}}/>
+                      <input type="color" value={themeSel?.tint||"#5CBFB1"} onChange={e=>setThemeSel(prev=>({...prev,tint:e.target.value}))} style={{position:"absolute",inset:0,opacity:0,cursor:"pointer"}}/>
                     </label>
                   </div>
                   {themeSel?.tint&&(
@@ -983,7 +983,7 @@ function SettingsPanel(props){
                   )}
                 </div>
               )}
-              {(bgImage?.dataUrl||bgVideo?.enabled)&&<div style={{fontFamily:FONT_MONO,fontSize:8,color:"#C9A15B",marginTop:8,lineHeight:1.5}}> Your background {bgVideo?.enabled?"video":"photo"} overrides the theme — remove it in the Personal tab to see the theme.</div>}
+              {(bgImage?.dataUrl||bgVideo?.enabled)&&<div style={{fontFamily:FONT_MONO,fontSize:8,color:"#E0B25F",marginTop:8,lineHeight:1.5}}> Your background {bgVideo?.enabled?"video":"photo"} overrides the theme — remove it in the Personal tab to see the theme.</div>}
             </div>
 
             {/* V10: side panel transparency */}
@@ -1110,13 +1110,13 @@ function SettingsPanel(props){
               {confirmClear?(
                 <div style={{display:"flex",gap:6}}>
                   <button onClick={()=>{onClearChatHistory?.();setConfirmClear(false);}}
-                    style={{flex:1,padding:"9px",borderRadius:7,background:"rgba(255,77,109,0.12)",border:"1px solid rgba(255,77,109,0.35)",color:"#C9576B",fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,cursor:"pointer"}}>CONFIRM DELETE</button>
+                    style={{flex:1,padding:"9px",borderRadius:7,background:"rgba(255,77,109,0.12)",border:"1px solid rgba(255,77,109,0.35)",color:"#E5697E",fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,cursor:"pointer"}}>CONFIRM DELETE</button>
                   <button onClick={()=>setConfirmClear(false)}
                     style={{flex:1,padding:"9px",borderRadius:7,background:"transparent",border:`1px solid ${T.border}`,color:T.dim,fontFamily:FONT_MONO,fontSize:9,letterSpacing:1,cursor:"pointer"}}>CANCEL</button>
                 </div>
               ):(
                 <button onClick={()=>setConfirmClear(true)}
-                  style={{width:"100%",padding:"9px",borderRadius:7,background:"rgba(255,77,109,0.08)",border:"1px solid rgba(255,77,109,0.25)",color:"#C9576B",fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,cursor:"pointer"}}>DELETE CHAT HISTORY</button>
+                  style={{width:"100%",padding:"9px",borderRadius:7,background:"rgba(255,77,109,0.08)",border:"1px solid rgba(255,77,109,0.25)",color:"#E5697E",fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,cursor:"pointer"}}>DELETE CHAT HISTORY</button>
               )}
             </div>
 
@@ -1126,7 +1126,7 @@ function SettingsPanel(props){
                 <div style={{fontFamily:FONT_MONO,fontSize:9,color:T.dim,letterSpacing:2,fontWeight:700,marginBottom:9}}>ACCOUNT</div>
                 <div style={{fontFamily:FONT_MONO,fontSize:10,color:T.text,marginBottom:10,overflow:"hidden",textOverflow:"ellipsis"}}>{user.email}</div>
                 <button onClick={onSignOut}
-                  style={{width:"100%",padding:"9px",borderRadius:7,background:"rgba(255,77,109,0.08)",border:"1px solid rgba(255,77,109,0.25)",color:"#C9576B",fontFamily:FONT_MONO,fontSize:10,fontWeight:700,letterSpacing:1,cursor:"pointer"}}>SIGN OUT</button>
+                  style={{width:"100%",padding:"9px",borderRadius:7,background:"rgba(255,77,109,0.08)",border:"1px solid rgba(255,77,109,0.25)",color:"#E5697E",fontFamily:FONT_MONO,fontSize:10,fontWeight:700,letterSpacing:1,cursor:"pointer"}}>SIGN OUT</button>
               </div>
             )}
 
@@ -1145,7 +1145,7 @@ function SettingsPanel(props){
                     <span style={{fontFamily:FONT_MONO,fontSize:7,color:accent,letterSpacing:1}}>↻ LOOPING</span>
                   </div>
                   <button onClick={onRemoveVideo}
-                    style={{width:"100%",padding:"7px",borderRadius:6,background:"rgba(255,77,109,0.08)",border:"1px solid rgba(255,77,109,0.25)",color:"#C9576B",fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,cursor:"pointer"}}>REMOVE VIDEO</button>
+                    style={{width:"100%",padding:"7px",borderRadius:6,background:"rgba(255,77,109,0.08)",border:"1px solid rgba(255,77,109,0.25)",color:"#E5697E",fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,cursor:"pointer"}}>REMOVE VIDEO</button>
                 </div>
               ):(
                 <label style={{display:"block",width:"100%",padding:"16px 0",textAlign:"center",borderRadius:8,border:`1px dashed ${accent}45`,background:`${accent}08`,color:accent,fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,cursor:"pointer",marginBottom:10}}>
@@ -1153,18 +1153,18 @@ function SettingsPanel(props){
                   <input type="file" accept="video/mp4,video/webm" onChange={handleVideoUpload} style={{display:"none"}}/>
                 </label>
               )}
-              {videoErr&&<div style={{fontFamily:FONT_MONO,fontSize:9,color:"#C9576B",marginBottom:8}}> {videoErr}</div>}
+              {videoErr&&<div style={{fontFamily:FONT_MONO,fontSize:9,color:"#E5697E",marginBottom:8}}> {videoErr}</div>}
             </div>
 
             {/* BACKGROUND PHOTO */}
             <div style={{marginBottom:18,paddingTop:14,borderTop:`1px solid ${T.border}`}}>
               <div style={{fontFamily:FONT_MONO,fontSize:9,color:T.dim,letterSpacing:2,fontWeight:700,marginBottom:9}}>BACKGROUND PHOTO</div>
-              {bgVideo?.enabled&&<div style={{fontFamily:FONT_MONO,fontSize:8,color:"#C9A15B",marginBottom:8,lineHeight:1.5}}> Your video is active and takes priority over a photo.</div>}
+              {bgVideo?.enabled&&<div style={{fontFamily:FONT_MONO,fontSize:8,color:"#E0B25F",marginBottom:8,lineHeight:1.5}}> Your video is active and takes priority over a photo.</div>}
               {bgImage?.dataUrl?(
                 <div style={{marginBottom:10}}>
                   <div style={{width:"100%",height:90,borderRadius:8,border:`1px solid ${T.border}`,backgroundImage:`url(${bgImage.dataUrl})`,backgroundSize:"cover",backgroundPosition:"center",marginBottom:8}}/>
                   <button onClick={()=>setBgImage(prev=>({...prev,dataUrl:""}))}
-                    style={{width:"100%",padding:"7px",borderRadius:6,background:"rgba(255,77,109,0.08)",border:"1px solid rgba(255,77,109,0.25)",color:"#C9576B",fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,cursor:"pointer"}}>REMOVE PHOTO</button>
+                    style={{width:"100%",padding:"7px",borderRadius:6,background:"rgba(255,77,109,0.08)",border:"1px solid rgba(255,77,109,0.25)",color:"#E5697E",fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,cursor:"pointer"}}>REMOVE PHOTO</button>
                 </div>
               ):(
                 <label style={{display:"block",width:"100%",padding:"16px 0",textAlign:"center",borderRadius:8,border:`1px dashed ${accent}45`,background:`${accent}08`,color:accent,fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,cursor:"pointer",marginBottom:10}}>
@@ -1172,7 +1172,7 @@ function SettingsPanel(props){
                   <input type="file" accept="image/*" onChange={handleBgUpload} style={{display:"none"}}/>
                 </label>
               )}
-              {uploadErr&&<div style={{fontFamily:FONT_MONO,fontSize:9,color:"#C9576B",marginBottom:8}}> {uploadErr}</div>}
+              {uploadErr&&<div style={{fontFamily:FONT_MONO,fontSize:9,color:"#E5697E",marginBottom:8}}> {uploadErr}</div>}
               <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
                 <span style={{fontFamily:FONT_MONO,fontSize:9,color:T.dim,letterSpacing:2,fontWeight:700}}>PHOTO DIM</span>
                 <span style={{fontFamily:FONT_MONO,fontSize:10,color:accent,fontWeight:700}}>{Math.round((bgImage?.dim??0.6)*100)}%</span>
@@ -1300,7 +1300,7 @@ export function breakingItems(news){
 function NewsPanel({news,onDiveDeep,onRefresh,refreshing,lastUpd,accent,T,density}){
   const alerts=breakingItems(news);
   const live=alerts.some(a=>a.impact?.live);
-  const alertColor=live?"#C9576B":"#C9A15B";
+  const alertColor=live?"#E5697E":"#E0B25F";
   return(
     <div style={{width:"100%",display:"flex",flexDirection:"column",background:T.panel,height:"100%"}}>
       <div style={{padding:"11px 14px",borderBottom:`1px solid ${alerts.length?`${alertColor}45`:T.border}`,display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0,background:alerts.length?`${alertColor}0c`:"transparent",transition:"background 0.4s"}}>
@@ -1541,7 +1541,7 @@ function DataPage({news,secData,secLoading,onRefreshAll,onDiveNews,onDiveFiling,
 
   const newsCard=(
     <div style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:10,padding:14,height:"100%",display:"flex",flexDirection:"column",minHeight:0}}>
-      <div style={{fontFamily:FONT_MONO,fontSize:9,color:"#C9A15B",letterSpacing:2,fontWeight:700,marginBottom:10,flexShrink:0}}> BREAKING / LIVE NEWS</div>
+      <div style={{fontFamily:FONT_MONO,fontSize:9,color:"#E0B25F",letterSpacing:2,fontWeight:700,marginBottom:10,flexShrink:0}}> BREAKING / LIVE NEWS</div>
       <div style={{overflowY:"auto",flex:1,minHeight:0}}>
         {news.slice(0,12).map((item,i)=><NewsCard key={item.id||i} item={item} onDiveDeep={onDiveNews} T={T}/>)}
       </div>
@@ -1549,17 +1549,17 @@ function DataPage({news,secData,secLoading,onRefreshAll,onDiveNews,onDiveFiling,
   );
   const filingsCard=(
     <div style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:10,padding:14,height:"100%",display:"flex",flexDirection:"column",minHeight:0}}>
-      <div style={{fontFamily:FONT_MONO,fontSize:9,color:"#6F94BE",letterSpacing:2,fontWeight:700,marginBottom:10,flexShrink:0}}> SEC FILINGS</div>
+      <div style={{fontFamily:FONT_MONO,fontSize:9,color:"#7FA9D8",letterSpacing:2,fontWeight:700,marginBottom:10,flexShrink:0}}> SEC FILINGS</div>
       <div style={{overflowY:"auto",flex:1,minHeight:0}}>
         {secLoading&&<div style={{fontFamily:FONT_MONO,fontSize:10,color:T.dim,padding:8}}>Loading from SEC EDGAR...</div>}
         {!secLoading&&(secData?.filings||[]).length===0&&<div style={{fontFamily:FONT_MONO,fontSize:10,color:T.dim,padding:8}}>No recent filings for your watchlist.</div>}
         {(secData?.filings||[]).map((f,i)=>(
           <div key={i} onClick={()=>onDiveFiling(f)}
-            style={{background:"rgba(126,184,247,0.06)",border:"1px solid rgba(126,184,247,0.18)",borderLeft:"3px solid #6F94BE",borderRadius:7,padding:"8px 10px",marginBottom:6,cursor:"pointer"}}
+            style={{background:"rgba(126,184,247,0.06)",border:"1px solid rgba(126,184,247,0.18)",borderLeft:"3px solid #7FA9D8",borderRadius:7,padding:"8px 10px",marginBottom:6,cursor:"pointer"}}
             onMouseEnter={e=>e.currentTarget.style.background="rgba(126,184,247,0.12)"}
             onMouseLeave={e=>e.currentTarget.style.background="rgba(126,184,247,0.06)"}>
             <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
-              <span style={{fontFamily:FONT_MONO,fontSize:11,fontWeight:700,color:"#6F94BE"}}>{f.symbol} · {f.form}</span>
+              <span style={{fontFamily:FONT_MONO,fontSize:11,fontWeight:700,color:"#7FA9D8"}}>{f.symbol} · {f.form}</span>
               <span style={{fontFamily:FONT_MONO,fontSize:9,color:T.dim}}>{f.date}</span>
             </div>
             <span style={{fontFamily:FONT_CHAT,fontSize:10.5,color:T.textDim}}>{f.formName||f.form}</span>
@@ -1571,22 +1571,22 @@ function DataPage({news,secData,secLoading,onRefreshAll,onDiveNews,onDiveFiling,
   );
   const insidersCard=(
     <div style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:10,padding:14,height:"100%",display:"flex",flexDirection:"column",minHeight:0}}>
-      <div style={{fontFamily:FONT_MONO,fontSize:9,color:"#8B84C4",letterSpacing:2,fontWeight:700,marginBottom:10,flexShrink:0}}> INSIDER TRADES (FORM 4)</div>
+      <div style={{fontFamily:FONT_MONO,fontSize:9,color:"#A099E0",letterSpacing:2,fontWeight:700,marginBottom:10,flexShrink:0}}> INSIDER TRADES (FORM 4)</div>
       <div style={{overflowY:"auto",flex:1,minHeight:0}}>
         {secLoading&&<div style={{fontFamily:FONT_MONO,fontSize:10,color:T.dim,padding:8}}>Loading from SEC EDGAR...</div>}
         {!secLoading&&(secData?.insiderTrades||[]).length===0&&<div style={{fontFamily:FONT_MONO,fontSize:10,color:T.dim,padding:8}}>No recent Form 4s for your watchlist.</div>}
         {(secData?.insiderTrades||[]).map((t,i)=>(
           <div key={i} onClick={()=>onDiveInsider(t)}
-            style={{background:"rgba(167,139,250,0.06)",border:"1px solid rgba(167,139,250,0.18)",borderLeft:"3px solid #8B84C4",borderRadius:7,padding:"8px 10px",marginBottom:6,cursor:"pointer"}}
+            style={{background:"rgba(167,139,250,0.06)",border:"1px solid rgba(167,139,250,0.18)",borderLeft:"3px solid #A099E0",borderRadius:7,padding:"8px 10px",marginBottom:6,cursor:"pointer"}}
             onMouseEnter={e=>e.currentTarget.style.background="rgba(167,139,250,0.12)"}
             onMouseLeave={e=>e.currentTarget.style.background="rgba(167,139,250,0.06)"}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
               <span style={{display:"flex",alignItems:"center",gap:6}}>
-                <span style={{fontFamily:FONT_MONO,fontSize:11,fontWeight:700,color:"#8B84C4"}}>{t.symbol}</span>
+                <span style={{fontFamily:FONT_MONO,fontSize:11,fontWeight:700,color:"#A099E0"}}>{t.symbol}</span>
                 {/* The transaction TYPE is the whole signal — a BUY and a tax
                     withholding are not the same event. Show it, don't hide it. */}
                 {t.txnCode&&(()=>{const buy=t.txnCode==="P";const sell=t.txnCode==="S";
-                  const c=buy?"#4FA97B":sell?"#ff8a5b":"#8896a8";
+                  const c=buy?"#5FCB96":sell?"#ff8a5b":"#8896a8";
                   const lbl=({P:"BUY",S:"SELL",A:"GRANT",M:"EXERCISE",F:"TAX",G:"GIFT",C:"CONVERT"})[t.txnCode]||t.txnCode;
                   return <span style={{fontFamily:FONT_MONO,fontSize:7,fontWeight:800,letterSpacing:1,color:c,border:`1px solid ${c}55`,background:`${c}14`,borderRadius:3,padding:"1px 5px"}}>{lbl}</span>;})()}
               </span>
@@ -2351,12 +2351,12 @@ export default function MarketTerminal(){
             clock readout. Reserve ~26px on the right so the clock clears it. */}
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8,paddingRight:24}}>
           <div style={{display:"flex",alignItems:"center",gap:7}}>
-            <div style={{width:7,height:7,borderRadius:"50%",background:dataErr?"#C9576B":accent,boxShadow:dataErr?"none":`0 0 8px ${accent}`}}/>
+            <div style={{width:7,height:7,borderRadius:"50%",background:dataErr?"#E5697E":accent,boxShadow:dataErr?"none":`0 0 8px ${accent}`}}/>
             <span style={{fontFamily:FONT_SANS,fontSize:14,fontWeight:700,color:TL.text,letterSpacing:0.2}}>Watchlist</span>
           </div>
           <span style={{fontFamily:FONT_MONO,fontSize:8,color:TL.dim}}>{lastUpd?new Date(lastUpd).toLocaleTimeString():"—"}</span>
         </div>
-        {dataErr&&<div style={{fontFamily:FONT_MONO,fontSize:9,color:"#C9576B",background:"rgba(255,77,109,0.07)",border:"1px solid rgba(255,77,109,0.18)",borderRadius:5,padding:"4px 8px",marginBottom:7}}> {dataErr}</div>}
+        {dataErr&&<div style={{fontFamily:FONT_MONO,fontSize:9,color:"#E5697E",background:"rgba(255,77,109,0.07)",border:"1px solid rgba(255,77,109,0.18)",borderRadius:5,padding:"4px 8px",marginBottom:7}}> {dataErr}</div>}
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <span style={{fontFamily:FONT_MONO,fontSize:8,color:TL.dim,letterSpacing:2,fontWeight:700}}>{watchlist.length} TICKERS</span>
           <div style={{display:"flex",gap:5}}>
@@ -2423,7 +2423,7 @@ export default function MarketTerminal(){
     noteItems[`note-${n.id}`]=(
       <div style={{height:"100%",display:"flex",flexDirection:"column",background:T.surface}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 10px",borderBottom:`1px solid ${T.border}`,flexShrink:0}}>
-          <span style={{fontFamily:FONT_MONO,fontSize:8,color:"#C9A15B",letterSpacing:2,fontWeight:700}}> NOTE</span>
+          <span style={{fontFamily:FONT_MONO,fontSize:8,color:"#E0B25F",letterSpacing:2,fontWeight:700}}> NOTE</span>
           <button onClick={()=>setNotes(prev=>prev.filter(x=>x.id!==n.id))} style={{color:T.dim,fontSize:12,cursor:"pointer"}}><Icon name="close" size={14} /></button>
         </div>
         <textarea value={n.text} onChange={e=>setNotes(prev=>prev.map(x=>x.id===n.id?{...x,text:e.target.value}:x))}
@@ -2652,7 +2652,7 @@ export default function MarketTerminal(){
                   <span title={`${newsAlerts.length} breaking/live item${newsAlerts.length>1?"s":""}`}
                     style={{
                       position:"absolute",top:-2,right:-9,width:7,height:7,borderRadius:"50%",
-                      background:newsAlerts.some(a=>a.impact?.live)?"#C9576B":"#C9A15B",
+                      background:newsAlerts.some(a=>a.impact?.live)?"#E5697E":"#E0B25F",
                       animation:"news-pulse 1.1s ease-in-out infinite",
                     }}/>
                 )}
@@ -2669,9 +2669,9 @@ export default function MarketTerminal(){
               layoutEdit?(
                 <div style={{display:"flex",gap:6}}>
                   {view==="terminal"&&<button onClick={()=>setNotes(prev=>[...prev,{id:Date.now(),text:""}])}
-                    style={{padding:"5px 10px",borderRadius:7,fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,color:"#C9A15B",background:"rgba(247,201,72,0.08)",border:"1px solid rgba(247,201,72,0.3)",cursor:"pointer"}}>+ NOTE</button>}
+                    style={{padding:"5px 10px",borderRadius:7,fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,color:"#E0B25F",background:"rgba(247,201,72,0.08)",border:"1px solid rgba(247,201,72,0.3)",cursor:"pointer"}}>+ NOTE</button>}
                   <button onClick={()=>{const k=view==="data"?"data":"terminal";setLayouts(prev=>{const p={...prev};delete p[k];return p;});setLayoutEdit(false);}}
-                    style={{padding:"5px 10px",borderRadius:7,fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,color:"#C9576B",background:"rgba(255,77,109,0.08)",border:"1px solid rgba(255,77,109,0.3)",cursor:"pointer"}}>RESET</button>
+                    style={{padding:"5px 10px",borderRadius:7,fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,color:"#E5697E",background:"rgba(255,77,109,0.08)",border:"1px solid rgba(255,77,109,0.3)",cursor:"pointer"}}>RESET</button>
                   <button onClick={()=>{const k=view==="data"?"data":"terminal";const def=k==="data"?DEFAULT_DATA_LAYOUT:DEFAULT_TERMINAL_LAYOUT;if(!layouts?.[k])setLayouts(prev=>({...prev,[k]:def}));setLayoutEdit(false);}}
                     style={{padding:"5px 10px",borderRadius:7,fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,color:accent,background:`${accent}12`,border:`1px solid ${accent}40`,cursor:"pointer"}}> SAVE LAYOUT</button>
                 </div>

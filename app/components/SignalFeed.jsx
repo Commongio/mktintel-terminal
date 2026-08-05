@@ -75,9 +75,9 @@ function getUserMinConviction() {
 const FM = "'JetBrains Mono',monospace";
 const FC = "'Inter',sans-serif";
 
-const stColor = (s) => (s === "FIRE" ? "#4FA97B" : s === "HOLD" ? "#C9A15B" : "#6F94BE");
-const dirColor = (d) => (d === "LONG" ? "#4FA97B" : d === "SHORT" ? "#C9576B" : "#9DB4CC");
-const convColor = (c) => (c >= 90 ? "#4FA97B" : c >= 78 ? "#C9A15B" : c >= 60 ? "#fb923c" : "#9DB4CC");
+const stColor = (s) => (s === "FIRE" ? "#5FCB96" : s === "HOLD" ? "#E0B25F" : "#7FA9D8");
+const dirColor = (d) => (d === "LONG" ? "#5FCB96" : d === "SHORT" ? "#E5697E" : "#9DB4CC");
+const convColor = (c) => (c >= 90 ? "#5FCB96" : c >= 78 ? "#E0B25F" : c >= 60 ? "#fb923c" : "#9DB4CC");
 
 // Cadence buckets now live in lib/signalLabels (bucketFor) because they are
 // asset-class aware — options/futures never classify above "daily" (short-dated).
@@ -149,7 +149,7 @@ function reasoningFor(r) {
 // hidden + overflowY auto, so an absolutely-positioned popup inside a row would
 // be clipped by the scroll container. anchorRect comes from the row's rect.
 function ReasoningPopup({ r, T, accent, anchorRect, onClose }) {
-  const border = T?.border ?? "#1A2535";
+  const border = T?.border ?? "#24313F";
   const text = T?.text ?? "#E2EDF8";
   const dim = T?.dim ?? "#9DB4CC";
   const panel = T?.panel ?? "#0A1018";
@@ -217,7 +217,7 @@ function ReasoningPopup({ r, T, accent, anchorRect, onClose }) {
       <div style={{ fontFamily: FM, fontSize: 7, color: dim, letterSpacing: 2, fontWeight: 700, marginBottom: 6 }}>AGENT VOTES & TECHNICALS</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 7, marginBottom: 11 }}>
         {agents.map((a, i) => {
-          const ac = a.signal === "bullish" ? "#4FA97B" : a.signal === "bearish" ? "#C9576B" : dim;
+          const ac = a.signal === "bullish" ? "#5FCB96" : a.signal === "bearish" ? "#E5697E" : dim;
           return (
             <div key={i} style={{ padding: "7px 9px", borderRadius: 7, background: "#070d16", borderLeft: `2px solid ${ac}` }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
@@ -239,7 +239,7 @@ function ReasoningPopup({ r, T, accent, anchorRect, onClose }) {
         <>
           <div style={{ fontFamily: FM, fontSize: 7, color: dim, letterSpacing: 2, fontWeight: 700, marginBottom: 6 }}>TRADE PLAN</div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 6, padding: "9px 10px", background: "#070d16", border: `1px solid ${border}`, borderRadius: 8 }}>
-            {[["ENTRY", r.plan.entry, text], ["STOP", r.plan.stop, "#C9576B"], ["T1", r.plan.t1, "#4FA97B"], ["T2", r.plan.t2, "#4FA97B"]].map(([l, v, c]) => (
+            {[["ENTRY", r.plan.entry, text], ["STOP", r.plan.stop, "#E5697E"], ["T1", r.plan.t1, "#5FCB96"], ["T2", r.plan.t2, "#5FCB96"]].map(([l, v, c]) => (
               <div key={l}>
                 <div style={{ fontFamily: FM, fontSize: 6.5, color: dim, letterSpacing: 1 }}>{l}</div>
                 <div style={{ fontFamily: FM, fontSize: 10.5, fontWeight: 700, color: c }}>{Number(v).toFixed(2)}</div>
@@ -283,7 +283,7 @@ function ReasoningPopup({ r, T, accent, anchorRect, onClose }) {
 }
 
 function FeedRow({ r, T, accent, highlight, onDelete, isDev, onDevGrade }) {
-  const border = T?.border ?? "#1A2535";
+  const border = T?.border ?? "#24313F";
   const text = T?.text ?? "#E2EDF8";
   const dim = T?.dim ?? "#9DB4CC";
   const [open, setOpen] = useState(false);
@@ -325,7 +325,7 @@ function FeedRow({ r, T, accent, highlight, onDelete, isDev, onDevGrade }) {
       {won && (
         <span style={{
           position: "absolute", top: 8, right: 30, zIndex: 2,
-          fontFamily: FM, fontSize: 7.5, fontWeight: 800, letterSpacing: 1.5, color: "#4FA97B",
+          fontFamily: FM, fontSize: 7.5, fontWeight: 800, letterSpacing: 1.5, color: "#5FCB96",
           background: "rgba(0,230,118,0.12)", border: "1px solid rgba(0,230,118,0.4)",
           borderRadius: 4, padding: "2px 6px",
         }}> WON</span>
@@ -362,13 +362,13 @@ function FeedRow({ r, T, accent, highlight, onDelete, isDev, onDevGrade }) {
               WIN. These say what happened relative to the CALL, so the labels
               read correctly for either side. */}
           {[
-            ["called_it_big",  "Called it — major move", "#4FA97B"],
-            ["closed_profit",  "Closed with profit",     "#4FA97B"],
-            ["reversed_hard",  "Reversed hard against",  "#C9576B"],
-            ["stopped_out",    "Stopped out",            "#C9576B"],
-            ["went_red_fast",  "Went red immediately",   "#C9576B"],
-            ["bad_rr",         "R:R turned negative",    "#C9A15B"],
-            ["stale",          "Went stale",             "#C9A15B"],
+            ["called_it_big",  "Called it — major move", "#5FCB96"],
+            ["closed_profit",  "Closed with profit",     "#5FCB96"],
+            ["reversed_hard",  "Reversed hard against",  "#E5697E"],
+            ["stopped_out",    "Stopped out",            "#E5697E"],
+            ["went_red_fast",  "Went red immediately",   "#E5697E"],
+            ["bad_rr",         "R:R turned negative",    "#E0B25F"],
+            ["stale",          "Went stale",             "#E0B25F"],
           ].map(([reason, label, c]) => (
             <button key={reason}
               onClick={() => { setDevMenu(false); onDevGrade?.(r, reason); }}
@@ -416,9 +416,9 @@ function FeedRow({ r, T, accent, highlight, onDelete, isDev, onDevGrade }) {
   );
 }
 
-const SignalFeed = forwardRef(function SignalFeed({ accent = "#4C9E92", T, assetClass = "futures", onNewSignal, fill = false, vix = null, isDev = false }, ref) {
+const SignalFeed = forwardRef(function SignalFeed({ accent = "#5CBFB1", T, assetClass = "futures", onNewSignal, fill = false, vix = null, isDev = false }, ref) {
   const surface = T?.surface ?? "#0A1018";
-  const border = T?.border ?? "#1A2535";
+  const border = T?.border ?? "#24313F";
   const text = T?.text ?? "#E2EDF8";
   const dim = T?.dim ?? "#9DB4CC";
 
@@ -714,7 +714,7 @@ const SignalFeed = forwardRef(function SignalFeed({ accent = "#4C9E92", T, asset
           </span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 7, flexShrink: 0 }}>
-          <span style={{ fontFamily: FM, fontSize: 7, color: state === "live" ? "#4FA97B" : dim, letterSpacing: 1 }}>
+          <span style={{ fontFamily: FM, fontSize: 7, color: state === "live" ? "#5FCB96" : dim, letterSpacing: 1 }}>
             {state === "live" ? "● LIVE" : state === "loading" ? "…" : state === "empty" ? "WAITING" : state === "unconfigured" ? "LOCAL MODE" : "OFFLINE"}
           </span>
           {state !== "unconfigured" && (
@@ -737,12 +737,12 @@ const SignalFeed = forwardRef(function SignalFeed({ accent = "#4C9E92", T, asset
         {showChopBanner && (
           <div style={{
             display: "flex", alignItems: "flex-start", gap: 9, padding: "10px 13px",
-            borderBottom: `1px solid #C9A15B33`, background: "#C9A15B0e",
+            borderBottom: `1px solid #E0B25F33`, background: "#E0B25F0e",
           }}>
             <span style={{ fontSize: 12, lineHeight: 1.2, flexShrink: 0 }}><Icon name="warning" size={14} /></span>
             <div style={{ flex: 1 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
-                <span style={{ fontFamily: FM, fontSize: 8.5, fontWeight: 800, letterSpacing: 1, color: "#C9A15B" }}>
+                <span style={{ fontFamily: FM, fontSize: 8.5, fontWeight: 800, letterSpacing: 1, color: "#E0B25F" }}>
                   UNSTABLE CONDITIONS — SIGNALS ON HOLD
                 </span>
                 {devChopPreview && !chop?.choppy && (
@@ -791,7 +791,7 @@ const SignalFeed = forwardRef(function SignalFeed({ accent = "#4C9E92", T, asset
             The engine writes new signals as conditions change; no placeholder or simulated entries are displayed.
           </div>
         )}
-        {state === "error" && <div style={{ padding: 14, fontFamily: FM, fontSize: 9, color: "#C9576B" }}> Could not load signal feed.</div>}
+        {state === "error" && <div style={{ padding: 14, fontFamily: FM, fontSize: 9, color: "#E5697E" }}> Could not load signal feed.</div>}
         {state === "live" && visible.length === 0 && (
           <div style={{ padding: "14px", fontFamily: FC, fontSize: 10.5, color: dim, lineHeight: 1.6 }}>
             Signals exist but none match your cadence preference ({cadence.join(", ")}). Adjust it in

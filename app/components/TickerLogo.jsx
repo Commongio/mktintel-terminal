@@ -5,7 +5,7 @@
 import { useState } from "react";
 
 const FM = "'JetBrains Mono',monospace";
-const PALETTE = ["#4C9E92", "#6F94BE", "#8B84C4", "#C9A15B", "#fb923c", "#f472b6", "#34d399", "#60a5fa"];
+const PALETTE = ["#5CBFB1", "#7FA9D8", "#A099E0", "#E0B25F", "#fb923c", "#f472b6", "#34d399", "#60a5fa"];
 const hashColor = (s) => PALETTE[[...String(s)].reduce((a, c) => a + c.charCodeAt(0), 0) % PALETTE.length];
 // Symbols that never have corporate logos — skip the network attempt.
 const NO_LOGO = /^(NQ|MNQ|ES|MES|CL|GC|YM|ZB|6E|\^|BTC|ETH)/;

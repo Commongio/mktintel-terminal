@@ -105,7 +105,7 @@ function KronosOnboarding({ accent, T, onComplete }) {
   const FC = "'Inter',sans-serif";
   const surface = T?.surface ?? "#0b1320";
   const border  = T?.border  ?? "#172030";
-  const dim     = T?.dim     ?? "#3a4a5a";
+  const dim     = T?.dim     ?? "#45566A";
   const text    = T?.text    ?? "#c8d8e8";
 
   const currentStep = ONBOARDING_STEPS[step];

@@ -7,7 +7,7 @@ const FM = "'JetBrains Mono',monospace";
 
 export function CollapseButton({ collapsed, onToggle, accent, T, title }) {
   const dim = T?.dim ?? "#9DB4CC";
-  const border = T?.border ?? "#1A2535";
+  const border = T?.border ?? "#24313F";
   return (
     <button onClick={onToggle} title={title || (collapsed ? "Expand panel" : "Collapse panel")}
       style={{
@@ -22,9 +22,9 @@ export function CollapseButton({ collapsed, onToggle, accent, T, title }) {
 }
 
 // A thin vertical rail shown in place of a collapsed side column.
-export function CollapsedRail({ label, side = "left", onExpand, accent = "#4C9E92", T }) {
+export function CollapsedRail({ label, side = "left", onExpand, accent = "#5CBFB1", T }) {
   const panel = T?.panel ?? "#0A1018";
-  const border = T?.border ?? "#1A2535";
+  const border = T?.border ?? "#24313F";
   const dim = T?.dim ?? "#9DB4CC";
   return (
     <div

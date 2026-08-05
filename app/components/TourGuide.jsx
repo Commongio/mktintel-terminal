@@ -69,7 +69,7 @@ const STOPS = [
   },
 ];
 
-export default function TourGuide({ accent = "#4C9E92", T, onClose, onSwitchView }) {
+export default function TourGuide({ accent = "#5CBFB1", T, onClose, onSwitchView }) {
   const [stop, setStop] = useState(0);
   const [item, setItem] = useState(0);
   const s = STOPS[stop];

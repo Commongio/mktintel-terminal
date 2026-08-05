@@ -238,7 +238,7 @@ export function DevBypassBadge() {
     <div style={{
       position: "fixed", bottom: 8, left: 8, zIndex: 99999, pointerEvents: "none",
       fontFamily: FM, fontSize: 8, fontWeight: 800, letterSpacing: 1.5,
-      color: "#C9A15B", background: "rgba(247,201,72,0.10)",
+      color: "#E0B25F", background: "rgba(247,201,72,0.10)",
       border: "1px solid rgba(247,201,72,0.40)", borderRadius: 5, padding: "3px 8px",
     }}>
        DEV AUTH BYPASS · LOCAL MODE
