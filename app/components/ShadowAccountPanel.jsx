@@ -16,7 +16,7 @@ const outcomeColor = (o) =>
 // ─── SHADOW ACCOUNT PANEL ─────────────────────────────────────────────────────
 export default function ShadowAccountPanel({ accent = "#4C9E92", T, assetClass = "futures" }) {
   const surface = T?.surface ?? "#0A1018";
-  const border  = T?.border  ?? "#1A2535";
+  const border  = T?.border  ?? "#24313F";
   const text    = T?.text    ?? "#E2EDF8";
   const dim     = T?.dim     ?? "#9DB4CC";
 
@@ -73,7 +73,7 @@ export default function ShadowAccountPanel({ accent = "#4C9E92", T, assetClass =
           <button onClick={evaluate} disabled={loading} style={{ fontFamily: FM, fontSize: 8, color: accent, background: "none", border: `1px solid ${accent}30`, borderRadius: 5, padding: "3px 8px", cursor: "pointer" }}>
             {loading ? "..." : "RE-GRADE"}
           </button>
-          <button onClick={clear} style={{ fontFamily: FM, fontSize: 8, color: "#C9576B", background: "none", border: "1px solid rgba(255,61,87,0.25)", borderRadius: 5, padding: "3px 8px", cursor: "pointer" }}>CLEAR</button>
+          <button onClick={clear} style={{ fontFamily: FM, fontSize: 8, color: "#C9576B", background: "none", border: "1px solid rgba(255,92,122,0.25)", borderRadius: 5, padding: "3px 8px", cursor: "pointer" }}>CLEAR</button>
         </div>
       </div>
 
@@ -130,7 +130,7 @@ export default function ShadowAccountPanel({ accent = "#4C9E92", T, assetClass =
 // ─── PAPER TRADING PANEL ──────────────────────────────────────────────────────
 export function PaperTradingPanel({ accent = "#4C9E92", T, paperMode, setPaperMode, assetClass = "futures" }) {
   const surface = T?.surface ?? "#0A1018";
-  const border  = T?.border  ?? "#1A2535";
+  const border  = T?.border  ?? "#24313F";
   const text    = T?.text    ?? "#E2EDF8";
   const dim     = T?.dim     ?? "#9DB4CC";
 
@@ -195,7 +195,7 @@ export function PaperTradingPanel({ accent = "#4C9E92", T, paperMode, setPaperMo
             {liveUnlocked ? "UNLOCKED" : `${daysPaper}/30 days`}
           </span>
         </div>
-        <div style={{ height: 5, background: "#1A2535", borderRadius: 3, overflow: "hidden" }}>
+        <div style={{ height: 5, background: "#24313F", borderRadius: 3, overflow: "hidden" }}>
           <div style={{
             height: "100%", width: `${Math.min(100, (daysPaper / 30) * 100)}%`,
             background: liveUnlocked ? "#4FA97B" : "#C9A15B", borderRadius: 3, transition: "width 0.6s",
@@ -209,7 +209,7 @@ export function PaperTradingPanel({ accent = "#4C9E92", T, paperMode, setPaperMo
         </span>
         <button onClick={reset} style={{
           fontFamily: FM, fontSize: 8, color: "#C9576B", background: "none",
-          border: "1px solid rgba(255,61,87,0.25)", borderRadius: 5, padding: "3px 8px", cursor: "pointer",
+          border: "1px solid rgba(255,92,122,0.25)", borderRadius: 5, padding: "3px 8px", cursor: "pointer",
         }}>RESET</button>
       </div>
     </div>

@@ -103,14 +103,14 @@ export default function AccessGate({ onAccess }) {
         @keyframes ag-shake  { 0%,100%{transform:translateX(0);} 20%,60%{transform:translateX(-9px);} 40%,80%{transform:translateX(9px);} }
         @keyframes ag-blink  { 0%,100%{opacity:1;} 50%{opacity:0;} }
         @keyframes ag-scan   { 0%,100%{opacity:0.2;} 50%{opacity:0.7;} }
-        @keyframes ag-lock   { 0%,100%{box-shadow:0 0 20px rgba(255,77,109,0.25),0 0 40px rgba(255,77,109,0.10);} 50%{box-shadow:0 0 30px rgba(255,77,109,0.45),0 0 60px rgba(255,77,109,0.20);} }
+        @keyframes ag-lock   { 0%,100%{box-shadow:0 0 20px rgba(255,92,122,0.25),0 0 40px rgba(255,92,122,0.10);} 50%{box-shadow:0 0 30px rgba(255,92,122,0.45),0 0 60px rgba(255,92,122,0.20);} }
         @keyframes ag-appear { from{opacity:0;transform:translateY(12px);} to{opacity:1;transform:translateY(0);} }
       `}</style>
 
       {/* Background grid */}
       <div style={{
         position: "absolute", inset: 0, pointerEvents: "none",
-        backgroundImage: "linear-gradient(rgba(0,212,170,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,170,0.03) 1px,transparent 1px)",
+        backgroundImage: "linear-gradient(rgba(92,191,177,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(92,191,177,0.03) 1px,transparent 1px)",
         backgroundSize: "44px 44px",
       }}/>
 
@@ -153,7 +153,7 @@ export default function AccessGate({ onAccess }) {
           </div>
           <div style={{
             position:"absolute", width:72, height:72, borderRadius:"50%",
-            border:"1px solid rgba(255,77,109,0.14)",
+            border:"1px solid rgba(255,92,122,0.14)",
             animation:"ag-spinR 30s linear infinite",
           }}/>
           <div style={{
@@ -183,9 +183,9 @@ export default function AccessGate({ onAccess }) {
         <div style={{
           width:"100%", padding:"26px 26px 22px",
           background:"rgba(10,18,30,0.97)",
-          border:`1px solid ${isLocked?"rgba(255,77,109,0.28)":"#16253a"}`,
+          border:`1px solid ${isLocked?"rgba(255,92,122,0.28)":"#16253a"}`,
           borderRadius:14,
-          boxShadow: isLocked ? "0 0 50px rgba(255,77,109,0.08)" : "none",
+          boxShadow: isLocked ? "0 0 50px rgba(255,92,122,0.08)" : "none",
           animation: shake ? "ag-shake 0.42s ease" : (isLocked ? "ag-lock 2.5s ease-in-out infinite" : "none"),
           transition:"border-color 0.3s",
         }}>
@@ -200,7 +200,7 @@ export default function AccessGate({ onAccess }) {
                 letterSpacing:4, marginBottom:6, fontVariantNumeric:"tabular-nums" }}>
                 {mins}:{secs}
               </div>
-              <div style={{ fontFamily:FM, fontSize:8, color:"rgba(255,77,109,0.5)", letterSpacing:3 }}>
+              <div style={{ fontFamily:FM, fontSize:8, color:"rgba(255,92,122,0.5)", letterSpacing:3 }}>
                 MINUTES REMAINING UNTIL UNLOCK
               </div>
             </div>
@@ -210,7 +210,7 @@ export default function AccessGate({ onAccess }) {
               <div style={{
                 display:"flex", alignItems:"center", gap:10,
                 background:"#060910",
-                border:`1px solid ${error?"rgba(255,77,109,0.4)":focused?"rgba(0,212,170,0.3)":"#16253a"}`,
+                border:`1px solid ${error?"rgba(255,92,122,0.4)":focused?"rgba(92,191,177,0.3)":"#16253a"}`,
                 borderRadius:9, padding:"12px 14px", marginBottom:10,
                 transition:"border-color 0.15s",
               }}>
@@ -257,9 +257,9 @@ export default function AccessGate({ onAccess }) {
               <button onClick={handleSubmit} disabled={!code.trim()||loading} style={{
                 width:"100%", padding:"13px 0",
                 background: code.trim()&&!loading
-                  ? "linear-gradient(135deg,rgba(0,212,170,0.16),rgba(0,212,170,0.07))"
+                  ? "linear-gradient(135deg,rgba(92,191,177,0.16),rgba(92,191,177,0.07))"
                   : "transparent",
-                border:`1px solid ${code.trim()&&!loading?"rgba(0,212,170,0.38)":"#16253a"}`,
+                border:`1px solid ${code.trim()&&!loading?"rgba(92,191,177,0.38)":"#16253a"}`,
                 borderRadius:8,
                 color: code.trim()&&!loading ? "#4C9E92" : "#2a3a4a",
                 fontFamily:FM, fontSize:11, fontWeight:700, letterSpacing:3,

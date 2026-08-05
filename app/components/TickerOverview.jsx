@@ -25,7 +25,7 @@ class SectionBoundary extends Component {
   render() {
     if (this.state.failed) {
       return (
-        <div style={{ padding: 12, borderRadius: 10, border: "1px solid #1A2535", background: "#0A1018", fontFamily: FM, fontSize: 9, color: "#9DB4CC" }}>
+        <div style={{ padding: 12, borderRadius: 10, border: "1px solid #24313F", background: "#0A1018", fontFamily: FM, fontSize: 9, color: "#9DB4CC" }}>
           {this.props.label} unavailable right now.
         </div>
       );
@@ -91,7 +91,7 @@ const whenLabel = { bmo: "PRE-MKT", amc: "AFTER CLOSE", dmh: "MID-DAY", PRE: "PR
 export default function TickerOverview({ symbol, T, accent, messages, input, setInput, send, loading, onBack, onSymbolChange, fontSize = 14 }) {
   const text = T?.text ?? "#E2EDF8";
   const dim = T?.dim ?? "#9DB4CC";
-  const border = T?.border ?? "#1A2535";
+  const border = T?.border ?? "#24313F";
   const surface = T?.surface ?? "#0A1018";
 
   const [quote, setQuote] = useState(null);

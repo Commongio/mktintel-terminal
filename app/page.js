@@ -656,7 +656,7 @@ function WatchlistModal({onClose,watchlist,onAdd,onRemove,onReset,accent,T}){
                   <span style={{fontFamily:FONT_CHAT,fontSize:10,color:T.dim,marginLeft:8}}>{(r.name||"").slice(0,26)}</span>
                 </div>
                 {watchlist.includes(r.symbol)
-                  ?<button onClick={()=>onRemove(r.symbol)} style={{background:"rgba(255,77,109,0.12)",border:"1px solid rgba(255,77,109,0.28)",color:"#C9576B",borderRadius:5,padding:"2px 9px",fontFamily:FONT_MONO,fontSize:10,cursor:"pointer",fontWeight:700,flexShrink:0}}>REMOVE</button>
+                  ?<button onClick={()=>onRemove(r.symbol)} style={{background:"rgba(255,92,122,0.12)",border:"1px solid rgba(255,92,122,0.28)",color:"#C9576B",borderRadius:5,padding:"2px 9px",fontFamily:FONT_MONO,fontSize:10,cursor:"pointer",fontWeight:700,flexShrink:0}}>REMOVE</button>
                   :<button onClick={()=>onAdd(r.symbol,r.name)} style={{background:`${accent}12`,border:`1px solid ${accent}28`,color:accent,borderRadius:5,padding:"2px 9px",fontFamily:FONT_MONO,fontSize:10,cursor:"pointer",fontWeight:700,flexShrink:0}}>+ ADD</button>}
               </div>
             ))}
@@ -808,8 +808,8 @@ function DataSyncStatus({user,T,accent}){
   const synced=!!user&&supabaseConfigured();
   return(
     <div style={{marginBottom:18,padding:"11px 13px",borderRadius:9,
-      background:synced?`${accent}0a`:"rgba(247,201,72,0.08)",
-      border:`1px solid ${synced?`${accent}30`:"rgba(247,201,72,0.35)"}`}}>
+      background:synced?`${accent}0a`:"rgba(224,178,95,0.08)",
+      border:`1px solid ${synced?`${accent}30`:"rgba(224,178,95,0.35)"}`}}>
       <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:6}}>
         <span style={{fontSize:11}}>{synced?"":""}</span>
         <span style={{fontFamily:FONT_MONO,fontSize:9,fontWeight:800,letterSpacing:1.5,color:synced?accent:"#C9A15B"}}>
@@ -938,7 +938,7 @@ function SettingsPanel(props){
                   <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:10}}>
                     {/* "none" swatch + curated presets + custom picker */}
                     <button onClick={()=>setThemeSel(prev=>({...prev,tint:""}))} title="No tint"
-                      style={{width:26,height:26,borderRadius:7,cursor:"pointer",background:"repeating-conic-gradient(#3a4a5a 0% 25%, transparent 0% 50%) 50% / 10px 10px",border:!themeSel?.tint?`2px solid ${accent}`:`2px solid transparent`,boxShadow:!themeSel?.tint?`0 0 8px ${accent}`:"none"}}/>
+                      style={{width:26,height:26,borderRadius:7,cursor:"pointer",background:"repeating-conic-gradient(#45566A 0% 25%, transparent 0% 50%) 50% / 10px 10px",border:!themeSel?.tint?`2px solid ${accent}`:`2px solid transparent`,boxShadow:!themeSel?.tint?`0 0 8px ${accent}`:"none"}}/>
                     {["#4C9E92","#6F94BE","#8B84C4","#ff6b6b","#C9A15B","#ff8a5b","#22d3ee","#ec4899","#4ade80","#ffffff"].map(c=>(
                       <button key={c} onClick={()=>setThemeSel(prev=>({...prev,tint:c}))} title={c}
                         style={{width:26,height:26,borderRadius:7,background:c,cursor:"pointer",border:themeSel?.tint===c?"2px solid #fff":"2px solid transparent",boxShadow:themeSel?.tint===c?`0 0 10px ${c}`:"none",transition:"all 0.15s"}}/>
@@ -1110,13 +1110,13 @@ function SettingsPanel(props){
               {confirmClear?(
                 <div style={{display:"flex",gap:6}}>
                   <button onClick={()=>{onClearChatHistory?.();setConfirmClear(false);}}
-                    style={{flex:1,padding:"9px",borderRadius:7,background:"rgba(255,77,109,0.12)",border:"1px solid rgba(255,77,109,0.35)",color:"#C9576B",fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,cursor:"pointer"}}>CONFIRM DELETE</button>
+                    style={{flex:1,padding:"9px",borderRadius:7,background:"rgba(255,92,122,0.12)",border:"1px solid rgba(255,92,122,0.35)",color:"#C9576B",fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,cursor:"pointer"}}>CONFIRM DELETE</button>
                   <button onClick={()=>setConfirmClear(false)}
                     style={{flex:1,padding:"9px",borderRadius:7,background:"transparent",border:`1px solid ${T.border}`,color:T.dim,fontFamily:FONT_MONO,fontSize:9,letterSpacing:1,cursor:"pointer"}}>CANCEL</button>
                 </div>
               ):(
                 <button onClick={()=>setConfirmClear(true)}
-                  style={{width:"100%",padding:"9px",borderRadius:7,background:"rgba(255,77,109,0.08)",border:"1px solid rgba(255,77,109,0.25)",color:"#C9576B",fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,cursor:"pointer"}}>DELETE CHAT HISTORY</button>
+                  style={{width:"100%",padding:"9px",borderRadius:7,background:"rgba(255,92,122,0.08)",border:"1px solid rgba(255,92,122,0.25)",color:"#C9576B",fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,cursor:"pointer"}}>DELETE CHAT HISTORY</button>
               )}
             </div>
 
@@ -1126,7 +1126,7 @@ function SettingsPanel(props){
                 <div style={{fontFamily:FONT_MONO,fontSize:9,color:T.dim,letterSpacing:2,fontWeight:700,marginBottom:9}}>ACCOUNT</div>
                 <div style={{fontFamily:FONT_MONO,fontSize:10,color:T.text,marginBottom:10,overflow:"hidden",textOverflow:"ellipsis"}}>{user.email}</div>
                 <button onClick={onSignOut}
-                  style={{width:"100%",padding:"9px",borderRadius:7,background:"rgba(255,77,109,0.08)",border:"1px solid rgba(255,77,109,0.25)",color:"#C9576B",fontFamily:FONT_MONO,fontSize:10,fontWeight:700,letterSpacing:1,cursor:"pointer"}}>SIGN OUT</button>
+                  style={{width:"100%",padding:"9px",borderRadius:7,background:"rgba(255,92,122,0.08)",border:"1px solid rgba(255,92,122,0.25)",color:"#C9576B",fontFamily:FONT_MONO,fontSize:10,fontWeight:700,letterSpacing:1,cursor:"pointer"}}>SIGN OUT</button>
               </div>
             )}
 
@@ -1145,7 +1145,7 @@ function SettingsPanel(props){
                     <span style={{fontFamily:FONT_MONO,fontSize:7,color:accent,letterSpacing:1}}>↻ LOOPING</span>
                   </div>
                   <button onClick={onRemoveVideo}
-                    style={{width:"100%",padding:"7px",borderRadius:6,background:"rgba(255,77,109,0.08)",border:"1px solid rgba(255,77,109,0.25)",color:"#C9576B",fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,cursor:"pointer"}}>REMOVE VIDEO</button>
+                    style={{width:"100%",padding:"7px",borderRadius:6,background:"rgba(255,92,122,0.08)",border:"1px solid rgba(255,92,122,0.25)",color:"#C9576B",fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,cursor:"pointer"}}>REMOVE VIDEO</button>
                 </div>
               ):(
                 <label style={{display:"block",width:"100%",padding:"16px 0",textAlign:"center",borderRadius:8,border:`1px dashed ${accent}45`,background:`${accent}08`,color:accent,fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,cursor:"pointer",marginBottom:10}}>
@@ -1164,7 +1164,7 @@ function SettingsPanel(props){
                 <div style={{marginBottom:10}}>
                   <div style={{width:"100%",height:90,borderRadius:8,border:`1px solid ${T.border}`,backgroundImage:`url(${bgImage.dataUrl})`,backgroundSize:"cover",backgroundPosition:"center",marginBottom:8}}/>
                   <button onClick={()=>setBgImage(prev=>({...prev,dataUrl:""}))}
-                    style={{width:"100%",padding:"7px",borderRadius:6,background:"rgba(255,77,109,0.08)",border:"1px solid rgba(255,77,109,0.25)",color:"#C9576B",fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,cursor:"pointer"}}>REMOVE PHOTO</button>
+                    style={{width:"100%",padding:"7px",borderRadius:6,background:"rgba(255,92,122,0.08)",border:"1px solid rgba(255,92,122,0.25)",color:"#C9576B",fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,cursor:"pointer"}}>REMOVE PHOTO</button>
                 </div>
               ):(
                 <label style={{display:"block",width:"100%",padding:"16px 0",textAlign:"center",borderRadius:8,border:`1px dashed ${accent}45`,background:`${accent}08`,color:accent,fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,cursor:"pointer",marginBottom:10}}>
@@ -1555,9 +1555,9 @@ function DataPage({news,secData,secLoading,onRefreshAll,onDiveNews,onDiveFiling,
         {!secLoading&&(secData?.filings||[]).length===0&&<div style={{fontFamily:FONT_MONO,fontSize:10,color:T.dim,padding:8}}>No recent filings for your watchlist.</div>}
         {(secData?.filings||[]).map((f,i)=>(
           <div key={i} onClick={()=>onDiveFiling(f)}
-            style={{background:"rgba(126,184,247,0.06)",border:"1px solid rgba(126,184,247,0.18)",borderLeft:"3px solid #6F94BE",borderRadius:7,padding:"8px 10px",marginBottom:6,cursor:"pointer"}}
-            onMouseEnter={e=>e.currentTarget.style.background="rgba(126,184,247,0.12)"}
-            onMouseLeave={e=>e.currentTarget.style.background="rgba(126,184,247,0.06)"}>
+            style={{background:"rgba(127,169,216,0.06)",border:"1px solid rgba(127,169,216,0.18)",borderLeft:"3px solid #6F94BE",borderRadius:7,padding:"8px 10px",marginBottom:6,cursor:"pointer"}}
+            onMouseEnter={e=>e.currentTarget.style.background="rgba(127,169,216,0.12)"}
+            onMouseLeave={e=>e.currentTarget.style.background="rgba(127,169,216,0.06)"}>
             <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
               <span style={{fontFamily:FONT_MONO,fontSize:11,fontWeight:700,color:"#6F94BE"}}>{f.symbol} · {f.form}</span>
               <span style={{fontFamily:FONT_MONO,fontSize:9,color:T.dim}}>{f.date}</span>
@@ -1577,9 +1577,9 @@ function DataPage({news,secData,secLoading,onRefreshAll,onDiveNews,onDiveFiling,
         {!secLoading&&(secData?.insiderTrades||[]).length===0&&<div style={{fontFamily:FONT_MONO,fontSize:10,color:T.dim,padding:8}}>No recent Form 4s for your watchlist.</div>}
         {(secData?.insiderTrades||[]).map((t,i)=>(
           <div key={i} onClick={()=>onDiveInsider(t)}
-            style={{background:"rgba(167,139,250,0.06)",border:"1px solid rgba(167,139,250,0.18)",borderLeft:"3px solid #8B84C4",borderRadius:7,padding:"8px 10px",marginBottom:6,cursor:"pointer"}}
-            onMouseEnter={e=>e.currentTarget.style.background="rgba(167,139,250,0.12)"}
-            onMouseLeave={e=>e.currentTarget.style.background="rgba(167,139,250,0.06)"}>
+            style={{background:"rgba(160,153,224,0.06)",border:"1px solid rgba(160,153,224,0.18)",borderLeft:"3px solid #8B84C4",borderRadius:7,padding:"8px 10px",marginBottom:6,cursor:"pointer"}}
+            onMouseEnter={e=>e.currentTarget.style.background="rgba(160,153,224,0.12)"}
+            onMouseLeave={e=>e.currentTarget.style.background="rgba(160,153,224,0.06)"}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
               <span style={{display:"flex",alignItems:"center",gap:6}}>
                 <span style={{fontFamily:FONT_MONO,fontSize:11,fontWeight:700,color:"#8B84C4"}}>{t.symbol}</span>
@@ -2356,7 +2356,7 @@ export default function MarketTerminal(){
           </div>
           <span style={{fontFamily:FONT_MONO,fontSize:8,color:TL.dim}}>{lastUpd?new Date(lastUpd).toLocaleTimeString():"—"}</span>
         </div>
-        {dataErr&&<div style={{fontFamily:FONT_MONO,fontSize:9,color:"#C9576B",background:"rgba(255,77,109,0.07)",border:"1px solid rgba(255,77,109,0.18)",borderRadius:5,padding:"4px 8px",marginBottom:7}}> {dataErr}</div>}
+        {dataErr&&<div style={{fontFamily:FONT_MONO,fontSize:9,color:"#C9576B",background:"rgba(255,92,122,0.07)",border:"1px solid rgba(255,92,122,0.18)",borderRadius:5,padding:"4px 8px",marginBottom:7}}> {dataErr}</div>}
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <span style={{fontFamily:FONT_MONO,fontSize:8,color:TL.dim,letterSpacing:2,fontWeight:700}}>{watchlist.length} TICKERS</span>
           <div style={{display:"flex",gap:5}}>
@@ -2485,7 +2485,7 @@ export default function MarketTerminal(){
             @keyframes spin{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
             /* V10.5: breaking-news / live-speech alert pulse */
             @keyframes news-pulse{0%,100%{opacity:1;}50%{opacity:0.35;}}
-            @keyframes tab-alert{0%,100%{box-shadow:0 0 0 0 rgba(255,61,87,0.5);}50%{box-shadow:0 0 0 5px rgba(255,61,87,0);}}
+            @keyframes tab-alert{0%,100%{box-shadow:0 0 0 0 rgba(255,92,122,0.5);}50%{box-shadow:0 0 0 5px rgba(255,92,122,0);}}
             @keyframes scanLine{0%,100%{opacity:0.3;}50%{opacity:1;}}
             @keyframes shimmer{0%{opacity:0.4;}50%{opacity:0.9;}100%{opacity:0.4;}}
             @keyframes slideIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
@@ -2669,9 +2669,9 @@ export default function MarketTerminal(){
               layoutEdit?(
                 <div style={{display:"flex",gap:6}}>
                   {view==="terminal"&&<button onClick={()=>setNotes(prev=>[...prev,{id:Date.now(),text:""}])}
-                    style={{padding:"5px 10px",borderRadius:7,fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,color:"#C9A15B",background:"rgba(247,201,72,0.08)",border:"1px solid rgba(247,201,72,0.3)",cursor:"pointer"}}>+ NOTE</button>}
+                    style={{padding:"5px 10px",borderRadius:7,fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,color:"#C9A15B",background:"rgba(224,178,95,0.08)",border:"1px solid rgba(224,178,95,0.3)",cursor:"pointer"}}>+ NOTE</button>}
                   <button onClick={()=>{const k=view==="data"?"data":"terminal";setLayouts(prev=>{const p={...prev};delete p[k];return p;});setLayoutEdit(false);}}
-                    style={{padding:"5px 10px",borderRadius:7,fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,color:"#C9576B",background:"rgba(255,77,109,0.08)",border:"1px solid rgba(255,77,109,0.3)",cursor:"pointer"}}>RESET</button>
+                    style={{padding:"5px 10px",borderRadius:7,fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,color:"#C9576B",background:"rgba(255,92,122,0.08)",border:"1px solid rgba(255,92,122,0.3)",cursor:"pointer"}}>RESET</button>
                   <button onClick={()=>{const k=view==="data"?"data":"terminal";const def=k==="data"?DEFAULT_DATA_LAYOUT:DEFAULT_TERMINAL_LAYOUT;if(!layouts?.[k])setLayouts(prev=>({...prev,[k]:def}));setLayoutEdit(false);}}
                     style={{padding:"5px 10px",borderRadius:7,fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,color:accent,background:`${accent}12`,border:`1px solid ${accent}40`,cursor:"pointer"}}> SAVE LAYOUT</button>
                 </div>

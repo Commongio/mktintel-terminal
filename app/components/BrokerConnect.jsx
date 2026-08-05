@@ -47,7 +47,7 @@ export default function BrokerConnect({ accent, T, onClose }) {
   const surface = T?.surface ?? "#0b1320";
   const border  = T?.border  ?? "#172030";
   const text    = T?.text    ?? "#c8d8e8";
-  const dim     = T?.dim     ?? "#3a4a5a";
+  const dim     = T?.dim     ?? "#45566A";
 
   const [selectedBroker, setSelectedBroker] = useState(null);
   const [creds,          setCreds]          = useState({});
@@ -196,7 +196,7 @@ export default function BrokerConnect({ accent, T, onClose }) {
             )}
             <button onClick={disconnect} style={{
               flex: 1, padding: "10px 0", fontFamily: FM, fontSize: 10, fontWeight: 700, letterSpacing: 2,
-              color: "#C9576B", background: "rgba(255,77,109,0.08)", border: "1px solid rgba(255,77,109,0.25)", borderRadius: 8, cursor: "pointer",
+              color: "#C9576B", background: "rgba(255,92,122,0.08)", border: "1px solid rgba(255,92,122,0.25)", borderRadius: 8, cursor: "pointer",
             }}>
               DISCONNECT
             </button>
@@ -235,7 +235,7 @@ export default function BrokerConnect({ accent, T, onClose }) {
                   <span style={{
                     fontFamily: FM, fontSize: 7, fontWeight: 700, padding: "2px 7px", borderRadius: 10,
                     color: b.live ? "#00ff88" : "#C9A15B",
-                    background: b.live ? "rgba(0,255,136,0.1)" : "rgba(247,201,72,0.1)",
+                    background: b.live ? "rgba(0,255,136,0.1)" : "rgba(224,178,95,0.1)",
                   }}>
                     {b.live ? "AUTOMATED" : "MANUAL"}
                   </span>
@@ -316,7 +316,7 @@ export default function BrokerConnect({ accent, T, onClose }) {
 
             {["webull", "robinhood", "thinkorswim"].includes(selectedBroker) && (
               <>
-                <div style={{ fontFamily: FM, fontSize: 8, color: "#C9A15B", marginBottom: 14, lineHeight: 1.6, background: "rgba(247,201,72,0.06)", border: "1px solid rgba(247,201,72,0.2)", borderRadius: 8, padding: "10px 12px" }}>
+                <div style={{ fontFamily: FM, fontSize: 8, color: "#C9A15B", marginBottom: 14, lineHeight: 1.6, background: "rgba(224,178,95,0.06)", border: "1px solid rgba(224,178,95,0.2)", borderRadius: 8, padding: "10px 12px" }}>
                   {BROKERS.find(b => b.id === selectedBroker)?.label} doesn't offer a public retail API yet. Enter your numbers manually — Kronos will use them for context until automated sync is available.
                 </div>
                 <Field label="ACCOUNT BALANCE ($)" value={manual.balance} onChange={v => setManual(m => ({...m, balance: v.replace(/[^0-9.]/g,"")}))} placeholder="10000" dim={dim} border={border} text={text} />

@@ -120,7 +120,7 @@ function Stat({ label, value, accent }) {
 function AnalyticsTab({ accent, T, paperMode, setPaperMode, assetClass }) {
   const surface = T?.surface ?? "#0b1320";
   const border = T?.border ?? "#172030";
-  const dim = T?.dim ?? "#3a4a5a";
+  const dim = T?.dim ?? "#45566A";
   const [paper, setPaper] = useState(() => getPaperState(assetClass));
   useEffect(() => { setPaper(getPaperState(assetClass)); }, [assetClass, paperMode]);
 
@@ -171,7 +171,7 @@ function AlertsTab({ accent, T, user, alertPrefs, setAlertPrefs, minConviction }
   const surface = T?.surface ?? "#0b1320";
   const border = T?.border ?? "#172030";
   const text = T?.text ?? "#c8d8e8";
-  const dim = T?.dim ?? "#3a4a5a";
+  const dim = T?.dim ?? "#45566A";
   const card = { background: surface, border: `1px solid ${border}`, borderRadius: 12, padding: "14px 16px" };
   const head = { fontFamily: FM, fontSize: 9, color: dim, letterSpacing: 2, marginBottom: 8 };
   const note = { fontFamily: FC, fontSize: 10, color: dim, lineHeight: 1.55 };
@@ -232,7 +232,7 @@ function AlertsTab({ accent, T, user, alertPrefs, setAlertPrefs, minConviction }
 // would silently mute the user, which is never what a mis-tap meant).
 function ChipMultiSelect({ options, selected, onChange, accent, T, columns = 2 }) {
   const border = T?.border ?? "#172030";
-  const dim = T?.dim ?? "#3a4a5a";
+  const dim = T?.dim ?? "#45566A";
   const text = T?.text ?? "#c8d8e8";
   const toggle = (id) => {
     const on = selected.includes(id);
@@ -273,7 +273,7 @@ function ChipMultiSelect({ options, selected, onChange, accent, T, columns = 2 }
 // cap exists — futures are index/commodity contracts, so the control is hidden
 // there rather than shown as a filter that does nothing.
 function MarketCapFilter({ side, prefs, setPrefs, accent, T }) {
-  const dim = T?.dim ?? "#3a4a5a";
+  const dim = T?.dim ?? "#45566A";
   const text = T?.text ?? "#c8d8e8";
   if (!CAP_FILTERABLE_SIDES.includes(side)) return null;
   const selected = prefs.caps?.[side] ?? CAP_IDS;
@@ -300,7 +300,7 @@ function StudioTab({ accent, T, profile, onEditProfile, onOpenBroker, brokerData
   const surface = T?.surface ?? "#0b1320";
   const border = T?.border ?? "#172030";
   const text = T?.text ?? "#c8d8e8";
-  const dim = T?.dim ?? "#3a4a5a";
+  const dim = T?.dim ?? "#45566A";
 
   return (
     <div style={{ flex: 1, overflowY: "auto", padding: 20 }}>
@@ -615,7 +615,7 @@ export default function BotDashboard({ accent = "#4C9E92", T, botName = "KRONOS"
   const surface = T?.surface ?? "#0b1320";
   const border = T?.border ?? "#172030";
   const text = T?.text ?? "#c8d8e8";
-  const dim = T?.dim ?? "#3a4a5a";
+  const dim = T?.dim ?? "#45566A";
   // V14.5: ALERTS is a top-level destination, to the right of STUDIO. Alert
   // routing is bot-scoped (which signals reach your phone), so it does not
   // belong in the terminal-wide gear settings where it used to live.
@@ -701,8 +701,8 @@ export default function BotDashboard({ accent = "#4C9E92", T, botName = "KRONOS"
               return (
                 <div key={s} style={{
                   display: "flex", alignItems: "center", gap: 4, padding: "3px 8px", borderRadius: 20,
-                  border: `1px solid ${on ? "rgba(0,230,118,0.35)" : border}`,
-                  background: on ? "rgba(0,230,118,0.07)" : "transparent",
+                  border: `1px solid ${on ? "rgba(62,213,152,0.35)" : border}`,
+                  background: on ? "rgba(62,213,152,0.07)" : "transparent",
                 }}>
                   <div style={{ width: 5, height: 5, borderRadius: "50%", background: on ? "#4FA97B" : "#2a3648", boxShadow: on ? "0 0 6px #4FA97B" : "none", animation: on ? "bot-dot 1.8s ease-in-out infinite" : "none" }} />
                   <span style={{ fontFamily: FM, fontSize: 7.5, fontWeight: 700, letterSpacing: 1.5, color: on ? "#4FA97B" : dim }}>{s}</span>
@@ -729,7 +729,7 @@ export default function BotDashboard({ accent = "#4C9E92", T, botName = "KRONOS"
           {assetClass === "futures" && propRules?.firmName && (
             <div style={{
               display: "flex", alignItems: "center", gap: 6, padding: "3px 10px", borderRadius: 20,
-              border: "1px solid rgba(247,201,72,0.3)", background: "rgba(247,201,72,0.07)",
+              border: "1px solid rgba(224,178,95,0.3)", background: "rgba(224,178,95,0.07)",
             }}>
               <span style={{ fontFamily: FM, fontSize: 8, fontWeight: 700, letterSpacing: 1, color: "#C9A15B" }}>
                 EVAL: {propRules.firmName} {propRules.accountLabel}

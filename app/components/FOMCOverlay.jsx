@@ -68,7 +68,7 @@ export default function FOMCOverlay({ accent = "#4C9E92" }) {
   if (!status?.active || dismissed) return null;
 
   const borderColor = status.pressConf ? "#C9576B" : "#C9A15B";
-  const glowColor   = status.pressConf ? "rgba(255,77,109,0.25)" : "rgba(247,201,72,0.20)";
+  const glowColor   = status.pressConf ? "rgba(255,92,122,0.25)" : "rgba(224,178,95,0.20)";
 
   return (
     <>
@@ -111,11 +111,11 @@ export default function FOMCOverlay({ accent = "#4C9E92" }) {
               </div>
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                 <a href={FED_CHANNEL_URL} target="_blank" rel="noopener noreferrer"
-                  style={{ fontFamily: FM, fontSize: 8, color: "#3a4a5a", letterSpacing: 1, textDecoration: "none" }}>
+                  style={{ fontFamily: FM, fontSize: 8, color: "#45566A", letterSpacing: 1, textDecoration: "none" }}>
                   OPEN YT
                 </a>
                 <button onClick={dismiss} style={{
-                  background: "transparent", border: "none", color: "#3a4a5a",
+                  background: "transparent", border: "none", color: "#45566A",
                   cursor: "pointer", fontSize: 14, lineHeight: 1, padding: "0 2px",
                 }}>×</button>
               </div>
@@ -126,7 +126,7 @@ export default function FOMCOverlay({ accent = "#4C9E92" }) {
               <div style={{
                 padding: "6px 14px", fontFamily: FM, fontSize: 8,
                 color: "#C9A15B", letterSpacing: 1,
-                background: "rgba(247,201,72,0.05)", borderBottom: `1px solid ${borderColor}15`,
+                background: "rgba(224,178,95,0.05)", borderBottom: `1px solid ${borderColor}15`,
               }}>
                 Press Conference: {status.pressTime} — Fed Chair live statement
               </div>
@@ -145,7 +145,7 @@ export default function FOMCOverlay({ accent = "#4C9E92" }) {
 
             {!status.pressConf && (
               <div style={{
-                padding: "8px 14px", fontFamily: FM, fontSize: 8, color: "#3a4a5a",
+                padding: "8px 14px", fontFamily: FM, fontSize: 8, color: "#45566A",
                 letterSpacing: 1, textAlign: "center",
               }}>
                 Press conference: {status.pressTime} on {status.endDate}

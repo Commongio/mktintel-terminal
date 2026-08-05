@@ -98,7 +98,7 @@ export const isFloatingStyle = (id) => id === "glass" || id === "outline" || id 
 
 export function botPanelStyle(ui, T, accent) {
   const surface = T?.surface ?? "#0A1018";
-  const border = T?.border ?? "#1A2535";
+  const border = T?.border ?? "#24313F";
   const o = Math.max(0.05, Math.min(0.95, ui?.glassOpacity ?? 0.45));
   const radius = isFloatingStyle(ui?.panelStyle) ? PANEL_RADIUS : 0;
 
@@ -137,7 +137,7 @@ export function botPanelStyle(ui, T, accent) {
 // The nav-tab strip's own surface — the one place chrome/fill survives.
 export function botTabStyle(ui, T, accent) {
   const surface = T?.surface ?? "#0A1018";
-  const border = T?.border ?? "#1A2535";
+  const border = T?.border ?? "#24313F";
   const o = Math.max(0.05, Math.min(0.95, ui?.glassOpacity ?? 0.45));
   const radius = isFloatingStyle(ui?.panelStyle) ? PANEL_RADIUS : 0;
 
@@ -205,7 +205,7 @@ function SettingsSection({ title, children, first, border, dim }) {
 export default function BotSettings({ onClose, T, accent }) {
   const panel = T?.panel ?? "#0A1018";
   const surface = T?.surface ?? "#0A1018";
-  const border = T?.border ?? "#1A2535";
+  const border = T?.border ?? "#24313F";
   const text = T?.text ?? "#E2EDF8";
   const dim = T?.dim ?? "#9DB4CC";
 

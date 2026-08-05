@@ -68,7 +68,7 @@ export default function LightweightChart({
 
   const text = T?.text ?? "#E2EDF8";
   const dim = T?.dim ?? "#9DB4CC";
-  const border = T?.border ?? "#1A2535";
+  const border = T?.border ?? "#24313F";
 
   // ── create chart once ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -93,8 +93,16 @@ export default function LightweightChart({
     });
 
     const candleSeries = chart.addSeries(CandlestickSeries, {
-      upColor: "#4FA97B", downColor: "#C9576B",
-      wickUpColor: "#4FA97B", wickDownColor: "#C9576B",
+      // Deliberately more saturated than the surrounding UI. Chrome recedes on
+      // purpose; the series a chart exists to show should not. The global
+      // desaturation pass should never have reached in here -- candles are
+      // data, and #4FA97B against near-black reads as a muted swatch rather
+      // than a price move.
+      upColor: "#3ED598", downColor: "#FF5C7A",
+      // Wicks a half-step brighter than the bodies. At one or two pixels wide
+      // a wick loses far more apparent intensity than a solid body, so
+      // matching them exactly leaves the wicks looking washed out next to it.
+      wickUpColor: "#5BE8AF", wickDownColor: "#FF7A92",
       borderVisible: false,
     });
 
@@ -158,7 +166,9 @@ export default function LightweightChart({
       candleRef.current?.setData(candles);
       volRef.current?.setData(candles.map((c) => ({
         time: c.time, value: c.volume,
-        color: c.close >= c.open ? "rgba(0,230,118,0.28)" : "rgba(255,61,87,0.28)",
+        // Matched to the candle colours above, and kept at low alpha: volume
+        // is context beneath the price, not a second thing competing with it.
+        color: c.close >= c.open ? "rgba(62,213,152,0.30)" : "rgba(255,92,122,0.30)",
       })));
       chartRef.current?.timeScale().fitContent();
       // V14 PRICE-AXIS RESCALE: fitContent() only fits the TIME axis. Dragging the
