@@ -938,7 +938,7 @@ function SettingsPanel(props){
                   <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:10}}>
                     {/* "none" swatch + curated presets + custom picker */}
                     <button onClick={()=>setThemeSel(prev=>({...prev,tint:""}))} title="No tint"
-                      style={{width:26,height:26,borderRadius:7,cursor:"pointer",background:"repeating-conic-gradient(#3a4a5a 0% 25%, transparent 0% 50%) 50% / 10px 10px",border:!themeSel?.tint?`2px solid ${accent}`:`2px solid transparent`,boxShadow:!themeSel?.tint?`0 0 8px ${accent}`:"none"}}/>
+                      style={{width:26,height:26,borderRadius:7,cursor:"pointer",background:"repeating-conic-gradient(#45566A 0% 25%, transparent 0% 50%) 50% / 10px 10px",border:!themeSel?.tint?`2px solid ${accent}`:`2px solid transparent`,boxShadow:!themeSel?.tint?`0 0 8px ${accent}`:"none"}}/>
                     {["#4C9E92","#6F94BE","#8B84C4","#ff6b6b","#C9A15B","#ff8a5b","#22d3ee","#ec4899","#4ade80","#ffffff"].map(c=>(
                       <button key={c} onClick={()=>setThemeSel(prev=>({...prev,tint:c}))} title={c}
                         style={{width:26,height:26,borderRadius:7,background:c,cursor:"pointer",border:themeSel?.tint===c?"2px solid #fff":"2px solid transparent",boxShadow:themeSel?.tint===c?`0 0 10px ${c}`:"none",transition:"all 0.15s"}}/>

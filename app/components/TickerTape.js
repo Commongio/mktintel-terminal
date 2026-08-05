@@ -49,11 +49,11 @@ function TapeEditModal({ onClose, symbols, setSymbols, accent, T }) {
           <span style={{ fontFamily: FM, fontSize: 11, fontWeight: 700, color: accent, letterSpacing: 2 }}>
              EDIT TICKER TAPE
           </span>
-          <button onClick={onClose} style={{ color: T?.dim ?? "#3a4a5a", fontSize: 18, background: "none", border: "none", cursor: "pointer" }}>
+          <button onClick={onClose} style={{ color: T?.dim ?? "#45566A", fontSize: 18, background: "none", border: "none", cursor: "pointer" }}>
             
           </button>
         </div>
-        <div style={{ fontFamily: FM, fontSize: 8, color: T?.dim ?? "#3a4a5a", letterSpacing: 1, marginBottom: 10, lineHeight: 1.6 }}>
+        <div style={{ fontFamily: FM, fontSize: 8, color: T?.dim ?? "#45566A", letterSpacing: 1, marginBottom: 10, lineHeight: 1.6 }}>
           Symbols separated by commas. Max 24.
           <br />
           Futures: NQ=F, ES=F, GC=F, CL=F &nbsp;|&nbsp; Crypto: BTC-USD, ETH-USD
@@ -85,7 +85,7 @@ function TapeEditModal({ onClose, symbols, setSymbols, accent, T }) {
               fontFamily: FM,
               fontSize: 10,
               fontWeight: 700,
-              color: T?.dim ?? "#3a4a5a",
+              color: T?.dim ?? "#45566A",
               background: "transparent",
               border: `1px solid ${T?.border ?? "#172030"}`,
               borderRadius: 8,
@@ -135,7 +135,7 @@ export default function TickerTape({ accent = "#4C9E92", T, speed = 60 }) {
   const rafRef = useRef(null);
   const lastRef = useRef(null);
 
-  const border = T?.border ?? "#1A2535";
+  const border = T?.border ?? "#24313F";
   const dim = T?.dim ?? "#9DB4CC";
 
   const fetchQuotes = useCallback(async () => {

@@ -149,7 +149,7 @@ function reasoningFor(r) {
 // hidden + overflowY auto, so an absolutely-positioned popup inside a row would
 // be clipped by the scroll container. anchorRect comes from the row's rect.
 function ReasoningPopup({ r, T, accent, anchorRect, onClose }) {
-  const border = T?.border ?? "#1A2535";
+  const border = T?.border ?? "#24313F";
   const text = T?.text ?? "#E2EDF8";
   const dim = T?.dim ?? "#9DB4CC";
   const panel = T?.panel ?? "#0A1018";
@@ -283,7 +283,7 @@ function ReasoningPopup({ r, T, accent, anchorRect, onClose }) {
 }
 
 function FeedRow({ r, T, accent, highlight, onDelete, isDev, onDevGrade }) {
-  const border = T?.border ?? "#1A2535";
+  const border = T?.border ?? "#24313F";
   const text = T?.text ?? "#E2EDF8";
   const dim = T?.dim ?? "#9DB4CC";
   const [open, setOpen] = useState(false);
@@ -418,7 +418,7 @@ function FeedRow({ r, T, accent, highlight, onDelete, isDev, onDevGrade }) {
 
 const SignalFeed = forwardRef(function SignalFeed({ accent = "#4C9E92", T, assetClass = "futures", onNewSignal, fill = false, vix = null, isDev = false }, ref) {
   const surface = T?.surface ?? "#0A1018";
-  const border = T?.border ?? "#1A2535";
+  const border = T?.border ?? "#24313F";
   const text = T?.text ?? "#E2EDF8";
   const dim = T?.dim ?? "#9DB4CC";
 

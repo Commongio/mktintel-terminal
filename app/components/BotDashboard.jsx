@@ -120,7 +120,7 @@ function Stat({ label, value, accent }) {
 function AnalyticsTab({ accent, T, paperMode, setPaperMode, assetClass }) {
   const surface = T?.surface ?? "#0b1320";
   const border = T?.border ?? "#172030";
-  const dim = T?.dim ?? "#3a4a5a";
+  const dim = T?.dim ?? "#45566A";
   const [paper, setPaper] = useState(() => getPaperState(assetClass));
   useEffect(() => { setPaper(getPaperState(assetClass)); }, [assetClass, paperMode]);
 
@@ -171,7 +171,7 @@ function AlertsTab({ accent, T, user, alertPrefs, setAlertPrefs, minConviction }
   const surface = T?.surface ?? "#0b1320";
   const border = T?.border ?? "#172030";
   const text = T?.text ?? "#c8d8e8";
-  const dim = T?.dim ?? "#3a4a5a";
+  const dim = T?.dim ?? "#45566A";
   const card = { background: surface, border: `1px solid ${border}`, borderRadius: 12, padding: "14px 16px" };
   const head = { fontFamily: FM, fontSize: 9, color: dim, letterSpacing: 2, marginBottom: 8 };
   const note = { fontFamily: FC, fontSize: 10, color: dim, lineHeight: 1.55 };
@@ -232,7 +232,7 @@ function AlertsTab({ accent, T, user, alertPrefs, setAlertPrefs, minConviction }
 // would silently mute the user, which is never what a mis-tap meant).
 function ChipMultiSelect({ options, selected, onChange, accent, T, columns = 2 }) {
   const border = T?.border ?? "#172030";
-  const dim = T?.dim ?? "#3a4a5a";
+  const dim = T?.dim ?? "#45566A";
   const text = T?.text ?? "#c8d8e8";
   const toggle = (id) => {
     const on = selected.includes(id);
@@ -273,7 +273,7 @@ function ChipMultiSelect({ options, selected, onChange, accent, T, columns = 2 }
 // cap exists — futures are index/commodity contracts, so the control is hidden
 // there rather than shown as a filter that does nothing.
 function MarketCapFilter({ side, prefs, setPrefs, accent, T }) {
-  const dim = T?.dim ?? "#3a4a5a";
+  const dim = T?.dim ?? "#45566A";
   const text = T?.text ?? "#c8d8e8";
   if (!CAP_FILTERABLE_SIDES.includes(side)) return null;
   const selected = prefs.caps?.[side] ?? CAP_IDS;
@@ -300,7 +300,7 @@ function StudioTab({ accent, T, profile, onEditProfile, onOpenBroker, brokerData
   const surface = T?.surface ?? "#0b1320";
   const border = T?.border ?? "#172030";
   const text = T?.text ?? "#c8d8e8";
-  const dim = T?.dim ?? "#3a4a5a";
+  const dim = T?.dim ?? "#45566A";
 
   return (
     <div style={{ flex: 1, overflowY: "auto", padding: 20 }}>
@@ -615,7 +615,7 @@ export default function BotDashboard({ accent = "#4C9E92", T, botName = "KRONOS"
   const surface = T?.surface ?? "#0b1320";
   const border = T?.border ?? "#172030";
   const text = T?.text ?? "#c8d8e8";
-  const dim = T?.dim ?? "#3a4a5a";
+  const dim = T?.dim ?? "#45566A";
   // V14.5: ALERTS is a top-level destination, to the right of STUDIO. Alert
   // routing is bot-scoped (which signals reach your phone), so it does not
   // belong in the terminal-wide gear settings where it used to live.

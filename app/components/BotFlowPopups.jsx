@@ -58,7 +58,7 @@ export const BOT_WARNING_KEY = "kronos_bot_warning_seen";
 export function BotEntryWarning({ accent, T, onAcknowledge, reviewMode = false }) {
   const text = T?.text ?? "#E2EDF8";
   const dim = T?.dim ?? "#9DB4CC";
-  const border = T?.border ?? "#1A2535";
+  const border = T?.border ?? "#24313F";
   const surface = T?.surface ?? "#0D1520";
   return (
     <Shell accent={accent} T={T} onClose={reviewMode ? onAcknowledge : undefined}>
@@ -100,7 +100,7 @@ const CADENCES = [
 export function ModeSelectPopup({ accent, T, onSelect }) {
   const text = T?.text ?? "#E2EDF8";
   const dim = T?.dim ?? "#9DB4CC";
-  const border = T?.border ?? "#1A2535";
+  const border = T?.border ?? "#24313F";
   const [phase, setPhase] = useState("mode");
   const [pendingMode, setPendingMode] = useState(null);
   const [picked, setPicked] = useState(() => {
@@ -191,7 +191,7 @@ export function BrokerSideBySidePopup({ accent, T, onDone, onSkip }) {
   const text = T?.text ?? "#E2EDF8";
   const dim = T?.dim ?? "#9DB4CC";
   const surface = T?.surface ?? "#0D1520";
-  const border = T?.border ?? "#1A2535";
+  const border = T?.border ?? "#24313F";
 
   const [selected, setSelected] = useState(() => {
     try { return localStorage.getItem("kronos_broker_preset") || "topstepx"; } catch { return "topstepx"; }

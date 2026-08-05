@@ -33,7 +33,7 @@ const isStandalone = () =>
 export default function PushAlerts({ T, accent, user, alertPrefs = null }) {
   const text = T?.text ?? "#E2EDF8";
   const dim = T?.dim ?? "#9DB4CC";
-  const border = T?.border ?? "#1A2535";
+  const border = T?.border ?? "#24313F";
   const surface = T?.surface ?? "#0A1018";
 
   const [supported, setSupported] = useState(null); // null = still checking

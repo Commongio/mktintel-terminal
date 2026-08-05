@@ -154,7 +154,7 @@ function EvalGauge({ label, current, limit, color, invert = false }) {
           ${Math.abs(current).toLocaleString()} / ${limit.toLocaleString()}
         </span>
       </div>
-      <div style={{ height: 5, background: "#1A2535", borderRadius: 3, overflow: "hidden" }}>
+      <div style={{ height: 5, background: "#24313F", borderRadius: 3, overflow: "hidden" }}>
         <div style={{
           height: "100%", width: `${pct}%`,
           background: `linear-gradient(90deg, ${gc}80, ${gc})`,
@@ -171,7 +171,7 @@ function EvalGauge({ label, current, limit, color, invert = false }) {
 export default function PropFirmPanel({ accent, T, onFirmSelect }) {
   const bg      = T?.bg      ?? "#05080F";
   const surface = T?.surface ?? "#0A1018";
-  const border  = T?.border  ?? "#1A2535";
+  const border  = T?.border  ?? "#24313F";
   const text    = T?.text    ?? "#E2EDF8";
   const dim     = T?.dim     ?? "#9DB4CC";
 

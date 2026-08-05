@@ -87,7 +87,7 @@ export const AGENT_INFO = {
 export function InfoDot({ info, accent = "#4C9E92", T }) {
   if (!info) return null;
   const panel = T?.panel ?? "#0A1018";
-  const border = T?.border ?? "#1A2535";
+  const border = T?.border ?? "#24313F";
   const text = T?.text ?? "#E2EDF8";
   const dim = T?.dim ?? "#9DB4CC";
   return (
@@ -143,7 +143,7 @@ function AgentCard({ a, T, accent }) {
 
 export default function MultiAgentSignal({ accent = "#4C9E92", T, symbol = "NQ", interval = "15min", assetClass = "futures", propRules = null, paperMode = false, onPaperTrade = null, onFire = null }) {
   const surface = T?.surface ?? "#0A1018";
-  const border  = T?.border  ?? "#1A2535";
+  const border  = T?.border  ?? "#24313F";
   const text    = T?.text    ?? "#E2EDF8";
   const dim     = T?.dim     ?? "#9DB4CC";
 
@@ -251,7 +251,7 @@ export default function MultiAgentSignal({ accent = "#4C9E92", T, symbol = "NQ",
           </div>
 
           {/* Bull vs Bear weight bar */}
-          <div style={{ display: "flex", height: 6, borderRadius: 3, overflow: "hidden", marginBottom: 12, background: "#1A2535" }}>
+          <div style={{ display: "flex", height: 6, borderRadius: 3, overflow: "hidden", marginBottom: 12, background: "#24313F" }}>
             <div style={{ width: `${data.bullWeight}%`, background: "#4FA97B", transition: "width 0.6s" }} />
             <div style={{ flex: 1 }} />
             <div style={{ width: `${data.bearWeight}%`, background: "#C9576B", transition: "width 0.6s" }} />

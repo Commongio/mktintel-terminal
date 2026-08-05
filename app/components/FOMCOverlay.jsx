@@ -111,11 +111,11 @@ export default function FOMCOverlay({ accent = "#4C9E92" }) {
               </div>
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                 <a href={FED_CHANNEL_URL} target="_blank" rel="noopener noreferrer"
-                  style={{ fontFamily: FM, fontSize: 8, color: "#3a4a5a", letterSpacing: 1, textDecoration: "none" }}>
+                  style={{ fontFamily: FM, fontSize: 8, color: "#45566A", letterSpacing: 1, textDecoration: "none" }}>
                   OPEN YT
                 </a>
                 <button onClick={dismiss} style={{
-                  background: "transparent", border: "none", color: "#3a4a5a",
+                  background: "transparent", border: "none", color: "#45566A",
                   cursor: "pointer", fontSize: 14, lineHeight: 1, padding: "0 2px",
                 }}>×</button>
               </div>
@@ -145,7 +145,7 @@ export default function FOMCOverlay({ accent = "#4C9E92" }) {
 
             {!status.pressConf && (
               <div style={{
-                padding: "8px 14px", fontFamily: FM, fontSize: 8, color: "#3a4a5a",
+                padding: "8px 14px", fontFamily: FM, fontSize: 8, color: "#45566A",
                 letterSpacing: 1, textAlign: "center",
               }}>
                 Press conference: {status.pressTime} on {status.endDate}

@@ -47,7 +47,7 @@ export default function BrokerConnect({ accent, T, onClose }) {
   const surface = T?.surface ?? "#0b1320";
   const border  = T?.border  ?? "#172030";
   const text    = T?.text    ?? "#c8d8e8";
-  const dim     = T?.dim     ?? "#3a4a5a";
+  const dim     = T?.dim     ?? "#45566A";
 
   const [selectedBroker, setSelectedBroker] = useState(null);
   const [creds,          setCreds]          = useState({});
