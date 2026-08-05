@@ -148,7 +148,7 @@ export default function TickerOverview({ symbol, T, accent, messages, input, set
   }, [symbol, setInput]);
 
   const up = (quote?.changePercent ?? 0) >= 0;
-  const clr = up ? "#4FA97B" : "#C9576B";
+  const clr = up ? "#00e676" : "#ff3d57";
   const card = { background: surface, border: `1px solid ${border}`, borderRadius: 10, padding: 12 };
 
   return (

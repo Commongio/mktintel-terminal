@@ -1,24 +1,46 @@
-# Theme videos
+# public/themes
 
-Drop looping background videos here, then register them in `lib/videoThemes.js`
-(one row each — set `file:` to the filename). A theme with no file is hidden from
-the picker, so it can never render as a black screen.
+Empty on purpose.
 
-## Naming
-`public/themes/<id>.mp4`  — e.g. `galaxy.mp4`, `orb.mp4`, `earth.mp4`
+Video backdrops were removed — 12MB of MP4 shipped from origin on any page load
+that selected one — and are being replaced with themes of our own.
 
-## Encoding (do this — these ship to every user)
-Keep each file under ~8MB. Backgrounds load on every page view that selects them.
+The machinery that rendered them is intact rather than deleted.
+`lib/videoThemes.js` still exports `isVideoTheme`, `videoThemeSrc`,
+`AVAILABLE_VIDEO_THEMES` and the rest, all correct against an empty registry,
+and `ThemeBackdrop` still knows how to play a video. Deleting those exports
+would have meant editing four files to remove an import that already degrades
+cleanly.
 
-    ffmpeg -i input.mp4 -t 12 -an -vf "scale=1920:-2,fps=24" \
-           -c:v libx264 -crf 30 -preset slow -movflags +faststart galaxy.mp4
+## Bringing a video back
 
-- `-an`   strip audio. Required: browsers refuse to autoplay video with sound,
-          and a background must be silent anyway.
-- `-t 12` ~10-20s is plenty.
-- Make it loop SEAMLESSLY (first frame ≈ last frame) or users see a jump each cycle.
-- Prefer dark, low-contrast, low-motion footage — terminal text sits on top of it.
+1. Drop `<id>.mp4` here.
+2. Add one row to `VIDEO_THEMES` in `lib/videoThemes.js`.
 
-## Orb
-To use a video for the Kronos bot orb, add the file here and set `ORB_VIDEO` in
-`lib/videoThemes.js`. Without it, the orb uses the animated canvas galaxy.
+It appears in Settings automatically. The encoding guidance in that file's
+header is worth following — under 8MB, audio stripped, seamless loop, dark and
+low-motion. These ship to every user on first paint.
+
+## Building the replacements
+
+Custom themes belong in `ThemeBackdrop.jsx` as canvas renderers, alongside
+`aurora` and `gridpulse`. That is the better home:
+
+- nothing goes over the wire, so no first-paint cost
+- no video decode running behind the whole terminal
+- they receive the accent colour as a parameter, so a theme tints *with* the
+  rest of the UI instead of fighting it
+- they can react to state — the existing ones already take `accent`, and
+  nothing stops a theme responding to VIX or session
+
+A video can do none of that. It is a rectangle of someone else's footage.
+
+## If a saved theme points at something missing
+
+Nothing breaks. `migrateTheme()` in `app/page.js` resolves every persisted id
+against `THEME_LIST` and falls back to `aurora` when it does not resolve — the
+black-screen guard it was written for.
+
+The eight retired ids are also listed explicitly in `RETIRED_THEMES`, so the
+record says they were **removed** rather than that an asset went missing. Those
+two states look identical to the resolver and mean opposite things.

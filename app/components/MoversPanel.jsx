@@ -66,7 +66,7 @@ export default function MoversPanel({ T, accent, onPick, fill = false }) {
         {state === "empty" && <div style={{ padding: 14, fontFamily: FM, fontSize: 9, color: dim }}>No movers right now.</div>}
         {rows.map((r) => {
           const up = (r.changePct ?? 0) >= 0;
-          const clr = up ? "#4FA97B" : "#C9576B";
+          const clr = up ? "#00e676" : "#ff3d57";
           return (
             <div key={r.symbol} onClick={() => onPick?.(r.symbol)}
               style={{

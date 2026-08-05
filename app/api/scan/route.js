@@ -326,7 +326,7 @@ const TERMINAL_TOOLS = [
   // asset is installed in public/themes/. They're listed here so Kronos can set them,
   // but page.js validates against THEME_LIST and ignores an unavailable id rather than
   // rendering a black backdrop.
-  { name: "set_theme", description: "Change the terminal background theme. 'none' is the classic dot-grid; aurora/gridpulse are lightweight canvas animations; galaxy/orb/earth/particles/nebula/grid are looping video backdrops (only available if installed).", input_schema: { type: "object", properties: { themeId: { type: "string", enum: ["none", "aurora", "gridpulse", "galaxy", "orb", "earth", "particles", "nebula", "grid"] } }, required: ["themeId"] } },
+  { name: "set_theme", description: "Change the terminal background theme. 'none' is the classic dot-grid; aurora and gridpulse are lightweight canvas animations.", input_schema: { type: "object", properties: { themeId: { type: "string", enum: ["none", "aurora", "gridpulse"] } }, required: ["themeId"] } },
   { name: "set_accent", description: "Change the terminal accent color.", input_schema: { type: "object", properties: { color: { type: "string", enum: ["teal", "blue", "purple", "orange", "gold", "red"] } }, required: ["color"] } },
   { name: "set_font", description: "Change the terminal font.", input_schema: { type: "object", properties: { font: { type: "string", enum: ["inter", "geist", "serif", "fraunces", "mono", "system"] } }, required: ["font"] } },
   { name: "set_font_size", description: "Change global text size in px.", input_schema: { type: "object", properties: { size: { type: "number", enum: [12, 14, 16, 18] } }, required: ["size"] } },

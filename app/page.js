@@ -107,6 +107,12 @@ const RETIRED_THEMES={
   globe:"orb", newsglobe:"orb",         // renamed
   worldmap:FALLBACK_THEME, candles:FALLBACK_THEME, // removed in V10.3
   sphere:FALLBACK_THEME, flux:FALLBACK_THEME,      // Spline-only scenes, dropped in V10.4
+  // Video themes, retired. Named rather than left to the generic fallback so
+  // the record says these were REMOVED, not that an asset went missing --
+  // the two look identical from migrateTheme and mean opposite things.
+  stars:FALLBACK_THEME, veil:FALLBACK_THEME, waves:FALLBACK_THEME,
+  "geo-earth":FALLBACK_THEME, earth:FALLBACK_THEME, sun:FALLBACK_THEME,
+  "particle-tube":FALLBACK_THEME,
 };
 function migrateTheme(t){
   const valid=THEME_LIST.map(x=>x.id);

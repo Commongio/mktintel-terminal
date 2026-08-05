@@ -164,7 +164,15 @@ export default function TickerTape({ accent = "#4C9E92", T, speed = 60 }) {
     if (vals.length > 0) {
       const bulls = vals.filter((q) => q.changePercent >= 0).length;
       const pct = bulls / vals.length;
-      setTickerBg(pct >= 0.60 ? "rgba(62,213,152,0.05)" : pct <= 0.40 ? "rgba(255,92,122,0.05)" : "transparent");
+      // Breadth, as a wash across the whole bar: 60%+ advancing reads green,
+      // 40%- reads red, anything between stays neutral rather than picking a
+      // side on noise.
+      //
+      // 0.11, not the old 0.05. Spread across a full-width bar, 5% alpha is
+      // below the threshold where a tint registers as a signal at all -- it
+      // was technically present and effectively invisible, which is the worst
+      // state for something whose only job is to be noticed peripherally.
+      setTickerBg(pct >= 0.60 ? "rgba(0,230,118,0.11)" : pct <= 0.40 ? "rgba(255,61,87,0.11)" : "transparent");
     }
   }, [symbols]);
 
@@ -230,7 +238,9 @@ export default function TickerTape({ accent = "#4C9E92", T, speed = 60 }) {
           {items.map((sym, i) => {
             const q = quotes[sym];
             const up = q && (q.change ?? q.changePercent ?? 0) >= 0;
-            const clr = up ? "#4FA97B" : "#C9576B";
+            // Full chroma: this is price, and price is the reason the bar
+            // exists. Chrome recedes; the number it exists to show does not.
+            const clr = up ? "#00e676" : "#ff3d57";
             // Live provider name first (Yahoo shortName/longName); if the quote
             // hasn't loaded yet or a failover provider degraded to name===symbol
             // (common from datacenter IPs — see lib/marketData.js), fall back to
