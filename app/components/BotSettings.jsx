@@ -8,6 +8,7 @@
 //
 // Everything here is persisted under its own key (`kronos_bot_ui`) and never
 // touches the terminal's personalization.
+import Icon from "./Icons";
 
 import { useState, useEffect, useCallback, useRef } from "react";
 
@@ -259,8 +260,8 @@ export default function BotSettings({ onClose, T, accent }) {
           page.js): 310px rail on desktop, full-width sheet under 768px. */}
       <div className="kronos-settings-sheet" style={{ background: panel, borderLeft: `1px solid ${border}`, padding: 22, overflowY: "auto", boxShadow: "-8px 0 40px rgba(0,0,0,0.6)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-          <span style={{ fontFamily: FM, fontSize: 11, fontWeight: 700, color: accent, letterSpacing: 3 }}>⚙ KRONOS BOT</span>
-          <button onClick={onClose} aria-label="Close bot settings" style={{ color: dim, fontSize: 17, cursor: "pointer", background: "none", border: "none", minWidth: 44, minHeight: 44, display: "flex", alignItems: "center", justifyContent: "flex-end" }}>✕</button>
+          <span style={{ fontFamily: FM, fontSize: 11, fontWeight: 700, color: accent, letterSpacing: 3 }}> KRONOS BOT</span>
+          <button onClick={onClose} aria-label="Close bot settings" style={{ color: dim, fontSize: 17, cursor: "pointer", background: "none", border: "none", minWidth: 44, minHeight: 44, display: "flex", alignItems: "center", justifyContent: "flex-end" }}><Icon name="close" size={14} /></button>
         </div>
         <div style={{ fontFamily: FC, fontSize: 10, color: dim, lineHeight: 1.5, marginBottom: 18 }}>
           These settings only affect the bot page. Terminal appearance lives in the terminal's own settings.
@@ -321,7 +322,7 @@ export default function BotSettings({ onClose, T, accent }) {
             <div style={{ fontFamily: FM, fontSize: 7, color: dim, letterSpacing: 2, marginBottom: 5 }}>PREVIEW</div>
             <div style={{
               position: "relative", padding: 12, borderRadius: 10, overflow: "hidden",
-              backgroundImage: `radial-gradient(circle at 30% 40%, ${accent}22, transparent 60%), radial-gradient(circle at 75% 70%, #7eb8f722, transparent 55%)`,
+              backgroundImage: `radial-gradient(circle at 30% 40%, ${accent}22, transparent 60%), radial-gradient(circle at 75% 70%, #6F94BE22, transparent 55%)`,
               backgroundColor: "#05080F",
             }}>
               <div style={{ ...tabPreview, borderRadius: 8, padding: "6px 12px", marginBottom: 8, display: "flex", gap: 10 }}>
@@ -330,7 +331,7 @@ export default function BotSettings({ onClose, T, accent }) {
               </div>
               <div style={{ ...preview, borderRadius: 8, padding: "10px 12px" }}>
                 <div style={{ fontFamily: FM, fontSize: 8, color: dim, letterSpacing: 1.5, marginBottom: 4 }}>SIGNAL STATUS</div>
-                <div style={{ fontFamily: FM, fontSize: 13, fontWeight: 800, color: text }}>⚡ FIRE — LONG</div>
+                <div style={{ fontFamily: FM, fontSize: 13, fontWeight: 800, color: text }}> FIRE — LONG</div>
               </div>
             </div>
           </div>
@@ -369,7 +370,7 @@ export default function BotSettings({ onClose, T, accent }) {
         <Section title="RISK">
           <button onClick={() => { try { window.dispatchEvent(new Event("kronos-bot-review-warning")); } catch {} onClose?.(); }}
             style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 12px", borderRadius: 8, cursor: "pointer", background: "transparent", border: `1px solid ${border}` }}>
-            <span style={{ fontFamily: FM, fontSize: 10, fontWeight: 700, letterSpacing: 1, color: dim }}>⚠️ REVIEW RISK WARNING</span>
+            <span style={{ fontFamily: FM, fontSize: 10, fontWeight: 700, letterSpacing: 1, color: dim }}> REVIEW RISK WARNING</span>
             <span style={{ fontFamily: FM, fontSize: 9, color: dim }}>OPEN</span>
           </button>
         </Section>

@@ -3,6 +3,7 @@
 // Concept stored here so it's ready to build out later: an AI mentor that teaches
 // new traders, guiding them from barely profitable to a hedge-fund-style trader
 // over time. No mentor logic yet — this is intentionally just the concept + copy.
+import Icon from "./Icons";
 const FM = "'JetBrains Mono',monospace";
 const FD = "'Fraunces',serif";
 const FC = "'Inter',sans-serif";
@@ -19,7 +20,7 @@ export const MENTOR_CONCEPT = {
   ],
 };
 
-export default function KronosMentor({ onClose, accent = "#00d4aa", T }) {
+export default function KronosMentor({ onClose, accent = "#4C9E92", T }) {
   const panel = T?.panel ?? "#0A1018";
   const border = T?.border ?? "#1A2535";
   const text = T?.text ?? "#E2EDF8";
@@ -30,8 +31,8 @@ export default function KronosMentor({ onClose, accent = "#00d4aa", T }) {
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div style={{ width: "100%", maxWidth: 460, background: panel, border: `1px solid ${accent}45`, borderRadius: 18, overflow: "hidden", boxShadow: "0 24px 64px rgba(0,0,0,0.7)" }}>
         <div style={{ padding: "26px 28px 10px", textAlign: "center", position: "relative" }}>
-          <button onClick={onClose} style={{ position: "absolute", top: 16, right: 18, color: dim, fontSize: 18, background: "none", border: "none", cursor: "pointer" }}>✕</button>
-          <div style={{ fontSize: 40, marginBottom: 8 }}>🤖</div>
+          <button onClick={onClose} style={{ position: "absolute", top: 16, right: 18, color: dim, fontSize: 18, background: "none", border: "none", cursor: "pointer" }}><Icon name="close" size={14} /></button>
+          <div style={{ fontSize: 40, marginBottom: 8 }}><Icon name="bot" size={14} /></div>
           <div style={{ fontFamily: FC, fontSize: 21, fontWeight: 700, color: text, letterSpacing: -0.2 }}>{c.title}</div>
           <div style={{ display: "inline-block", marginTop: 8, padding: "3px 12px", borderRadius: 20, background: `${accent}14`, border: `1px solid ${accent}40` }}>
             <span style={{ fontFamily: FM, fontSize: 9, fontWeight: 800, letterSpacing: 2, color: accent }}>COMING SOON</span>

@@ -22,7 +22,7 @@ export function CollapseButton({ collapsed, onToggle, accent, T, title }) {
 }
 
 // A thin vertical rail shown in place of a collapsed side column.
-export function CollapsedRail({ label, side = "left", onExpand, accent = "#00d4aa", T }) {
+export function CollapsedRail({ label, side = "left", onExpand, accent = "#4C9E92", T }) {
   const panel = T?.panel ?? "#0A1018";
   const border = T?.border ?? "#1A2535";
   const dim = T?.dim ?? "#9DB4CC";

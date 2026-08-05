@@ -86,7 +86,7 @@ function deriveTheme(bg,text){
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 const DEFAULT_BG="#05080F",DEFAULT_TEXT="#E2EDF8";
-const ACCENTS={teal:"#00d4aa",blue:"#7eb8f7",purple:"#a78bfa",orange:"#ff6b35",gold:"#f7c948",red:"#ff4d6d"};
+const ACCENTS={teal:"#4C9E92",blue:"#6F94BE",purple:"#8B84C4",orange:"#ff6b35",gold:"#C9A15B",red:"#C9576B"};
 const THEME_DEFAULTS={mainBg:DEFAULT_BG,mainText:DEFAULT_TEXT,leftBg:DEFAULT_BG,leftText:DEFAULT_TEXT,rightBg:DEFAULT_BG,rightText:DEFAULT_TEXT,accent:"teal",density:"comfortable",leftWidth:290,rightWidth:310,chartRightWidth:340};
 const TRUMP_RE=/trump|truth social|tariff|executive order|maga|mar-a-lago|president trump|trade war/i;
 const QUICK_CHART_SYMS=["SPY","QQQ","NVDA","AAPL","TSLA","META","AMD","MSFT","PLTR","MSTR","AMZN","GOOGL"];
@@ -120,7 +120,7 @@ function migrateTheme(t){
 // The AI picks colors by NAME (an enum in the tool schema) rather than emitting
 // hex — a free-text hex field invites invalid values and lets the model pick
 // something illegible against the theme.
-const AI_DRAW_COLORS={teal:"#00d4aa",blue:"#7eb8f7",purple:"#a78bfa",green:"#00e676",red:"#ff3d57",gold:"#f7c948"};
+const AI_DRAW_COLORS={teal:"#4C9E92",blue:"#6F94BE",purple:"#8B84C4",green:"#4FA97B",red:"#C9576B",gold:"#C9A15B"};
 
 // ─── V11 MOBILE (M1) ──────────────────────────────────────────────────────────
 // Phone layout is one full-screen panel at a time behind a bottom tab bar. The
@@ -183,7 +183,7 @@ function MobileTabBar({active,onSelect,accent,T,alertCount=0}){
             <span style={{fontFamily:FONT_MONO,fontSize:7.5,letterSpacing:0.4,fontWeight:700,color:on?accent:T.dim,whiteSpace:"nowrap"}}>{t.label}</span>
             {/* Breaking-news dot must reach you from any tab — same rule as desktop. */}
             {t.id==="data"&&alertCount>0&&(
-              <span style={{position:"absolute",top:6,right:"50%",marginRight:-16,width:6,height:6,borderRadius:"50%",background:"#ff3d57",animation:"news-pulse 1.1s ease-in-out infinite"}}/>
+              <span style={{position:"absolute",top:6,right:"50%",marginRight:-16,width:6,height:6,borderRadius:"50%",background:"#C9576B",animation:"news-pulse 1.1s ease-in-out infinite"}}/>
             )}
           </button>
         );
@@ -492,8 +492,8 @@ const WatchlistRow=memo(function WatchlistRow({symbol,quote,name,onClick,T,densi
     return()=>{live=false;};
   },[symbol]);
   if(!quote) return <div style={{padding:pad,borderRadius:7,marginBottom:5,background:T.surface,border:`1px solid ${T.border}`}}><span style={{fontFamily:FONT_MONO,fontSize:10,color:T.dim}}>{symbol} loading...</span></div>;
-  if(quote.error) return <div style={{padding:pad,borderRadius:7,marginBottom:5,background:T.surface,border:`1px solid ${T.border}`}}><span style={{fontFamily:FONT_MONO,fontSize:10,color:"#ff4d6d"}}>{symbol} — unavailable</span></div>;
-  const up=(quote.changePercent??0)>=0,clr=up?"#00d4aa":"#ff4d6d";
+  if(quote.error) return <div style={{padding:pad,borderRadius:7,marginBottom:5,background:T.surface,border:`1px solid ${T.border}`}}><span style={{fontFamily:FONT_MONO,fontSize:10,color:"#C9576B"}}>{symbol} — unavailable</span></div>;
+  const up=(quote.changePercent??0)>=0,clr=up?"#4C9E92":"#C9576B";
   return(
     <div onClick={()=>onClick({symbol,name,...quote})}
       style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:pad,borderRadius:7,marginBottom:5,background:T.surface,border:`1px solid ${T.border}`,cursor:"pointer",transition:"background 0.12s"}}
@@ -513,14 +513,14 @@ const WatchlistRow=memo(function WatchlistRow({symbol,quote,name,onClick,T,densi
           <div style={{fontFamily:FONT_MONO,fontSize:9,color:T.dim,marginTop:2,display:"flex",flexDirection:"column",alignItems:"flex-end"}}>
             {techData[symbol].rsi!=null&&(
               <span style={{
-                color: Number(techData[symbol].rsi)>70?"#ff3d57":Number(techData[symbol].rsi)<30?"#00e676":"#9DB4CC",
+                color: Number(techData[symbol].rsi)>70?"#C9576B":Number(techData[symbol].rsi)<30?"#4FA97B":"#9DB4CC",
                 fontWeight:700
               }}>
                 RSI {Number(techData[symbol].rsi).toFixed(0)}
               </span>
             )}
             {techData[symbol].macd?.macd!=null&&(
-              <span style={{color:Number(techData[symbol].macd.macd)>=0?"#00e676":"#ff3d57",fontWeight:700}}>
+              <span style={{color:Number(techData[symbol].macd.macd)>=0?"#4FA97B":"#C9576B",fontWeight:700}}>
                 MACD {Number(techData[symbol].macd.macd).toFixed(2)}
               </span>
             )}
@@ -576,7 +576,7 @@ function IndicatorInfoModal({onClose,accent,T}){
   const ROWS=[
     ["RSI (Relative Strength Index)","A 0–100 speedometer for price. Above 70 = stock may have run up too fast (could pull back). Below 30 = may have dropped too fast (could bounce). Between 30–70 = normal territory."],
     ["MACD","Momentum tracker. A positive number means upward momentum is building; negative means downward. Watch the sign flip — that's often when trends change."],
-    ["Conviction % (Kronos)","How strongly the bot's agents agree on a setup, 0–100%. Under 60% = no trade. 78%+ = strong agreement. 90%+ = rare, highest-confidence setups (these launch comets 🌠)."],
+    ["Conviction % (Kronos)","How strongly the bot's agents agree on a setup, 0–100%. Under 60% = no trade. 78%+ = strong agreement. 90%+ = rare, highest-confidence setups (these launch comets )."],
     ["Impact bar (news)","Red→green bar under each headline scoring how likely that story is to move the market. Green/high = act fast; gray/low = background noise."],
     ["VIX","The market's 'fear gauge.' Under 15 = calm. 15–20 = normal. 20–30 = nervous. 30+ = fear — big swings likely. The Kronos galaxy orb changes color with it."],
   ];
@@ -586,7 +586,7 @@ function IndicatorInfoModal({onClose,accent,T}){
       <div style={{width:"100%",maxWidth:480,maxHeight:"84vh",overflowY:"auto",background:T.panel,border:`1px solid ${accent}35`,borderRadius:16,padding:24}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
           <span style={{fontFamily:FONT_MONO,fontSize:11,fontWeight:700,color:accent,letterSpacing:2}}>ⓘ WHAT THE NUMBERS MEAN</span>
-          <button onClick={onClose} style={{color:T.dim,fontSize:17,cursor:"pointer"}}>✕</button>
+          <button onClick={onClose} style={{color:T.dim,fontSize:17,cursor:"pointer"}}><Icon name="close" size={14} /></button>
         </div>
         {ROWS.map(([t,d])=>(
           <div key={t} style={{marginBottom:14,paddingBottom:14,borderBottom:`1px solid ${T.border}`}}>
@@ -604,7 +604,7 @@ const NewsCard=memo(function NewsCard({item,onDiveDeep,T}){
   const isTrump=TRUMP_RE.test((item.headline||"")+(item.summary||""));
   const age=item.datetime?Math.round((Date.now()-item.datetime)/60000):null;
   const ageLabel=age==null?"":age<1?"just now":age<60?`${age}m ago`:`${Math.round(age/60)}h ago`;
-  const bc=isTrump?"#ff6b35":"#f7c948";
+  const bc=isTrump?"#ff6b35":"#C9A15B";
   return(
     <div onClick={()=>onDiveDeep(item)}
       style={{background:`${bc}08`,border:`1px solid ${bc}1a`,borderLeft:`3px solid ${bc}`,borderRadius:7,padding:"9px 11px",marginBottom:6,cursor:"pointer",transition:"all 0.2s"}}
@@ -612,7 +612,7 @@ const NewsCard=memo(function NewsCard({item,onDiveDeep,T}){
       onMouseLeave={e=>e.currentTarget.style.background=`${bc}08`}>
       <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
         <span style={{fontFamily:FONT_MONO,fontSize:9,color:bc,letterSpacing:1,fontWeight:700,display:"flex",alignItems:"center",gap:5}}>
-          {/* V10: Trump/TruthSocial marker is a "T" monogram (was 🦅) */}
+          {/* V10: Trump/TruthSocial marker is a "T" monogram (was ) */}
           {isTrump&&<span style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:13,height:13,borderRadius:3,background:"#ff6b3522",border:"1px solid #ff6b3555",fontFamily:FONT_SERIF,fontSize:9.5,fontWeight:800,color:"#ff6b35",lineHeight:1}}>T</span>}
           {item.source?.toUpperCase()}
         </span>
@@ -641,8 +641,8 @@ function WatchlistModal({onClose,watchlist,onAdd,onRemove,onReset,accent,T}){
       onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
       <div style={{width:460,maxHeight:"86vh",overflowY:"auto",background:T.panel,border:`1px solid ${accent}35`,borderRadius:16,padding:24,boxShadow:`0 0 50px ${accent}18`}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-          <span style={{fontFamily:FONT_SANS,fontSize:13,fontWeight:700,color:accent}}>★ Manage Watchlist</span>
-          <button onClick={onClose} style={{color:T.dim,fontSize:17,cursor:"pointer"}}>✕</button>
+          <span style={{fontFamily:FONT_SANS,fontSize:13,fontWeight:700,color:accent}}> Manage Watchlist</span>
+          <button onClick={onClose} style={{color:T.dim,fontSize:17,cursor:"pointer"}}><Icon name="close" size={14} /></button>
         </div>
         <input value={q} onChange={e=>setQ(e.target.value)} placeholder="SEARCH ANY COMPANY OR TICKER..."
           style={{width:"100%",background:T.surface,border:`1px solid ${T.border}`,borderRadius:8,padding:"8px 12px",color:T.text,fontFamily:FONT_MONO,fontSize:12,letterSpacing:1,marginBottom:10}}/>
@@ -656,7 +656,7 @@ function WatchlistModal({onClose,watchlist,onAdd,onRemove,onReset,accent,T}){
                   <span style={{fontFamily:FONT_CHAT,fontSize:10,color:T.dim,marginLeft:8}}>{(r.name||"").slice(0,26)}</span>
                 </div>
                 {watchlist.includes(r.symbol)
-                  ?<button onClick={()=>onRemove(r.symbol)} style={{background:"rgba(255,77,109,0.12)",border:"1px solid rgba(255,77,109,0.28)",color:"#ff4d6d",borderRadius:5,padding:"2px 9px",fontFamily:FONT_MONO,fontSize:10,cursor:"pointer",fontWeight:700,flexShrink:0}}>REMOVE</button>
+                  ?<button onClick={()=>onRemove(r.symbol)} style={{background:"rgba(255,77,109,0.12)",border:"1px solid rgba(255,77,109,0.28)",color:"#C9576B",borderRadius:5,padding:"2px 9px",fontFamily:FONT_MONO,fontSize:10,cursor:"pointer",fontWeight:700,flexShrink:0}}>REMOVE</button>
                   :<button onClick={()=>onAdd(r.symbol,r.name)} style={{background:`${accent}12`,border:`1px solid ${accent}28`,color:accent,borderRadius:5,padding:"2px 9px",fontFamily:FONT_MONO,fontSize:10,cursor:"pointer",fontWeight:700,flexShrink:0}}>+ ADD</button>}
               </div>
             ))}
@@ -684,7 +684,7 @@ function WatchlistModal({onClose,watchlist,onAdd,onRemove,onReset,accent,T}){
           {watchlist.map(s=>(
             <div key={s} style={{display:"flex",alignItems:"center",gap:4,background:`${accent}0f`,border:`1px solid ${accent}22`,borderRadius:5,padding:"3px 9px"}}>
               <span style={{fontFamily:FONT_MONO,fontSize:11,color:accent,fontWeight:700}}>{s}</span>
-              <button onClick={()=>onRemove(s)} style={{color:T.dim,fontSize:11,cursor:"pointer",lineHeight:1,paddingLeft:2}}>✕</button>
+              <button onClick={()=>onRemove(s)} style={{color:T.dim,fontSize:11,cursor:"pointer",lineHeight:1,paddingLeft:2}}><Icon name="close" size={14} /></button>
             </div>
           ))}
         </div>
@@ -811,8 +811,8 @@ function DataSyncStatus({user,T,accent}){
       background:synced?`${accent}0a`:"rgba(247,201,72,0.08)",
       border:`1px solid ${synced?`${accent}30`:"rgba(247,201,72,0.35)"}`}}>
       <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:6}}>
-        <span style={{fontSize:11}}>{synced?"✓":"⚠"}</span>
-        <span style={{fontFamily:FONT_MONO,fontSize:9,fontWeight:800,letterSpacing:1.5,color:synced?accent:"#f7c948"}}>
+        <span style={{fontSize:11}}>{synced?"":""}</span>
+        <span style={{fontFamily:FONT_MONO,fontSize:9,fontWeight:800,letterSpacing:1.5,color:synced?accent:"#C9A15B"}}>
           {synced?"YOUR DATA IS SAVED TO YOUR ACCOUNT":"LOCAL TO THIS DEVICE ONLY"}
         </span>
       </div>
@@ -883,8 +883,8 @@ function SettingsPanel(props){
           controls for no reason — on mobile the sheet IS the screen. */}
       <div className="kronos-settings-sheet" style={{background:T.panel,borderLeft:`1px solid ${T.border}`,padding:22,overflowY:"auto",boxShadow:"-8px 0 40px rgba(0,0,0,0.6)"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-          <span style={{fontFamily:FONT_MONO,fontSize:11,fontWeight:700,color:accent,letterSpacing:3}}>⚙ SETTINGS</span>
-          <button onClick={onClose} aria-label="Close settings" style={{color:T.dim,fontSize:17,cursor:"pointer",minWidth:44,minHeight:44,display:"flex",alignItems:"center",justifyContent:"flex-end"}}>✕</button>
+          <span style={{fontFamily:FONT_MONO,fontSize:11,fontWeight:700,color:accent,letterSpacing:3}}> SETTINGS</span>
+          <button onClick={onClose} aria-label="Close settings" style={{color:T.dim,fontSize:17,cursor:"pointer",minWidth:44,minHeight:44,display:"flex",alignItems:"center",justifyContent:"flex-end"}}><Icon name="close" size={14} /></button>
         </div>
         <div style={{display:"flex",gap:4,marginBottom:16}}>
           {["themes","colors","layout","personal"].map(t=>(
@@ -919,7 +919,7 @@ function SettingsPanel(props){
                         </span>
                         {t.mb!=null&&(
                           <span title={`${t.mb} MB — downloaded once, then cached by the browser`}
-                            style={{flexShrink:0,fontFamily:FONT_MONO,fontSize:7,color:t.mb>=3?"#f7c948":T.dim,border:`1px solid ${t.mb>=3?"#f7c94840":T.border}`,borderRadius:4,padding:"2px 5px"}}>{t.mb}MB</span>
+                            style={{flexShrink:0,fontFamily:FONT_MONO,fontSize:7,color:t.mb>=3?"#C9A15B":T.dim,border:`1px solid ${t.mb>=3?"#C9A15B40":T.border}`,borderRadius:4,padding:"2px 5px"}}>{t.mb}MB</span>
                         )}
                       </button>
                     ))}
@@ -939,13 +939,13 @@ function SettingsPanel(props){
                     {/* "none" swatch + curated presets + custom picker */}
                     <button onClick={()=>setThemeSel(prev=>({...prev,tint:""}))} title="No tint"
                       style={{width:26,height:26,borderRadius:7,cursor:"pointer",background:"repeating-conic-gradient(#3a4a5a 0% 25%, transparent 0% 50%) 50% / 10px 10px",border:!themeSel?.tint?`2px solid ${accent}`:`2px solid transparent`,boxShadow:!themeSel?.tint?`0 0 8px ${accent}`:"none"}}/>
-                    {["#00d4aa","#7eb8f7","#a78bfa","#ff6b6b","#f7c948","#ff8a5b","#22d3ee","#ec4899","#4ade80","#ffffff"].map(c=>(
+                    {["#4C9E92","#6F94BE","#8B84C4","#ff6b6b","#C9A15B","#ff8a5b","#22d3ee","#ec4899","#4ade80","#ffffff"].map(c=>(
                       <button key={c} onClick={()=>setThemeSel(prev=>({...prev,tint:c}))} title={c}
                         style={{width:26,height:26,borderRadius:7,background:c,cursor:"pointer",border:themeSel?.tint===c?"2px solid #fff":"2px solid transparent",boxShadow:themeSel?.tint===c?`0 0 10px ${c}`:"none",transition:"all 0.15s"}}/>
                     ))}
                     <label title="Custom color" style={{width:26,height:26,borderRadius:7,cursor:"pointer",position:"relative",overflow:"hidden",border:`2px solid ${T.border}`,display:"flex",alignItems:"center",justifyContent:"center",background:"conic-gradient(red,#ff0,lime,cyan,blue,magenta,red)"}}>
                       <span style={{fontFamily:FONT_MONO,fontSize:12,color:"#fff",textShadow:"0 0 3px #000",fontWeight:800}}>+</span>
-                      <input type="color" value={themeSel?.tint||"#00d4aa"} onChange={e=>setThemeSel(prev=>({...prev,tint:e.target.value}))} style={{position:"absolute",inset:0,opacity:0,cursor:"pointer"}}/>
+                      <input type="color" value={themeSel?.tint||"#4C9E92"} onChange={e=>setThemeSel(prev=>({...prev,tint:e.target.value}))} style={{position:"absolute",inset:0,opacity:0,cursor:"pointer"}}/>
                     </label>
                   </div>
                   {themeSel?.tint&&(
@@ -983,7 +983,7 @@ function SettingsPanel(props){
                   )}
                 </div>
               )}
-              {(bgImage?.dataUrl||bgVideo?.enabled)&&<div style={{fontFamily:FONT_MONO,fontSize:8,color:"#f7c948",marginTop:8,lineHeight:1.5}}>⚠ Your background {bgVideo?.enabled?"video":"photo"} overrides the theme — remove it in the Personal tab to see the theme.</div>}
+              {(bgImage?.dataUrl||bgVideo?.enabled)&&<div style={{fontFamily:FONT_MONO,fontSize:8,color:"#C9A15B",marginTop:8,lineHeight:1.5}}> Your background {bgVideo?.enabled?"video":"photo"} overrides the theme — remove it in the Personal tab to see the theme.</div>}
             </div>
 
             {/* V10: side panel transparency */}
@@ -1074,11 +1074,11 @@ function SettingsPanel(props){
               {isDev&&(
                 <>
                   <a href="/admin" style={{display:"block",marginTop:10,padding:"9px",borderRadius:7,textAlign:"center",textDecoration:"none",background:`${accent}10`,border:`1px solid ${accent}30`,color:accent,fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1.5}}>
-                    ⚙ DEVELOPER BRAIN ACCESS
+                     DEVELOPER BRAIN ACCESS
                   </a>
                   <button onClick={onPreviewV13Popup}
                     style={{width:"100%",marginTop:7,padding:"9px",borderRadius:7,background:"transparent",border:`1px solid ${T.border}`,color:T.dim,fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1.5,cursor:"pointer"}}>
-                    ✦ PREVIEW V13 POPUP
+                     PREVIEW V13 POPUP
                   </button>
                 </>
               )}
@@ -1110,13 +1110,13 @@ function SettingsPanel(props){
               {confirmClear?(
                 <div style={{display:"flex",gap:6}}>
                   <button onClick={()=>{onClearChatHistory?.();setConfirmClear(false);}}
-                    style={{flex:1,padding:"9px",borderRadius:7,background:"rgba(255,77,109,0.12)",border:"1px solid rgba(255,77,109,0.35)",color:"#ff4d6d",fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,cursor:"pointer"}}>CONFIRM DELETE</button>
+                    style={{flex:1,padding:"9px",borderRadius:7,background:"rgba(255,77,109,0.12)",border:"1px solid rgba(255,77,109,0.35)",color:"#C9576B",fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,cursor:"pointer"}}>CONFIRM DELETE</button>
                   <button onClick={()=>setConfirmClear(false)}
                     style={{flex:1,padding:"9px",borderRadius:7,background:"transparent",border:`1px solid ${T.border}`,color:T.dim,fontFamily:FONT_MONO,fontSize:9,letterSpacing:1,cursor:"pointer"}}>CANCEL</button>
                 </div>
               ):(
                 <button onClick={()=>setConfirmClear(true)}
-                  style={{width:"100%",padding:"9px",borderRadius:7,background:"rgba(255,77,109,0.08)",border:"1px solid rgba(255,77,109,0.25)",color:"#ff4d6d",fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,cursor:"pointer"}}>DELETE CHAT HISTORY</button>
+                  style={{width:"100%",padding:"9px",borderRadius:7,background:"rgba(255,77,109,0.08)",border:"1px solid rgba(255,77,109,0.25)",color:"#C9576B",fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,cursor:"pointer"}}>DELETE CHAT HISTORY</button>
               )}
             </div>
 
@@ -1126,7 +1126,7 @@ function SettingsPanel(props){
                 <div style={{fontFamily:FONT_MONO,fontSize:9,color:T.dim,letterSpacing:2,fontWeight:700,marginBottom:9}}>ACCOUNT</div>
                 <div style={{fontFamily:FONT_MONO,fontSize:10,color:T.text,marginBottom:10,overflow:"hidden",textOverflow:"ellipsis"}}>{user.email}</div>
                 <button onClick={onSignOut}
-                  style={{width:"100%",padding:"9px",borderRadius:7,background:"rgba(255,77,109,0.08)",border:"1px solid rgba(255,77,109,0.25)",color:"#ff4d6d",fontFamily:FONT_MONO,fontSize:10,fontWeight:700,letterSpacing:1,cursor:"pointer"}}>SIGN OUT</button>
+                  style={{width:"100%",padding:"9px",borderRadius:7,background:"rgba(255,77,109,0.08)",border:"1px solid rgba(255,77,109,0.25)",color:"#C9576B",fontFamily:FONT_MONO,fontSize:10,fontWeight:700,letterSpacing:1,cursor:"pointer"}}>SIGN OUT</button>
               </div>
             )}
 
@@ -1140,12 +1140,12 @@ function SettingsPanel(props){
               {bgVideo?.enabled?(
                 <div style={{marginBottom:10}}>
                   <div style={{display:"flex",alignItems:"center",gap:7,padding:"8px 10px",borderRadius:8,border:`1px solid ${accent}30`,background:`${accent}08`,marginBottom:8}}>
-                    <span style={{fontSize:13}}>🎞</span>
+                    <span style={{fontSize:13}}><Icon name="film" size={14} /></span>
                     <span style={{flex:1,fontFamily:FONT_MONO,fontSize:9,color:T.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{bgVideo?.name||"background.mp4"}</span>
                     <span style={{fontFamily:FONT_MONO,fontSize:7,color:accent,letterSpacing:1}}>↻ LOOPING</span>
                   </div>
                   <button onClick={onRemoveVideo}
-                    style={{width:"100%",padding:"7px",borderRadius:6,background:"rgba(255,77,109,0.08)",border:"1px solid rgba(255,77,109,0.25)",color:"#ff4d6d",fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,cursor:"pointer"}}>REMOVE VIDEO</button>
+                    style={{width:"100%",padding:"7px",borderRadius:6,background:"rgba(255,77,109,0.08)",border:"1px solid rgba(255,77,109,0.25)",color:"#C9576B",fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,cursor:"pointer"}}>REMOVE VIDEO</button>
                 </div>
               ):(
                 <label style={{display:"block",width:"100%",padding:"16px 0",textAlign:"center",borderRadius:8,border:`1px dashed ${accent}45`,background:`${accent}08`,color:accent,fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,cursor:"pointer",marginBottom:10}}>
@@ -1153,18 +1153,18 @@ function SettingsPanel(props){
                   <input type="file" accept="video/mp4,video/webm" onChange={handleVideoUpload} style={{display:"none"}}/>
                 </label>
               )}
-              {videoErr&&<div style={{fontFamily:FONT_MONO,fontSize:9,color:"#ff4d6d",marginBottom:8}}>⚠ {videoErr}</div>}
+              {videoErr&&<div style={{fontFamily:FONT_MONO,fontSize:9,color:"#C9576B",marginBottom:8}}> {videoErr}</div>}
             </div>
 
             {/* BACKGROUND PHOTO */}
             <div style={{marginBottom:18,paddingTop:14,borderTop:`1px solid ${T.border}`}}>
               <div style={{fontFamily:FONT_MONO,fontSize:9,color:T.dim,letterSpacing:2,fontWeight:700,marginBottom:9}}>BACKGROUND PHOTO</div>
-              {bgVideo?.enabled&&<div style={{fontFamily:FONT_MONO,fontSize:8,color:"#f7c948",marginBottom:8,lineHeight:1.5}}>⚠ Your video is active and takes priority over a photo.</div>}
+              {bgVideo?.enabled&&<div style={{fontFamily:FONT_MONO,fontSize:8,color:"#C9A15B",marginBottom:8,lineHeight:1.5}}> Your video is active and takes priority over a photo.</div>}
               {bgImage?.dataUrl?(
                 <div style={{marginBottom:10}}>
                   <div style={{width:"100%",height:90,borderRadius:8,border:`1px solid ${T.border}`,backgroundImage:`url(${bgImage.dataUrl})`,backgroundSize:"cover",backgroundPosition:"center",marginBottom:8}}/>
                   <button onClick={()=>setBgImage(prev=>({...prev,dataUrl:""}))}
-                    style={{width:"100%",padding:"7px",borderRadius:6,background:"rgba(255,77,109,0.08)",border:"1px solid rgba(255,77,109,0.25)",color:"#ff4d6d",fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,cursor:"pointer"}}>REMOVE PHOTO</button>
+                    style={{width:"100%",padding:"7px",borderRadius:6,background:"rgba(255,77,109,0.08)",border:"1px solid rgba(255,77,109,0.25)",color:"#C9576B",fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,cursor:"pointer"}}>REMOVE PHOTO</button>
                 </div>
               ):(
                 <label style={{display:"block",width:"100%",padding:"16px 0",textAlign:"center",borderRadius:8,border:`1px dashed ${accent}45`,background:`${accent}08`,color:accent,fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,cursor:"pointer",marginBottom:10}}>
@@ -1172,7 +1172,7 @@ function SettingsPanel(props){
                   <input type="file" accept="image/*" onChange={handleBgUpload} style={{display:"none"}}/>
                 </label>
               )}
-              {uploadErr&&<div style={{fontFamily:FONT_MONO,fontSize:9,color:"#ff4d6d",marginBottom:8}}>⚠ {uploadErr}</div>}
+              {uploadErr&&<div style={{fontFamily:FONT_MONO,fontSize:9,color:"#C9576B",marginBottom:8}}> {uploadErr}</div>}
               <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
                 <span style={{fontFamily:FONT_MONO,fontSize:9,color:T.dim,letterSpacing:2,fontWeight:700}}>PHOTO DIM</span>
                 <span style={{fontFamily:FONT_MONO,fontSize:10,color:accent,fontWeight:700}}>{Math.round((bgImage?.dim??0.6)*100)}%</span>
@@ -1206,7 +1206,7 @@ function SettingsPanel(props){
             {onStartTour&&(
               <div style={{marginBottom:18,paddingTop:14,borderTop:`1px solid ${T.border}`}}>
                 <button onClick={()=>{onClose();onStartTour();}} style={{width:"100%",padding:"10px",borderRadius:8,background:`${accent}10`,border:`1px solid ${accent}30`,color:accent,fontFamily:FONT_MONO,fontSize:10,fontWeight:700,letterSpacing:2,cursor:"pointer"}}>
-                  🧭 TAKE THE TOUR AGAIN
+                   TAKE THE TOUR AGAIN
                 </button>
               </div>
             )}
@@ -1252,9 +1252,9 @@ function SettingsPanel(props){
                 ))}
               </div>
             </div>
-            <WidthControl label="LEFT PANEL WIDTH" value={leftWidth} setValue={setLeftWidth} min={180} max={500} presets={[{l:"Narrow",v:220},{l:"Standard",v:290},{l:"Wide",v:360}]} T={T} accent={accent} hint="💡 Or drag the panel border directly"/>
-            <WidthControl label="RIGHT PANEL WIDTH" value={rightWidth} setValue={setRightWidth} min={200} max={560} presets={[{l:"Narrow",v:260},{l:"Standard",v:310},{l:"Wide",v:380}]} T={T} accent={accent} hint="💡 Or drag the panel border directly"/>
-            <WidthControl label="CHART AI PANEL WIDTH" value={chartRightWidth} setValue={setChartRightWidth} min={200} max={600} presets={[{l:"Narrow",v:280},{l:"Standard",v:340},{l:"Wide",v:420}]} T={T} accent={accent} hint="💡 Or drag the panel border directly"/>
+            <WidthControl label="LEFT PANEL WIDTH" value={leftWidth} setValue={setLeftWidth} min={180} max={500} presets={[{l:"Narrow",v:220},{l:"Standard",v:290},{l:"Wide",v:360}]} T={T} accent={accent} hint=" Or drag the panel border directly"/>
+            <WidthControl label="RIGHT PANEL WIDTH" value={rightWidth} setValue={setRightWidth} min={200} max={560} presets={[{l:"Narrow",v:260},{l:"Standard",v:310},{l:"Wide",v:380}]} T={T} accent={accent} hint=" Or drag the panel border directly"/>
+            <WidthControl label="CHART AI PANEL WIDTH" value={chartRightWidth} setValue={setChartRightWidth} min={200} max={600} presets={[{l:"Narrow",v:280},{l:"Standard",v:340},{l:"Wide",v:420}]} T={T} accent={accent} hint=" Or drag the panel border directly"/>
             <div style={{marginTop:18,paddingTop:14,borderTop:`1px solid ${T.border}`}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:7}}>
                 <span style={{fontFamily:FONT_MONO,fontSize:9,color:T.dim,letterSpacing:2,fontWeight:700}}>GLOBAL TEXT &amp; TAB SIZE</span>
@@ -1283,7 +1283,7 @@ function SettingsPanel(props){
         )}
         <button onClick={onResetAll} style={{width:"100%",padding:"9px",borderRadius:7,background:"transparent",border:`1px solid ${T.border}`,color:T.dim,fontFamily:FONT_MONO,fontSize:10,fontWeight:700,letterSpacing:1,cursor:"pointer",marginTop:6,marginBottom:16}}>RESET ALL TO DEFAULT</button>
         <div style={{padding:"10px",borderRadius:8,background:T.surface,border:`1px solid ${T.border}`}}>
-          <div style={{fontFamily:FONT_MONO,fontSize:9,color:T.dim,lineHeight:1.7}}>This terminal is a proprietary research intelligence system.<br/>⚠️ Not financial advice. All setups are probability-based analysis.</div>
+          <div style={{fontFamily:FONT_MONO,fontSize:9,color:T.dim,lineHeight:1.7}}>This terminal is a proprietary research intelligence system.<br/> Not financial advice. All setups are probability-based analysis.</div>
         </div>
       </div>
     </div>
@@ -1300,7 +1300,7 @@ export function breakingItems(news){
 function NewsPanel({news,onDiveDeep,onRefresh,refreshing,lastUpd,accent,T,density}){
   const alerts=breakingItems(news);
   const live=alerts.some(a=>a.impact?.live);
-  const alertColor=live?"#ff3d57":"#f7c948";
+  const alertColor=live?"#C9576B":"#C9A15B";
   return(
     <div style={{width:"100%",display:"flex",flexDirection:"column",background:T.panel,height:"100%"}}>
       <div style={{padding:"11px 14px",borderBottom:`1px solid ${alerts.length?`${alertColor}45`:T.border}`,display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0,background:alerts.length?`${alertColor}0c`:"transparent",transition:"background 0.4s"}}>
@@ -1396,7 +1396,7 @@ function ChartPage({symbol,onSymbolChange,interval="1d",onIntervalChange,annotat
               title="Remove all drawings on this chart"
               style={{fontFamily:FONT_MONO,fontSize:9,fontWeight:700,padding:"4px 9px",borderRadius:5,cursor:"pointer",
                 color:T.dim,background:"transparent",border:`1px solid ${T.border}`}}>
-              ✕ CLEAR {annotations.filter(a=>a.symbol===symbol).length} DRAWING{annotations.filter(a=>a.symbol===symbol).length>1?"S":""}
+               CLEAR {annotations.filter(a=>a.symbol===symbol).length} DRAWING{annotations.filter(a=>a.symbol===symbol).length>1?"S":""}
             </button>
           )}
           {/* 8 intervals don't fit on a 375px row — scroll them horizontally
@@ -1478,7 +1478,7 @@ function ImpactChip({impact,T}){
           <div style={{width:`${s}%`,height:"100%",borderRadius:2,background:"linear-gradient(90deg,#ef4444,#f59e0b 45%,#facc15 65%,#22c55e)",transition:"width 0.5s"}}/>
         </div>
         <span style={{fontFamily:FONT_MONO,fontSize:7,fontWeight:800,letterSpacing:1,color:c,whiteSpace:"nowrap"}}>
-          {impact.label}{reasoned?" ✦":""}
+          {impact.label}{reasoned?" ":""}
         </span>
       </div>
       {hov&&why&&(
@@ -1541,7 +1541,7 @@ function DataPage({news,secData,secLoading,onRefreshAll,onDiveNews,onDiveFiling,
 
   const newsCard=(
     <div style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:10,padding:14,height:"100%",display:"flex",flexDirection:"column",minHeight:0}}>
-      <div style={{fontFamily:FONT_MONO,fontSize:9,color:"#f7c948",letterSpacing:2,fontWeight:700,marginBottom:10,flexShrink:0}}>📰 BREAKING / LIVE NEWS</div>
+      <div style={{fontFamily:FONT_MONO,fontSize:9,color:"#C9A15B",letterSpacing:2,fontWeight:700,marginBottom:10,flexShrink:0}}> BREAKING / LIVE NEWS</div>
       <div style={{overflowY:"auto",flex:1,minHeight:0}}>
         {news.slice(0,12).map((item,i)=><NewsCard key={item.id||i} item={item} onDiveDeep={onDiveNews} T={T}/>)}
       </div>
@@ -1549,17 +1549,17 @@ function DataPage({news,secData,secLoading,onRefreshAll,onDiveNews,onDiveFiling,
   );
   const filingsCard=(
     <div style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:10,padding:14,height:"100%",display:"flex",flexDirection:"column",minHeight:0}}>
-      <div style={{fontFamily:FONT_MONO,fontSize:9,color:"#7eb8f7",letterSpacing:2,fontWeight:700,marginBottom:10,flexShrink:0}}>📋 SEC FILINGS</div>
+      <div style={{fontFamily:FONT_MONO,fontSize:9,color:"#6F94BE",letterSpacing:2,fontWeight:700,marginBottom:10,flexShrink:0}}> SEC FILINGS</div>
       <div style={{overflowY:"auto",flex:1,minHeight:0}}>
         {secLoading&&<div style={{fontFamily:FONT_MONO,fontSize:10,color:T.dim,padding:8}}>Loading from SEC EDGAR...</div>}
         {!secLoading&&(secData?.filings||[]).length===0&&<div style={{fontFamily:FONT_MONO,fontSize:10,color:T.dim,padding:8}}>No recent filings for your watchlist.</div>}
         {(secData?.filings||[]).map((f,i)=>(
           <div key={i} onClick={()=>onDiveFiling(f)}
-            style={{background:"rgba(126,184,247,0.06)",border:"1px solid rgba(126,184,247,0.18)",borderLeft:"3px solid #7eb8f7",borderRadius:7,padding:"8px 10px",marginBottom:6,cursor:"pointer"}}
+            style={{background:"rgba(126,184,247,0.06)",border:"1px solid rgba(126,184,247,0.18)",borderLeft:"3px solid #6F94BE",borderRadius:7,padding:"8px 10px",marginBottom:6,cursor:"pointer"}}
             onMouseEnter={e=>e.currentTarget.style.background="rgba(126,184,247,0.12)"}
             onMouseLeave={e=>e.currentTarget.style.background="rgba(126,184,247,0.06)"}>
             <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
-              <span style={{fontFamily:FONT_MONO,fontSize:11,fontWeight:700,color:"#7eb8f7"}}>{f.symbol} · {f.form}</span>
+              <span style={{fontFamily:FONT_MONO,fontSize:11,fontWeight:700,color:"#6F94BE"}}>{f.symbol} · {f.form}</span>
               <span style={{fontFamily:FONT_MONO,fontSize:9,color:T.dim}}>{f.date}</span>
             </div>
             <span style={{fontFamily:FONT_CHAT,fontSize:10.5,color:T.textDim}}>{f.formName||f.form}</span>
@@ -1571,22 +1571,22 @@ function DataPage({news,secData,secLoading,onRefreshAll,onDiveNews,onDiveFiling,
   );
   const insidersCard=(
     <div style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:10,padding:14,height:"100%",display:"flex",flexDirection:"column",minHeight:0}}>
-      <div style={{fontFamily:FONT_MONO,fontSize:9,color:"#a78bfa",letterSpacing:2,fontWeight:700,marginBottom:10,flexShrink:0}}>👤 INSIDER TRADES (FORM 4)</div>
+      <div style={{fontFamily:FONT_MONO,fontSize:9,color:"#8B84C4",letterSpacing:2,fontWeight:700,marginBottom:10,flexShrink:0}}> INSIDER TRADES (FORM 4)</div>
       <div style={{overflowY:"auto",flex:1,minHeight:0}}>
         {secLoading&&<div style={{fontFamily:FONT_MONO,fontSize:10,color:T.dim,padding:8}}>Loading from SEC EDGAR...</div>}
         {!secLoading&&(secData?.insiderTrades||[]).length===0&&<div style={{fontFamily:FONT_MONO,fontSize:10,color:T.dim,padding:8}}>No recent Form 4s for your watchlist.</div>}
         {(secData?.insiderTrades||[]).map((t,i)=>(
           <div key={i} onClick={()=>onDiveInsider(t)}
-            style={{background:"rgba(167,139,250,0.06)",border:"1px solid rgba(167,139,250,0.18)",borderLeft:"3px solid #a78bfa",borderRadius:7,padding:"8px 10px",marginBottom:6,cursor:"pointer"}}
+            style={{background:"rgba(167,139,250,0.06)",border:"1px solid rgba(167,139,250,0.18)",borderLeft:"3px solid #8B84C4",borderRadius:7,padding:"8px 10px",marginBottom:6,cursor:"pointer"}}
             onMouseEnter={e=>e.currentTarget.style.background="rgba(167,139,250,0.12)"}
             onMouseLeave={e=>e.currentTarget.style.background="rgba(167,139,250,0.06)"}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
               <span style={{display:"flex",alignItems:"center",gap:6}}>
-                <span style={{fontFamily:FONT_MONO,fontSize:11,fontWeight:700,color:"#a78bfa"}}>{t.symbol}</span>
+                <span style={{fontFamily:FONT_MONO,fontSize:11,fontWeight:700,color:"#8B84C4"}}>{t.symbol}</span>
                 {/* The transaction TYPE is the whole signal — a BUY and a tax
                     withholding are not the same event. Show it, don't hide it. */}
                 {t.txnCode&&(()=>{const buy=t.txnCode==="P";const sell=t.txnCode==="S";
-                  const c=buy?"#00e676":sell?"#ff8a5b":"#8896a8";
+                  const c=buy?"#4FA97B":sell?"#ff8a5b":"#8896a8";
                   const lbl=({P:"BUY",S:"SELL",A:"GRANT",M:"EXERCISE",F:"TAX",G:"GIFT",C:"CONVERT"})[t.txnCode]||t.txnCode;
                   return <span style={{fontFamily:FONT_MONO,fontSize:7,fontWeight:800,letterSpacing:1,color:c,border:`1px solid ${c}55`,background:`${c}14`,borderRadius:3,padding:"1px 5px"}}>{lbl}</span>;})()}
               </span>
@@ -2261,7 +2261,7 @@ export default function MarketTerminal(){
         for(const a of d.actions){
           try{const fn=aiActionsRef.current[a.name];if(fn){fn(a.input||{});done.push(a.name.replace(/_/g," "));}}catch{}
         }
-        if(done.length)actionNote=`\n\n⚙ Executed: ${done.join(", ")}`;
+        if(done.length)actionNote=`\n\n Executed: ${done.join(", ")}`;
       }
       // Assemble inline buttons: the auto-setup re-show (rules 1&2) first, then any
       // choice buttons the model offered via offer_choices (rule 3, e.g. short/long).
@@ -2270,7 +2270,7 @@ export default function MarketTerminal(){
       if(setup){plotSetupOnChart(setup);buttons.push(setupReshowButton(setup));}
       if(Array.isArray(d.buttons))buttons.push(...d.buttons);
       setMessages(p=>[...p,{role:"assistant",content:(d.text||d.error||"Analysis complete.")+actionNote,isAlertDive:isAlert,...(buttons.length?{buttons}:{})}]);
-    }catch{setMessages(p=>[...p,{role:"assistant",content:"⚠️ Connection error. Please retry."}]);}
+    }catch{setMessages(p=>[...p,{role:"assistant",content:" Connection error. Please retry."}]);}
     finally{setLoading(false);}
   },[messages,ctx,findActiveSetupInText,plotSetupOnChart]);
 
@@ -2303,7 +2303,7 @@ export default function MarketTerminal(){
     if(view==="chart"){setChartSymbol(q.symbol);return;}
     setOverviewSymbol(q.symbol);setView("overview");return;
     const prompt=`DEEP DIVE — ${q.symbol} (${q.name||q.symbol})\nLive: $${q.price?.toFixed(2)}, ${q.changePercent?.toFixed(2)}% today, H$${q.high?.toFixed(2)} L$${q.low?.toFixed(2)}\n\n▸ CATALYST\n▸ LEVELS — exact support and resistance\n▸ OPTIONS LANDSCAPE — IV rank\n▸ DIRECTION — CALL or PUT\n▸ PLAY — exact strike and expiry\n▸ ENTRY / TARGET / STOP\n▸ TIMEFRAME\n▸ SYMPATHY PLAYS\n▸ RISK\n▸ VERDICT — grade A/B/C`;
-    const nm=[...messages,{role:"user",content:`🔍 Deep dive: ${q.symbol} — $${q.price?.toFixed(2)} (${q.changePercent?.toFixed(2)}%)`}];
+    const nm=[...messages,{role:"user",content:` Deep dive: ${q.symbol} — $${q.price?.toFixed(2)} (${q.changePercent?.toFixed(2)}%)`}];
     setMessages(nm);await callAPI(prompt,true,nm);
   },[loading,callAPI,messages,view]);
 
@@ -2313,7 +2313,7 @@ export default function MarketTerminal(){
     const prompt=isTrumpSearch
       ?`Search Trump's latest Truth Social posts and statements RIGHT NOW — last 24 hours. Which sectors and tickers impacted? For each: exact tickers, direction, options play with exact strike/expiry, IV rank, entry/target/stop.`
       :`Analyze this news:\n"${item.headline}"\nSource: ${item.source}\n\nDirectly affected tickers? Sympathy plays? Priced in or still edge? Exact options plays with strike/expiry, IV rank, entry/target/stop.`;
-    const label=isTrumpSearch?"Ⓣ AI: Search Trump Truth Social now":`📰 ${item.headline?.slice(0,65)}...`;
+    const label=isTrumpSearch?"Ⓣ AI: Search Trump Truth Social now":` ${item.headline?.slice(0,65)}...`;
     const nm=[...messages,{role:"user",content:label}];
     setMessages(nm);await callAPI(prompt,true,nm);
   },[loading,callAPI,messages]);
@@ -2321,14 +2321,14 @@ export default function MarketTerminal(){
   const handleFiling=useCallback(async(f)=>{
     if(loading)return;
     const prompt=`SEC filing: ${f.symbol} filed a ${f.form} (${f.formName||""}) on ${f.date}. What does this typically signal? Bullish, bearish, or neutral read right now?`;
-    const nm=[...messages,{role:"user",content:`📋 ${f.symbol} filed ${f.form} on ${f.date}`}];
+    const nm=[...messages,{role:"user",content:` ${f.symbol} filed ${f.form} on ${f.date}`}];
     setMessages(nm);await callAPI(prompt,true,nm);
   },[loading,callAPI,messages]);
 
   const handleInsider=useCallback(async(t)=>{
     if(loading)return;
     const prompt=`Insider Form 4 for ${t.symbol} on ${t.date}. What's the typical read? Bullish or bearish signal?`;
-    const nm=[...messages,{role:"user",content:`👤 ${t.symbol} insider Form 4 — ${t.date}`}];
+    const nm=[...messages,{role:"user",content:` ${t.symbol} insider Form 4 — ${t.date}`}];
     setMessages(nm);await callAPI(prompt,true,nm);
   },[loading,callAPI,messages]);
 
@@ -2351,18 +2351,18 @@ export default function MarketTerminal(){
             clock readout. Reserve ~26px on the right so the clock clears it. */}
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8,paddingRight:24}}>
           <div style={{display:"flex",alignItems:"center",gap:7}}>
-            <div style={{width:7,height:7,borderRadius:"50%",background:dataErr?"#ff4d6d":accent,boxShadow:dataErr?"none":`0 0 8px ${accent}`}}/>
+            <div style={{width:7,height:7,borderRadius:"50%",background:dataErr?"#C9576B":accent,boxShadow:dataErr?"none":`0 0 8px ${accent}`}}/>
             <span style={{fontFamily:FONT_SANS,fontSize:14,fontWeight:700,color:TL.text,letterSpacing:0.2}}>Watchlist</span>
           </div>
           <span style={{fontFamily:FONT_MONO,fontSize:8,color:TL.dim}}>{lastUpd?new Date(lastUpd).toLocaleTimeString():"—"}</span>
         </div>
-        {dataErr&&<div style={{fontFamily:FONT_MONO,fontSize:9,color:"#ff4d6d",background:"rgba(255,77,109,0.07)",border:"1px solid rgba(255,77,109,0.18)",borderRadius:5,padding:"4px 8px",marginBottom:7}}>⚠ {dataErr}</div>}
+        {dataErr&&<div style={{fontFamily:FONT_MONO,fontSize:9,color:"#C9576B",background:"rgba(255,77,109,0.07)",border:"1px solid rgba(255,77,109,0.18)",borderRadius:5,padding:"4px 8px",marginBottom:7}}> {dataErr}</div>}
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <span style={{fontFamily:FONT_MONO,fontSize:8,color:TL.dim,letterSpacing:2,fontWeight:700}}>{watchlist.length} TICKERS</span>
           <div style={{display:"flex",gap:5}}>
             {/* V10: beginner indicator guide */}
             <button onClick={()=>setShowIndicatorInfo(true)} title="What do these numbers mean?" style={{fontFamily:FONT_MONO,fontSize:9,color:TL.dim,background:"transparent",border:`1px solid ${TL.border}`,borderRadius:5,padding:"3px 8px",fontWeight:700,cursor:"pointer"}}>ⓘ</button>
-            <button onClick={()=>setShowWL(true)} style={{fontFamily:FONT_MONO,fontSize:9,color:accent,background:`${accent}0e`,border:`1px solid ${accent}22`,borderRadius:5,padding:"3px 9px",fontWeight:700,cursor:"pointer"}}>★ EDIT</button>
+            <button onClick={()=>setShowWL(true)} style={{fontFamily:FONT_MONO,fontSize:9,color:accent,background:`${accent}0e`,border:`1px solid ${accent}22`,borderRadius:5,padding:"3px 9px",fontWeight:700,cursor:"pointer"}}> EDIT</button>
           </div>
         </div>
       </div>
@@ -2423,8 +2423,8 @@ export default function MarketTerminal(){
     noteItems[`note-${n.id}`]=(
       <div style={{height:"100%",display:"flex",flexDirection:"column",background:T.surface}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 10px",borderBottom:`1px solid ${T.border}`,flexShrink:0}}>
-          <span style={{fontFamily:FONT_MONO,fontSize:8,color:"#f7c948",letterSpacing:2,fontWeight:700}}>📝 NOTE</span>
-          <button onClick={()=>setNotes(prev=>prev.filter(x=>x.id!==n.id))} style={{color:T.dim,fontSize:12,cursor:"pointer"}}>✕</button>
+          <span style={{fontFamily:FONT_MONO,fontSize:8,color:"#C9A15B",letterSpacing:2,fontWeight:700}}> NOTE</span>
+          <button onClick={()=>setNotes(prev=>prev.filter(x=>x.id!==n.id))} style={{color:T.dim,fontSize:12,cursor:"pointer"}}><Icon name="close" size={14} /></button>
         </div>
         <textarea value={n.text} onChange={e=>setNotes(prev=>prev.map(x=>x.id===n.id?{...x,text:e.target.value}:x))}
           placeholder="Trade notes, levels, reminders..."
@@ -2509,7 +2509,7 @@ export default function MarketTerminal(){
                  standalone PWA the web view extends under the status bar, and a
                  top-pinned close button lands beneath that system overlay, which
                  silently eats the tap. Pad the top by the safe-area inset so the
-                 ✕ is actually reachable. */
+                  is actually reachable. */
               .kronos-settings-sheet{width:100vw;max-width:100vw;padding-top:calc(22px + env(safe-area-inset-top, 0px))!important;padding-bottom:calc(22px + env(safe-area-inset-bottom, 0px))!important;}
             }
             /* Bot-flow modals (entry warning, mode select, broker): on a phone a
@@ -2652,7 +2652,7 @@ export default function MarketTerminal(){
                   <span title={`${newsAlerts.length} breaking/live item${newsAlerts.length>1?"s":""}`}
                     style={{
                       position:"absolute",top:-2,right:-9,width:7,height:7,borderRadius:"50%",
-                      background:newsAlerts.some(a=>a.impact?.live)?"#ff3d57":"#f7c948",
+                      background:newsAlerts.some(a=>a.impact?.live)?"#C9576B":"#C9A15B",
                       animation:"news-pulse 1.1s ease-in-out infinite",
                     }}/>
                 )}
@@ -2669,15 +2669,15 @@ export default function MarketTerminal(){
               layoutEdit?(
                 <div style={{display:"flex",gap:6}}>
                   {view==="terminal"&&<button onClick={()=>setNotes(prev=>[...prev,{id:Date.now(),text:""}])}
-                    style={{padding:"5px 10px",borderRadius:7,fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,color:"#f7c948",background:"rgba(247,201,72,0.08)",border:"1px solid rgba(247,201,72,0.3)",cursor:"pointer"}}>+ NOTE</button>}
+                    style={{padding:"5px 10px",borderRadius:7,fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,color:"#C9A15B",background:"rgba(247,201,72,0.08)",border:"1px solid rgba(247,201,72,0.3)",cursor:"pointer"}}>+ NOTE</button>}
                   <button onClick={()=>{const k=view==="data"?"data":"terminal";setLayouts(prev=>{const p={...prev};delete p[k];return p;});setLayoutEdit(false);}}
-                    style={{padding:"5px 10px",borderRadius:7,fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,color:"#ff4d6d",background:"rgba(255,77,109,0.08)",border:"1px solid rgba(255,77,109,0.3)",cursor:"pointer"}}>RESET</button>
+                    style={{padding:"5px 10px",borderRadius:7,fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,color:"#C9576B",background:"rgba(255,77,109,0.08)",border:"1px solid rgba(255,77,109,0.3)",cursor:"pointer"}}>RESET</button>
                   <button onClick={()=>{const k=view==="data"?"data":"terminal";const def=k==="data"?DEFAULT_DATA_LAYOUT:DEFAULT_TERMINAL_LAYOUT;if(!layouts?.[k])setLayouts(prev=>({...prev,[k]:def}));setLayoutEdit(false);}}
-                    style={{padding:"5px 10px",borderRadius:7,fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,color:accent,background:`${accent}12`,border:`1px solid ${accent}40`,cursor:"pointer"}}>🔒 SAVE LAYOUT</button>
+                    style={{padding:"5px 10px",borderRadius:7,fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,color:accent,background:`${accent}12`,border:`1px solid ${accent}40`,cursor:"pointer"}}> SAVE LAYOUT</button>
                 </div>
               ):(
                 <button onClick={()=>setLayoutEdit(true)} title="Customize layout — drag & resize panels"
-                  style={{padding:"5px 10px",borderRadius:7,fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,color:T.dim,background:T.surface,border:`1px solid ${T.border}`,cursor:"pointer"}}>🔓 LAYOUT</button>
+                  style={{padding:"5px 10px",borderRadius:7,fontFamily:FONT_MONO,fontSize:9,fontWeight:700,letterSpacing:1,color:T.dim,background:T.surface,border:`1px solid ${T.border}`,cursor:"pointer"}}> LAYOUT</button>
               )
             )}
             {/* V13: interaction-mode switcher — Chatty AI (conversational) vs

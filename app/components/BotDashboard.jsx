@@ -3,6 +3,7 @@
 // Real data only (V10 item 13): no simulated stream, no mock fills, no fake P&L.
 // Layout: [ SIGNAL FEED column ] [ VIX galaxy orb + market state ] [ scanner ].
 // Strict mode isolation (item 9): everything on screen is scoped to OPT or FUT.
+import Icon from "./Icons";
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { KronosOnboarding } from "./KronosOnboarding";
 import BrokerConnect from "./BrokerConnect";
@@ -44,11 +45,11 @@ const FC = "'Inter',sans-serif";
 //   options → up to ~2-week swing: high-risk, so no month+/year horizons.
 //   equity  → daily / weekly / monthly: long-horizon portfolio growth.
 const MODE_CONFIG = {
-  futures: { symbols: ["NQ", "MNQ", "ES", "MES", "YM", "RTY", "CL", "GC"], intervals: ALLOWED_INTERVALS.futures, defaultSymbol: "NQ", defaultInterval: "15min", color: "#7eb8f7" },
+  futures: { symbols: ["NQ", "MNQ", "ES", "MES", "YM", "RTY", "CL", "GC"], intervals: ALLOWED_INTERVALS.futures, defaultSymbol: "NQ", defaultInterval: "15min", color: "#6F94BE" },
   // V10.3: options quick-picks are MAJOR INDICES only — any other ticker is
   // reached through the search box, so the row stays clean instead of a wall of
   // arbitrary large caps.
-  options: { symbols: ["SPY", "QQQ"], intervals: ALLOWED_INTERVALS.options, defaultSymbol: "SPY", defaultInterval: "1h", color: "#a78bfa" },
+  options: { symbols: ["SPY", "QQQ"], intervals: ALLOWED_INTERVALS.options, defaultSymbol: "SPY", defaultInterval: "1h", color: "#8B84C4" },
   // V13.5: INVEST — grow-the-portfolio mode. Buy/Hold/Sell on large caps.
   equity:  { symbols: ["AAPL", "MSFT", "NVDA", "AMZN"], intervals: ALLOWED_INTERVALS.equity, defaultSymbol: "AAPL", defaultInterval: "1w", color: "#34d399" },
 };
@@ -62,7 +63,7 @@ const INTERVAL_HORIZON = {
   "4h": "SWING", "1d": "DAILY", "1w": "MONTHLY", "1mo": "YEARLY",
 };
 
-const vixColor = (v) => (v == null ? "#9DB4CC" : v < 15 ? "#22d3ee" : v < 20 ? "#a78bfa" : v < 30 ? "#f59e0b" : "#ef4444");
+const vixColor = (v) => (v == null ? "#9DB4CC" : v < 15 ? "#22d3ee" : v < 20 ? "#8B84C4" : v < 30 ? "#f59e0b" : "#ef4444");
 
 // ─── ORB LEGEND TOOLTIP ────────────────────────────────────────────────────────
 function OrbTooltip({ dim, border, surface, text }) {
@@ -86,7 +87,7 @@ function OrbTooltip({ dim, border, surface, text }) {
           </div>
           {[
             ["#22d3ee", "Cool blue/teal — VIX under 15, calm market"],
-            ["#a78bfa", "Violet/white — VIX 15–20, normal range"],
+            ["#8B84C4", "Violet/white — VIX 15–20, normal range"],
             ["#f59e0b", "Amber — VIX 20–30, elevated volatility"],
             ["#ef4444", "Red — VIX 30+, fear territory"],
           ].map(([c, label]) => (
@@ -146,7 +147,7 @@ function AnalyticsTab({ accent, T, paperMode, setPaperMode, assetClass }) {
                 const maxV = Math.max(...curve, 1), minV = Math.min(...curve, 0), range = maxV - minV || 1;
                 const pts = curve.map((v, i) => `${10 + (i / Math.max(curve.length - 1, 1)) * 460},${110 - ((v - minV) / range) * 100}`).join(" ");
                 const up = curve[curve.length - 1] >= 0;
-                return <polyline points={pts} fill="none" stroke={up ? "#00e676" : "#ff3d57"} strokeWidth="2" />;
+                return <polyline points={pts} fill="none" stroke={up ? "#4FA97B" : "#C9576B"} strokeWidth="2" />;
               })()}
             </svg>
           ) : (
@@ -388,7 +389,7 @@ function StudioTab({ accent, T, profile, onEditProfile, onOpenBroker, brokerData
 }
 
 // ─── MAIN ──────────────────────────────────────────────────────────────────────
-export default function BotDashboard({ accent = "#00d4aa", T, botName = "KRONOS", isMobile = false, isDev = false, user = null }) {
+export default function BotDashboard({ accent = "#4C9E92", T, botName = "KRONOS", isMobile = false, isDev = false, user = null }) {
   // V10.5: the bot's own appearance (panel style, text size, grid) — set in the
   // bot-scoped settings panel, live-updates without a reload.
   const botUI = useBotUI();
@@ -703,8 +704,8 @@ export default function BotDashboard({ accent = "#00d4aa", T, botName = "KRONOS"
                   border: `1px solid ${on ? "rgba(0,230,118,0.35)" : border}`,
                   background: on ? "rgba(0,230,118,0.07)" : "transparent",
                 }}>
-                  <div style={{ width: 5, height: 5, borderRadius: "50%", background: on ? "#00e676" : "#2a3648", boxShadow: on ? "0 0 6px #00e676" : "none", animation: on ? "bot-dot 1.8s ease-in-out infinite" : "none" }} />
-                  <span style={{ fontFamily: FM, fontSize: 7.5, fontWeight: 700, letterSpacing: 1.5, color: on ? "#00e676" : dim }}>{s}</span>
+                  <div style={{ width: 5, height: 5, borderRadius: "50%", background: on ? "#4FA97B" : "#2a3648", boxShadow: on ? "0 0 6px #4FA97B" : "none", animation: on ? "bot-dot 1.8s ease-in-out infinite" : "none" }} />
+                  <span style={{ fontFamily: FM, fontSize: 7.5, fontWeight: 700, letterSpacing: 1.5, color: on ? "#4FA97B" : dim }}>{s}</span>
                 </div>
               );
             })}
@@ -730,11 +731,11 @@ export default function BotDashboard({ accent = "#00d4aa", T, botName = "KRONOS"
               display: "flex", alignItems: "center", gap: 6, padding: "3px 10px", borderRadius: 20,
               border: "1px solid rgba(247,201,72,0.3)", background: "rgba(247,201,72,0.07)",
             }}>
-              <span style={{ fontFamily: FM, fontSize: 8, fontWeight: 700, letterSpacing: 1, color: "#f7c948" }}>
+              <span style={{ fontFamily: FM, fontSize: 8, fontWeight: 700, letterSpacing: 1, color: "#C9A15B" }}>
                 EVAL: {propRules.firmName} {propRules.accountLabel}
               </span>
               {propRules.dailyLossLimit && (
-                <span style={{ fontFamily: FM, fontSize: 8, color: Math.abs(Math.min(0, propRules.dailyLossUsed)) / propRules.dailyLossLimit > 0.5 ? "#ff3d57" : "#9DB4CC" }}>
+                <span style={{ fontFamily: FM, fontSize: 8, color: Math.abs(Math.min(0, propRules.dailyLossUsed)) / propRules.dailyLossLimit > 0.5 ? "#C9576B" : "#9DB4CC" }}>
                   DL: ${Math.abs(Math.min(0, propRules.dailyLossUsed)).toFixed(0)}/${propRules.dailyLossLimit}
                 </span>
               )}
@@ -905,7 +906,7 @@ export default function BotDashboard({ accent = "#00d4aa", T, botName = "KRONOS"
             <div style={{ display: "flex", gap: 8, position: "relative", zIndex: 1 }}>
               {[
                 { label: "MODE", value: assetClass.toUpperCase(), color: modeCfg.color },
-                { label: "LAST SIGNAL", value: latestSignal ? `${latestSignal.direction ? directionLabel(latestSignal.direction, assetClass) : ""} ${latestSignal.symbol ?? ""}`.trim() || "—" : "—", color: latestSignal?.direction === "SHORT" ? "#ff3d57" : "#00e676" },
+                { label: "LAST SIGNAL", value: latestSignal ? `${latestSignal.direction ? directionLabel(latestSignal.direction, assetClass) : ""} ${latestSignal.symbol ?? ""}`.trim() || "—" : "—", color: latestSignal?.direction === "SHORT" ? "#C9576B" : "#4FA97B" },
                 { label: "CONVICTION", value: latestSignal?.conviction != null ? `${latestSignal.conviction}%` : "—", color: accent },
               ].map((s) => (
                 <div key={s.label} style={{
@@ -925,8 +926,8 @@ export default function BotDashboard({ accent = "#00d4aa", T, botName = "KRONOS"
             <div style={{ ...panelSx, display: "flex", alignItems: "center", gap: 10, position: "relative", zIndex: 1, padding: "6px 12px", borderRadius: 20 }}>
               {[
                 { c: "#9DB4CC", t: "<78% SILENT", conv: null },
-                { c: "#f7c948", t: "78–90% PULSE", conv: 85 },
-                { c: "#00e676", t: "90%+ COMET", conv: 95 },
+                { c: "#C9A15B", t: "78–90% PULSE", conv: 85 },
+                { c: "#4FA97B", t: "90%+ COMET", conv: 95 },
               ].map((x, i) => (
                 <div key={x.t}
                   onClick={x.conv ? () => testCue(x.conv) : undefined}
@@ -957,7 +958,7 @@ export default function BotDashboard({ accent = "#00d4aa", T, botName = "KRONOS"
             )}
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, paddingLeft: isMobile ? 0 : 20 }}>
               <span style={{ fontFamily: FM, fontSize: 8, fontWeight: 800, letterSpacing: 2, color: modeCfg.color }}>
-                {assetClass === "options" ? "🎯 OPTIONS MODE" : assetClass === "equity" ? "📊 INVEST MODE" : "📈 FUTURES MODE"}
+                {assetClass === "options" ? " OPTIONS MODE" : assetClass === "equity" ? " INVEST MODE" : " FUTURES MODE"}
               </span>
             </div>
             {/* Quick-picks: major indices only */}
@@ -1007,7 +1008,7 @@ export default function BotDashboard({ accent = "#00d4aa", T, botName = "KRONOS"
                 <span style={{ fontFamily: FM, fontSize: 9, fontWeight: 800, color: accent, letterSpacing: 1 }}>{signalSymbol}</span>
                 <span style={{ fontFamily: FM, fontSize: 7, color: dim, letterSpacing: 1 }}>CUSTOM</span>
                 <button onClick={() => setSignalSymbol(modeCfg.defaultSymbol)} title="Back to default"
-                  style={{ marginLeft: "auto", background: "none", border: "none", color: dim, cursor: "pointer", fontSize: 10, fontFamily: FM }}>✕</button>
+                  style={{ marginLeft: "auto", background: "none", border: "none", color: dim, cursor: "pointer", fontSize: 10, fontFamily: FM }}><Icon name="close" size={14} /></button>
               </div>
             )}
 

@@ -10,11 +10,11 @@ const FM = "'JetBrains Mono',monospace";
 const FC = "'Inter',sans-serif";
 
 const outcomeColor = (o) =>
-  o === "WIN" || o === "WINNING" ? "#00e676" :
-  o === "STOPPED" || o === "LOSING" ? "#ff3d57" : "#9DB4CC";
+  o === "WIN" || o === "WINNING" ? "#4FA97B" :
+  o === "STOPPED" || o === "LOSING" ? "#C9576B" : "#9DB4CC";
 
 // ─── SHADOW ACCOUNT PANEL ─────────────────────────────────────────────────────
-export default function ShadowAccountPanel({ accent = "#00d4aa", T, assetClass = "futures" }) {
+export default function ShadowAccountPanel({ accent = "#4C9E92", T, assetClass = "futures" }) {
   const surface = T?.surface ?? "#0A1018";
   const border  = T?.border  ?? "#1A2535";
   const text    = T?.text    ?? "#E2EDF8";
@@ -73,7 +73,7 @@ export default function ShadowAccountPanel({ accent = "#00d4aa", T, assetClass =
           <button onClick={evaluate} disabled={loading} style={{ fontFamily: FM, fontSize: 8, color: accent, background: "none", border: `1px solid ${accent}30`, borderRadius: 5, padding: "3px 8px", cursor: "pointer" }}>
             {loading ? "..." : "RE-GRADE"}
           </button>
-          <button onClick={clear} style={{ fontFamily: FM, fontSize: 8, color: "#ff3d57", background: "none", border: "1px solid rgba(255,61,87,0.25)", borderRadius: 5, padding: "3px 8px", cursor: "pointer" }}>CLEAR</button>
+          <button onClick={clear} style={{ fontFamily: FM, fontSize: 8, color: "#C9576B", background: "none", border: "1px solid rgba(255,61,87,0.25)", borderRadius: 5, padding: "3px 8px", cursor: "pointer" }}>CLEAR</button>
         </div>
       </div>
 
@@ -82,9 +82,9 @@ export default function ShadowAccountPanel({ accent = "#00d4aa", T, assetClass =
         <div style={{ display: "flex", gap: 22, padding: "12px 14px", borderBottom: `1px solid ${border}`, flexWrap: "wrap" }}>
           {[
             ["SIGNALS", stats.total, text],
-            ["WIN RATE", `${stats.winRate}%`, stats.winRate >= 55 ? "#00e676" : stats.winRate >= 45 ? "#f7c948" : "#ff3d57"],
-            ["AVG MOVE", `${stats.avgMove > 0 ? "+" : ""}${stats.avgMove}%`, stats.avgMove >= 0 ? "#00e676" : "#ff3d57"],
-            ...(stats.highConvWinRate != null ? [["70%+ CONV WR", `${stats.highConvWinRate}%`, stats.highConvWinRate >= 55 ? "#00e676" : "#f7c948"]] : []),
+            ["WIN RATE", `${stats.winRate}%`, stats.winRate >= 55 ? "#4FA97B" : stats.winRate >= 45 ? "#C9A15B" : "#C9576B"],
+            ["AVG MOVE", `${stats.avgMove > 0 ? "+" : ""}${stats.avgMove}%`, stats.avgMove >= 0 ? "#4FA97B" : "#C9576B"],
+            ...(stats.highConvWinRate != null ? [["70%+ CONV WR", `${stats.highConvWinRate}%`, stats.highConvWinRate >= 55 ? "#4FA97B" : "#C9A15B"]] : []),
           ].map(([l, v, c]) => (
             <div key={l}>
               <div style={{ fontFamily: FM, fontSize: 7, color: dim, letterSpacing: 1.5, marginBottom: 3 }}>{l}</div>
@@ -104,7 +104,7 @@ export default function ShadowAccountPanel({ accent = "#00d4aa", T, assetClass =
           <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 14px", borderBottom: `1px solid ${border}55` }}>
             <div>
               <div style={{ display: "flex", gap: 7, alignItems: "center" }}>
-                <span style={{ fontFamily: FM, fontSize: 10, fontWeight: 700, color: e.direction === "LONG" ? "#00e676" : "#ff3d57" }}>
+                <span style={{ fontFamily: FM, fontSize: 10, fontWeight: 700, color: e.direction === "LONG" ? "#4FA97B" : "#C9576B" }}>
                   {e.direction} {e.symbol}
                 </span>
                 <span style={{ fontFamily: FM, fontSize: 8, color: dim }}>@ ${Number(e.entry).toFixed(2)}</span>
@@ -115,7 +115,7 @@ export default function ShadowAccountPanel({ accent = "#00d4aa", T, assetClass =
             <div style={{ textAlign: "right" }}>
               <div style={{ fontFamily: FM, fontSize: 10, fontWeight: 800, color: outcomeColor(e.outcome) }}>{e.outcome}</div>
               {e.movePct != null && (
-                <div style={{ fontFamily: FM, fontSize: 9, color: e.movePct >= 0 ? "#00e676" : "#ff3d57" }}>
+                <div style={{ fontFamily: FM, fontSize: 9, color: e.movePct >= 0 ? "#4FA97B" : "#C9576B" }}>
                   {e.movePct >= 0 ? "+" : ""}{e.movePct}%
                 </div>
               )}
@@ -128,7 +128,7 @@ export default function ShadowAccountPanel({ accent = "#00d4aa", T, assetClass =
 }
 
 // ─── PAPER TRADING PANEL ──────────────────────────────────────────────────────
-export function PaperTradingPanel({ accent = "#00d4aa", T, paperMode, setPaperMode, assetClass = "futures" }) {
+export function PaperTradingPanel({ accent = "#4C9E92", T, paperMode, setPaperMode, assetClass = "futures" }) {
   const surface = T?.surface ?? "#0A1018";
   const border  = T?.border  ?? "#1A2535";
   const text    = T?.text    ?? "#E2EDF8";
@@ -176,7 +176,7 @@ export function PaperTradingPanel({ accent = "#00d4aa", T, paperMode, setPaperMo
       <div style={{ display: "flex", gap: 22, marginBottom: 12, flexWrap: "wrap" }}>
         {[
           ["BALANCE", `$${paper.balance.toLocaleString()}`, text],
-          ["PAPER P&L", `${totalPnl >= 0 ? "+" : ""}$${totalPnl.toFixed(0)}`, totalPnl >= 0 ? "#00e676" : "#ff3d57"],
+          ["PAPER P&L", `${totalPnl >= 0 ? "+" : ""}$${totalPnl.toFixed(0)}`, totalPnl >= 0 ? "#4FA97B" : "#C9576B"],
           ["DAYS", String(daysPaper), text],
           ["TRADES", String((paper.history || []).length), text],
         ].map(([l, v, c]) => (
@@ -191,14 +191,14 @@ export function PaperTradingPanel({ accent = "#00d4aa", T, paperMode, setPaperMo
       <div style={{ marginBottom: 10 }}>
         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
           <span style={{ fontFamily: FM, fontSize: 7, color: dim, letterSpacing: 1 }}>LIVE MODE GATE (30-DAY PAPER MINIMUM)</span>
-          <span style={{ fontFamily: FM, fontSize: 9, fontWeight: 700, color: liveUnlocked ? "#00e676" : "#f7c948" }}>
+          <span style={{ fontFamily: FM, fontSize: 9, fontWeight: 700, color: liveUnlocked ? "#4FA97B" : "#C9A15B" }}>
             {liveUnlocked ? "UNLOCKED" : `${daysPaper}/30 days`}
           </span>
         </div>
         <div style={{ height: 5, background: "#1A2535", borderRadius: 3, overflow: "hidden" }}>
           <div style={{
             height: "100%", width: `${Math.min(100, (daysPaper / 30) * 100)}%`,
-            background: liveUnlocked ? "#00e676" : "#f7c948", borderRadius: 3, transition: "width 0.6s",
+            background: liveUnlocked ? "#4FA97B" : "#C9A15B", borderRadius: 3, transition: "width 0.6s",
           }} />
         </div>
       </div>
@@ -208,7 +208,7 @@ export function PaperTradingPanel({ accent = "#00d4aa", T, paperMode, setPaperMo
           Signals auto-execute virtually when paper mode is on.
         </span>
         <button onClick={reset} style={{
-          fontFamily: FM, fontSize: 8, color: "#ff3d57", background: "none",
+          fontFamily: FM, fontSize: 8, color: "#C9576B", background: "none",
           border: "1px solid rgba(255,61,87,0.25)", borderRadius: 5, padding: "3px 8px", cursor: "pointer",
         }}>RESET</button>
       </div>

@@ -6,6 +6,7 @@
 // everything into one fixed viewport (explicit user requirement). Reuses the
 // terminal's own building blocks: LightweightChart, /api/technicals, /api/news,
 // the signals table, and the shared AI chat (messages/send passed in).
+import Icon from "./Icons";
 import { useState, useEffect, useCallback, useRef, Component } from "react";
 import LightweightChart from "./LightweightChart";
 import TickerLogo from "./TickerLogo";
@@ -147,7 +148,7 @@ export default function TickerOverview({ symbol, T, accent, messages, input, set
   }, [symbol, setInput]);
 
   const up = (quote?.changePercent ?? 0) >= 0;
-  const clr = up ? "#00e676" : "#ff3d57";
+  const clr = up ? "#4FA97B" : "#C9576B";
   const card = { background: surface, border: `1px solid ${border}`, borderRadius: 10, padding: 12 };
 
   return (
@@ -188,7 +189,7 @@ export default function TickerOverview({ symbol, T, accent, messages, input, set
         const when = whenLabel[earn.when] || "";
         return (
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 14, padding: "9px 13px", borderRadius: 10, background: `${accent}0d`, border: `1px solid ${accent}30` }}>
-            <span style={{ fontFamily: FM, fontSize: 8.5, fontWeight: 800, letterSpacing: 1.5, color: accent }}>📅 NEXT EARNINGS</span>
+            <span style={{ fontFamily: FM, fontSize: 8.5, fontWeight: 800, letterSpacing: 1.5, color: accent }}> NEXT EARNINGS</span>
             <span style={{ fontFamily: FM, fontSize: 12, fontWeight: 800, color: text }}>{earnDayLabel(earn.date)}</span>
             {when && <span style={{ fontFamily: FM, fontSize: 7.5, fontWeight: 800, letterSpacing: 1, color: accent, background: `${accent}18`, borderRadius: 4, padding: "2px 6px" }}>{when}</span>}
             {dLeft != null && <span style={{ fontFamily: FM, fontSize: 10, fontWeight: 700, color: dim }}>{dLeft === 0 ? "today" : `in ${dLeft}d`}</span>}
@@ -218,20 +219,20 @@ export default function TickerOverview({ symbol, T, accent, messages, input, set
       <Section title="TECHNICALS" T={T} accent={accent} note={tech?.source ? `via ${tech.source}` : ""}>
         <div style={{ ...card, display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(96px, 1fr))", gap: "14px 18px" }}>
           <Stat label="RSI (14)" value={fmt(tech?.rsi, 1)} T={T}
-            color={tech?.rsi == null ? dim : tech.rsi >= 70 ? "#ff3d57" : tech.rsi <= 30 ? "#00e676" : text} />
+            color={tech?.rsi == null ? dim : tech.rsi >= 70 ? "#C9576B" : tech.rsi <= 30 ? "#4FA97B" : text} />
           <Stat label="STOCH RSI" value={fmt(tech?.stochRsi, 0)} T={T}
-            color={tech?.stochRsi == null ? dim : tech.stochRsi >= 80 ? "#ff3d57" : tech.stochRsi <= 20 ? "#00e676" : text} />
+            color={tech?.stochRsi == null ? dim : tech.stochRsi >= 80 ? "#C9576B" : tech.stochRsi <= 20 ? "#4FA97B" : text} />
           <Stat label="MACD HIST" value={fmt(tech?.macd?.hist, 3)} T={T}
-            color={tech?.macd ? (tech.macd.hist >= 0 ? "#00e676" : "#ff3d57") : dim} />
+            color={tech?.macd ? (tech.macd.hist >= 0 ? "#4FA97B" : "#C9576B") : dim} />
           <Stat label="EMA 20" value={fmt(tech?.ema?.e20)} T={T} color={emaColor(tech?.price, tech?.ema?.e20, text, dim)} />
           <Stat label="EMA 50" value={fmt(tech?.ema?.e50)} T={T} color={emaColor(tech?.price, tech?.ema?.e50, text, dim)} />
           <Stat label="EMA 200" value={fmt(tech?.ema?.e200)} T={T} color={emaColor(tech?.price, tech?.ema?.e200, text, dim)} />
           <Stat label="BOLL %B" value={tech?.bollinger?.pctB != null ? tech.bollinger.pctB + "%" : "—"} T={T}
-            color={tech?.bollinger?.pctB == null ? dim : tech.bollinger.pctB >= 100 ? "#ff3d57" : tech.bollinger.pctB <= 0 ? "#00e676" : text} />
+            color={tech?.bollinger?.pctB == null ? dim : tech.bollinger.pctB >= 100 ? "#C9576B" : tech.bollinger.pctB <= 0 ? "#4FA97B" : text} />
           <Stat label="ATR (14)" value={fmt(tech?.atr)} T={T} color={text} />
           <Stat label="VWAP 20d" value={fmt(tech?.vwap)} T={T} color={emaColor(tech?.price, tech?.vwap, text, dim)} />
           <Stat label="REL VOL" value={tech?.relVolume != null ? tech.relVolume.toFixed(2) + "×" : "—"} T={T}
-            color={tech?.relVolume == null ? dim : tech.relVolume >= 1.5 ? "#f7c948" : text} />
+            color={tech?.relVolume == null ? dim : tech.relVolume >= 1.5 ? "#C9A15B" : text} />
         </div>
       </Section>
 
@@ -269,8 +270,8 @@ export default function TickerOverview({ symbol, T, accent, messages, input, set
             ) : signals.map((s) => (
               <div key={s.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0", borderBottom: `1px solid ${border}55` }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontFamily: FM, fontSize: 9, fontWeight: 800, color: s.direction === "LONG" ? "#00e676" : s.direction === "SHORT" ? "#ff3d57" : dim }}>{s.direction} {s.interval}</span>
-                  {s.state === "won" && <span style={{ fontFamily: FM, fontSize: 7.5, fontWeight: 800, color: "#00e676" }}>✓ WON</span>}
+                  <span style={{ fontFamily: FM, fontSize: 9, fontWeight: 800, color: s.direction === "LONG" ? "#4FA97B" : s.direction === "SHORT" ? "#C9576B" : dim }}>{s.direction} {s.interval}</span>
+                  {s.state === "won" && <span style={{ fontFamily: FM, fontSize: 7.5, fontWeight: 800, color: "#4FA97B" }}> WON</span>}
                 </div>
                 <span style={{ fontFamily: FM, fontSize: 11, fontWeight: 800, color: accent }}>{s.conviction}%</span>
               </div>
@@ -283,7 +284,7 @@ export default function TickerOverview({ symbol, T, accent, messages, input, set
               <div style={{ fontFamily: FC, fontSize: 11, color: dim }}>No recent headlines for {symbol}.</div>
             ) : news.slice(0, 6).map((n, i) => {
               const sc = n.impact?.score;
-              const scClr = sc == null ? dim : sc >= 70 ? "#ff3d57" : sc >= 45 ? "#f7c948" : dim;
+              const scClr = sc == null ? dim : sc >= 70 ? "#C9576B" : sc >= 45 ? "#C9A15B" : dim;
               return (
                 <a key={n.id || i} href={n.url || undefined} target="_blank" rel="noopener noreferrer"
                   style={{ display: "block", padding: "7px 0", borderBottom: `1px solid ${border}55`, textDecoration: "none" }}>
@@ -336,7 +337,7 @@ export default function TickerOverview({ symbol, T, accent, messages, input, set
           </div>
           <div style={{ borderTop: `1px solid ${border}`, padding: 8, display: "flex", gap: 6, flexShrink: 0 }}>
             <button onClick={askAboutTicker} title={`Prefill a breakdown request for ${symbol}`}
-              style={{ fontFamily: FM, fontSize: 9, fontWeight: 700, color: accent, background: `${accent}12`, border: `1px solid ${accent}30`, borderRadius: 7, padding: "0 10px", cursor: "pointer", flexShrink: 0 }}>⚡ {symbol}</button>
+              style={{ fontFamily: FM, fontSize: 9, fontWeight: 700, color: accent, background: `${accent}12`, border: `1px solid ${accent}30`, borderRadius: 7, padding: "0 10px", cursor: "pointer", flexShrink: 0 }}> {symbol}</button>
             <textarea value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={handleKey}
               placeholder={`Ask about ${symbol}…`} rows={1}
               style={{ flex: 1, background: "#05080f", border: `1px solid ${border}`, borderRadius: 7, color: text, fontFamily: FC, fontSize: 12, padding: "8px 10px", resize: "none", outline: "none" }} />
@@ -376,4 +377,4 @@ function Row({ children }) {
 }
 
 const fmt = (v, p = 2) => (v == null || Number.isNaN(v) ? "—" : Number(v).toFixed(p));
-const emaColor = (price, ema, text, dim) => (ema == null || price == null ? dim : price >= ema ? "#00e676" : "#ff3d57");
+const emaColor = (price, ema, text, dim) => (ema == null || price == null ? dim : price >= ema ? "#4FA97B" : "#C9576B");

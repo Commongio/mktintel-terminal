@@ -6,6 +6,7 @@
 // desk. Everything here is honest about platform reality rather than failing
 // silently — iOS in particular hides push behind a home-screen install, and a
 // toggle that just does nothing would be worse than no toggle.
+import Icon from "./Icons";
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { getSupabase, supabaseConfigured, getAccessToken } from "../../lib/supabase";
@@ -222,12 +223,12 @@ export default function PushAlerts({ T, accent, user, alertPrefs = null }) {
 
   return (
     <div style={box}>
-      <div style={label}>🔔 SIGNAL ALERTS</div>
+      <div style={label}> SIGNAL ALERTS</div>
 
       {needsInstall ? (
         // The single most confusing mobile failure mode, handled explicitly.
         <div style={note}>
-          <b style={{ color: "#f7c948" }}>Install KRONOS to your home screen first.</b><br />
+          <b style={{ color: "#C9A15B" }}>Install KRONOS to your home screen first.</b><br />
           On iPhone, Apple only allows notifications for apps added to the home screen.
           Tap <b style={{ color: text }}>Share</b> → <b style={{ color: text }}>Add to Home Screen</b>,
           then open KRONOS from that icon and come back here. (Requires iOS 16.4 or later.)
@@ -274,7 +275,7 @@ export default function PushAlerts({ T, accent, user, alertPrefs = null }) {
               style={{
                 flex: 1, minWidth: 130, minHeight: 44, borderRadius: 8, cursor: busy ? "default" : "pointer",
                 fontFamily: FM, fontSize: 10, fontWeight: 700, letterSpacing: 1,
-                color: subscribed ? "#ff3d57" : accent,
+                color: subscribed ? "#C9576B" : accent,
                 background: subscribed ? "rgba(255,61,87,0.08)" : `${accent}12`,
                 border: `1px solid ${subscribed ? "rgba(255,61,87,0.35)" : `${accent}35`}`,
                 opacity: busy ? 0.6 : 1,
@@ -317,7 +318,7 @@ export default function PushAlerts({ T, accent, user, alertPrefs = null }) {
               </div>
               {(diag.recent || []).slice(0, 6).map((r, i) => (
                 <div key={i} style={{ fontFamily: FM, fontSize: 8, color: dim, lineHeight: 1.5 }}>
-                  <span style={{ color: r.wouldPush ? "#00e676" : "#ff3d57" }}>{r.wouldPush ? "✓" : "✕"}</span>{" "}
+                  <span style={{ color: r.wouldPush ? "#4FA97B" : "#C9576B" }}>{r.wouldPush ? "" : ""}</span>{" "}
                   <span style={{ color: text }}>{r.symbol}</span> {r.side}/{r.interval} {r.status} {r.conviction}%
                   {r.why ? ` — ${r.why}` : ""}
                 </div>

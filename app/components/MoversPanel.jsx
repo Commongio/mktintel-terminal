@@ -3,6 +3,7 @@
 // Market-wide (Yahoo predefined screener via /api/movers) — every tradeable US
 // equity, not the curated universe. Rows are clickable → onPick(symbol) so the
 // Data page and the ticker Overview can both route a click to the overview.
+import Icon from "./Icons";
 import { useState, useEffect, useCallback } from "react";
 import TickerLogo from "./TickerLogo";
 
@@ -61,11 +62,11 @@ export default function MoversPanel({ T, accent, onPick, fill = false }) {
 
       <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
         {state === "loading" && <div style={{ padding: 14, fontFamily: FM, fontSize: 9, color: dim }}>Loading market movers…</div>}
-        {state === "error" && <div style={{ padding: 14, fontFamily: FM, fontSize: 9, color: "#ff3d57" }}>⚠ Movers feed unavailable — retrying next cycle.</div>}
+        {state === "error" && <div style={{ padding: 14, fontFamily: FM, fontSize: 9, color: "#C9576B" }}> Movers feed unavailable — retrying next cycle.</div>}
         {state === "empty" && <div style={{ padding: 14, fontFamily: FM, fontSize: 9, color: dim }}>No movers right now.</div>}
         {rows.map((r) => {
           const up = (r.changePct ?? 0) >= 0;
-          const clr = up ? "#00e676" : "#ff3d57";
+          const clr = up ? "#4FA97B" : "#C9576B";
           return (
             <div key={r.symbol} onClick={() => onPick?.(r.symbol)}
               style={{

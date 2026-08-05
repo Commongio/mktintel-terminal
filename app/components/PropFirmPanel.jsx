@@ -9,7 +9,7 @@ const FD = "'Fraunces',serif";
 export const PROP_FIRMS = {
   topstep: {
     name: "TopStep",
-    color: "#7eb8f7",
+    color: "#6F94BE",
     accounts: [
       { label: "$50K Express", balance: 50000, dailyLoss: 1000, trailingDD: 2000, profitTarget: 3000, maxContracts: { NQ: 3, MNQ: 30, ES: 3, MES: 30 } },
       { label: "$100K Express", balance: 100000, dailyLoss: 2000, trailingDD: 3000, profitTarget: 6000, maxContracts: { NQ: 6, MNQ: 60, ES: 6, MES: 60 } },
@@ -47,7 +47,7 @@ export const PROP_FIRMS = {
   },
   ftmo: {
     name: "FTMO",
-    color: "#00d4aa",
+    color: "#4C9E92",
     accounts: [
       { label: "$10K Challenge",  balance: 10000,  dailyLoss: 500,  trailingDD: 1000, profitTarget: 1000, maxContracts: null },
       { label: "$25K Challenge",  balance: 25000,  dailyLoss: 1250, trailingDD: 2500, profitTarget: 2500, maxContracts: null },
@@ -68,7 +68,7 @@ export const PROP_FIRMS = {
   },
   e8: {
     name: "E8 Funding",
-    color: "#a78bfa",
+    color: "#8B84C4",
     accounts: [
       { label: "$25K",  balance: 25000,  dailyLoss: 1250, trailingDD: 2000, profitTarget: 2000,  maxContracts: null },
       { label: "$50K",  balance: 50000,  dailyLoss: 2500, trailingDD: 4000, profitTarget: 4000,  maxContracts: null },
@@ -87,7 +87,7 @@ export const PROP_FIRMS = {
   },
   the5ers: {
     name: "The5ers",
-    color: "#f7c948",
+    color: "#C9A15B",
     accounts: [
       { label: "Bootcamp $100K",     balance: 100000, dailyLoss: 4000, trailingDD: 8000,  profitTarget: 8000,  maxContracts: null },
       { label: "High Stakes $100K",  balance: 100000, dailyLoss: 5000, trailingDD: 10000, profitTarget: 10000, maxContracts: null },
@@ -104,7 +104,7 @@ export const PROP_FIRMS = {
   },
   myfundedfx: {
     name: "MyFundedFX",
-    color: "#ff4d6d",
+    color: "#C9576B",
     accounts: [
       { label: "$10K",  balance: 10000,  dailyLoss: 500,  trailingDD: 500,  profitTarget: 1000, maxContracts: null },
       { label: "$25K",  balance: 25000,  dailyLoss: 1250, trailingDD: 1250, profitTarget: 2500, maxContracts: null },
@@ -124,7 +124,7 @@ export const PROP_FIRMS = {
   },
   lucid: {
     name: "Lucid Funded",
-    color: "#00e676",
+    color: "#4FA97B",
     accounts: [
       { label: "$25K",  balance: 25000,  dailyLoss: 1250, trailingDD: 2500, profitTarget: 2500,  maxContracts: null },
       { label: "$50K",  balance: 50000,  dailyLoss: 2500, trailingDD: 5000, profitTarget: 5000,  maxContracts: null },
@@ -145,7 +145,7 @@ export const PROP_FIRMS = {
 function EvalGauge({ label, current, limit, color, invert = false }) {
   const pct = Math.min(100, Math.abs((current / limit) * 100));
   const danger = invert ? pct > 75 : pct > 75;
-  const gc = danger ? "#ff4d6d" : pct > 50 ? "#f7c948" : color;
+  const gc = danger ? "#C9576B" : pct > 50 ? "#C9A15B" : color;
   return (
     <div style={{ marginBottom: 12 }}>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
@@ -305,7 +305,7 @@ export default function PropFirmPanel({ accent, T, onFirmSelect }) {
                     label="PROFIT TARGET PROGRESS"
                     current={Math.max(0, evalData.totalPnl)}
                     limit={account.profitTarget}
-                    color="#00e676"
+                    color="#4FA97B"
                   />
 
                   {/* Key numbers */}

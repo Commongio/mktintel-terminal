@@ -3,6 +3,7 @@
 // Content is dev-editable without a redeploy (Settings brain_config.v13_popup_content,
 // via /admin → Brain Access) — this component just renders whatever it's given,
 // falling back to a sensible default so the popup isn't blank before Gio edits it.
+import Icon from "./Icons";
 const FM = "'JetBrains Mono',monospace";
 const FC = "'Inter',sans-serif";
 
@@ -32,7 +33,7 @@ export default function V13Popup({ content, onClose, accent, T }) {
       <div style={{ width: "100%", maxWidth: 480, maxHeight: "85vh", overflowY: "auto", background: T.panel, border: `1px solid ${accent}45`, borderRadius: 18, boxShadow: "0 24px 64px rgba(0,0,0,0.7)", padding: "24px 28px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
           <span style={{ fontFamily: FM, fontSize: 9, fontWeight: 800, color: accent, letterSpacing: 3 }}>V14 UPDATE</span>
-          <button onClick={onClose} aria-label="Close" style={{ color: T.dim, fontSize: 16, cursor: "pointer", background: "none", border: "none" }}>✕</button>
+          <button onClick={onClose} aria-label="Close" style={{ color: T.dim, fontSize: 16, cursor: "pointer", background: "none", border: "none" }}><Icon name="close" size={14} /></button>
         </div>
         {/* V14: Inter, not the Fraunces serif — the display serif read as
             editorial/indie rather than instrument. Same change as the welcome popup. */}

@@ -52,7 +52,7 @@ export async function POST(request) {
   if (!subs?.length) return Response.json({ error: "No devices subscribed on this account" }, { status: 404 });
 
   const payload = JSON.stringify({
-    title: "⚡ KRONOS · TEST",
+    title: "KRONOS · TEST",
     body: "Push is working. Real FIRE signals will look like this.",
     tag: "kronos-test",
     url: "/",

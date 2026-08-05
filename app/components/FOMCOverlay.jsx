@@ -46,7 +46,7 @@ function getFOMCStatus() {
   return { active: false, upcoming: upcoming?.meeting[0] ?? null };
 }
 
-export default function FOMCOverlay({ accent = "#00d4aa" }) {
+export default function FOMCOverlay({ accent = "#4C9E92" }) {
   const [status,   setStatus]   = useState(null);
   const [expanded, setExpanded] = useState(false);
   const [dismissed,setDismissed]= useState(false);
@@ -67,7 +67,7 @@ export default function FOMCOverlay({ accent = "#00d4aa" }) {
 
   if (!status?.active || dismissed) return null;
 
-  const borderColor = status.pressConf ? "#ff4d6d" : "#f7c948";
+  const borderColor = status.pressConf ? "#C9576B" : "#C9A15B";
   const glowColor   = status.pressConf ? "rgba(255,77,109,0.25)" : "rgba(247,201,72,0.20)";
 
   return (
@@ -101,7 +101,7 @@ export default function FOMCOverlay({ accent = "#00d4aa" }) {
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <div style={{
                   width: 7, height: 7, borderRadius: "50%",
-                  background: status.pressConf ? "#ff4d6d" : "#f7c948",
+                  background: status.pressConf ? "#C9576B" : "#C9A15B",
                   boxShadow: `0 0 8px ${borderColor}`,
                   animation: "fomc-pulse 1.2s ease-in-out infinite",
                 }}/>
@@ -125,7 +125,7 @@ export default function FOMCOverlay({ accent = "#00d4aa" }) {
             {status.pressConf && (
               <div style={{
                 padding: "6px 14px", fontFamily: FM, fontSize: 8,
-                color: "#f7c948", letterSpacing: 1,
+                color: "#C9A15B", letterSpacing: 1,
                 background: "rgba(247,201,72,0.05)", borderBottom: `1px solid ${borderColor}15`,
               }}>
                 Press Conference: {status.pressTime} — Fed Chair live statement

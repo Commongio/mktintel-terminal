@@ -48,6 +48,35 @@ export const GLYPHS = {
   refresh: (s) => <S {...s}><path d="M20 11a8 8 0 1 0-.9 4.7" /><path d="M20 5v6h-6" /></S>,
   close: (s) => <S {...s}><path d="M6 6l12 12M18 6L6 18" /></S>,
   send: (s) => <S {...s}><path d="M4 12l16-8-6 16-3-6-7-2z" /></S>,
+
+  // ── added to retire the emoji ────────────────────────────────────────────
+  // Every glyph below replaced a literal emoji character. Emoji are a font, not
+  // artwork: they render differently on every OS, carry their own colour that
+  // ignores the surrounding context, and sit on a baseline that never quite
+  // aligns with adjacent text. These inherit currentColor and the 1.8 stroke
+  // like the rest of the set, so a row of them reads as one typeface.
+  warning: (s) => <S {...s}><path d="M12 4.5L21 19H3L12 4.5z" /><path d="M12 10v4M12 17h.01" /></S>,
+  check: (s) => <S {...s}><path d="M4 12.5l5 5L20 6.5" /></S>,
+  calendar: (s) => <S {...s}><rect x="3.5" y="5" width="17" height="15" rx="2" /><path d="M3.5 10h17M8 3v4M16 3v4" /></S>,
+  idea: (s) => <S {...s}><path d="M9 18h6M10 21h4" /><path d="M12 3a6 6 0 0 0-3.5 10.9c.5.4.8 1 .8 1.6v.5h5.4v-.5c0-.6.3-1.2.8-1.6A6 6 0 0 0 12 3z" /></S>,
+  target: (s) => <S {...s}><circle cx="12" cy="12" r="8" /><circle cx="12" cy="12" r="3.5" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3" /></S>,
+  rocket: (s) => <S {...s}><path d="M12 3c3.5 2 5.5 5.5 5.5 9.5L12 18l-5.5-5.5C6.5 8.5 8.5 5 12 3z" /><circle cx="12" cy="10" r="1.8" /><path d="M8.5 16.5L6 21l4.5-2M15.5 16.5L18 21l-4.5-2" /></S>,
+  bank: (s) => <S {...s}><path d="M3 10l9-6 9 6" /><path d="M5 10v8M10 10v8M14 10v8M19 10v8M3 21h18" /></S>,
+  briefcase: (s) => <S {...s}><rect x="3" y="7.5" width="18" height="12" rx="2" /><path d="M9 7.5V5.5a1.5 1.5 0 0 1 1.5-1.5h3A1.5 1.5 0 0 1 15 5.5v2M3 13h18" /></S>,
+  halt: (s) => <S {...s}><circle cx="12" cy="12" r="8.5" /><path d="M8.5 8.5l7 7" /></S>,
+  scales: (s) => <S {...s}><path d="M12 4v16M7 20h10M12 7l-6 2M12 7l6 2" /><path d="M3 15a3 3 0 0 0 6 0l-3-6-3 6zM15 17a3 3 0 0 0 6 0l-3-6-3 6z" /></S>,
+  monitor: (s) => <S {...s}><rect x="3" y="4" width="18" height="12" rx="2" /><path d="M9 20h6M12 16v4" /></S>,
+  note: (s) => <S {...s}><path d="M5 4h9l5 5v11H5z" /><path d="M14 4v5h5M8 13h8M8 16.5h5" /></S>,
+  lock: (s) => <S {...s}><rect x="4.5" y="10" width="15" height="10" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3" /></S>,
+  unlock: (s) => <S {...s}><rect x="4.5" y="10" width="15" height="10" rx="2" /><path d="M8 10V7a4 4 0 0 1 7.5-1.9" /></S>,
+  search: (s) => <S {...s}><circle cx="11" cy="11" r="6.5" /><path d="M20 20l-4.5-4.5" /></S>,
+  clipboard: (s) => <S {...s}><rect x="5" y="5" width="14" height="16" rx="2" /><path d="M9 5V3.5h6V5M9 11h6M9 15h4" /></S>,
+  user: (s) => <S {...s}><circle cx="12" cy="8" r="3.5" /><path d="M5 20a7 7 0 0 1 14 0" /></S>,
+  film: (s) => <S {...s}><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 9h18M3 15h18M8 5v14M16 5v14" /></S>,
+  // Not a galaxy. The orb is decorative; where an emoji labelled a *view* of it,
+  // the honest icon is the thing it opens.
+  orbit: (s) => <S {...s}><circle cx="12" cy="12" r="3" /><ellipse cx="12" cy="12" rx="9" ry="4.5" transform="rotate(-20 12 12)" /></S>,
+  sparkle: (s) => <S {...s}><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z" /><path d="M18.5 16.5l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z" /></S>,
 };
 
 export default function Icon({ name, size = 16, color, style }) {

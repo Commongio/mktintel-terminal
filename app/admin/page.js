@@ -1,12 +1,13 @@
 "use client";
 // /admin — owner-only registration code management (V9).
 // Requires Supabase auth + the signed-in email being listed in OWNER_EMAILS.
+import Icon from "../components/Icons";
 import { useState, useEffect, useCallback } from "react";
 import { getSupabase, supabaseConfigured, getAccessToken } from "../../lib/supabase";
 
 const FM = "'JetBrains Mono',monospace";
 const FD = "'Fraunces',serif";
-const C = { bg: "#05080F", panel: "#0A1018", surface: "#0D1520", border: "#1A2535", text: "#E2EDF8", dim: "#9DB4CC", accent: "#00d4aa", red: "#ff4d6d", gold: "#f7c948" };
+const C = { bg: "#05080F", panel: "#0A1018", surface: "#0D1520", border: "#1A2535", text: "#E2EDF8", dim: "#9DB4CC", accent: "#4C9E92", red: "#C9576B", gold: "#C9A15B" };
 
 const statusColor = (s) => (s === "unused" ? C.accent : s === "used" ? C.gold : C.red);
 
@@ -163,7 +164,7 @@ export default function AdminCodesPage() {
           style={{ marginLeft: "auto", width: 200, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 7, padding: "7px 11px", color: C.text, fontFamily: FM, fontSize: 11, letterSpacing: 1 }} />
       </div>
 
-      {error && <div style={{ color: C.red, fontSize: 10, marginBottom: 10 }}>⚠ {error}</div>}
+      {error && <div style={{ color: C.red, fontSize: 10, marginBottom: 10 }}> {error}</div>}
 
       {/* Table */}
       <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden" }}>
@@ -366,8 +367,8 @@ function BrainPanel({ C, FM }) {
 
   return (
     <div>
-      {error && <div style={{ color: C.red, fontSize: 10, marginBottom: 10 }}>⚠ {error}</div>}
-      {notice && <div style={{ color: C.accent, fontSize: 10, marginBottom: 10 }}>✓ {notice}</div>}
+      {error && <div style={{ color: C.red, fontSize: 10, marginBottom: 10 }}> {error}</div>}
+      {notice && <div style={{ color: C.accent, fontSize: 10, marginBottom: 10 }}> {notice}</div>}
 
       <div style={boxSx}>
         <div style={labelSx}>SYSTEM-PROMPT ADDENDUM · APPLIES TO EVERY USER'S AI CHAT</div>
@@ -627,14 +628,14 @@ function BrainPanel({ C, FM }) {
         <div style={labelSx}>DEV TOOLS</div>
         <button onClick={() => { try { localStorage.setItem("kronos_dev_comet_test", "1"); } catch {} window.location.href = "/"; }}
           style={{ ...btnSx, width: "100%" }}>
-          ☄ OPEN BOT & FIRE TEST COMET
+          OPEN BOT & FIRE TEST COMET
         </button>
         <div style={{ fontSize: 8.5, color: C.dim, margin: "8px 0 14px", lineHeight: 1.5 }}>
           Opens the KRONOS bot and launches a Comet on the latest live signal (or a demo if none is live), so you can confirm the effect end-to-end.
         </div>
         <button onClick={() => { try { localStorage.setItem("kronos_dev_test_chop", "1"); } catch {} window.location.href = "/"; }}
           style={{ ...btnSx, width: "100%", background: "rgba(247,201,72,0.1)", border: "1px solid rgba(247,201,72,0.35)", color: C.gold }}>
-          ⚠ OPEN BOT & PREVIEW CHOP BANNER
+           OPEN BOT & PREVIEW CHOP BANNER
         </button>
         <div style={{ fontSize: 8.5, color: C.dim, marginTop: 8, lineHeight: 1.5 }}>
           Opens the bot and forces the &quot;unstable conditions&quot; stand-down banner on the signal feed, so you can confirm it renders without waiting for a real whipsaw. Dismiss it from the banner itself.
