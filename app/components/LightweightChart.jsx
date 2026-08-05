@@ -76,8 +76,6 @@ export default function LightweightChart({
     const chart = createChart(wrapRef.current, {
       autoSize: true,
       layout: {
-        // Transparent so the terminal's theme backdrop shows through — the whole
-        // point of the theme work; an opaque chart would black it out.
         // NOT transparent. A transparent chart renders directly over the theme
         // backdrop, so every candle competes with whatever glow happens to sit
         // behind it -- and the starfield's bright centre falls right where the
