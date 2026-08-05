@@ -78,14 +78,23 @@ export default function LightweightChart({
       layout: {
         // Transparent so the terminal's theme backdrop shows through — the whole
         // point of the theme work; an opaque chart would black it out.
-        background: { type: ColorType.Solid, color: "transparent" },
+        // NOT transparent. A transparent chart renders directly over the theme
+        // backdrop, so every candle competes with whatever glow happens to sit
+        // behind it -- and the starfield's bright centre falls right where the
+        // price action usually is. No amount of candle saturation fixes that,
+        // because the problem is the surface, not the series: contrast is a
+        // relationship, and one side of it was moving.
+        //
+        // Near-opaque rather than fully so, keeping a trace of the theme at the
+        // edges while the price sits on a predictable dark surface.
+        background: { type: ColorType.Solid, color: "rgba(6,9,16,0.94)" },
         textColor: dim,
         fontFamily: FM,
         attributionLogo: false,
       },
       grid: {
-        vertLines: { color: `${border}55` },
-        horzLines: { color: `${border}55` },
+        vertLines: { color: `${border}44` },
+        horzLines: { color: `${border}44` },
       },
       crosshair: { mode: CrosshairMode.Normal },
       rightPriceScale: { borderColor: border, scaleMargins: { top: 0.08, bottom: 0.26 } },
@@ -146,7 +155,7 @@ export default function LightweightChart({
     if (!chart) return;
     chart.applyOptions({
       layout: { textColor: dim },
-      grid: { vertLines: { color: `${border}55` }, horzLines: { color: `${border}55` } },
+      grid: { vertLines: { color: `${border}44` }, horzLines: { color: `${border}44` } },
       rightPriceScale: { borderColor: border },
       timeScale: { borderColor: border },
     });
