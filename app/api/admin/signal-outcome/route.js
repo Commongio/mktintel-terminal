@@ -18,9 +18,25 @@ const REASON_TO_STATE = {
   // closed in profit, and collapsing both to "lost" throws away the only
   // input here a model cannot reconstruct.
   went_red_fast: "lost",
-  broke_down: "lost",
   stale: "invalidated",
+
+  // ── the engine called a major move and the move happened ─────────────────
+  // The most valuable label available, and the one the record had no way to
+  // carry. A signal that ran 40% is teaching data of a completely different
+  // kind from one that crawled to t1, and both were previously just "won".
+  //
+  // Direction-RELATIVE, deliberately. "broke out" and "broke down" describe
+  // where PRICE went, which is ambiguous the moment the signal is a SHORT: a
+  // short that breaks down is a win, and the old map called it a loss. These
+  // describe the move relative to the CALL, so they are unambiguous for either
+  // direction.
+  called_it_big: "won",       // major move, in the direction the signal called
+  reversed_hard: "lost",      // major move, straight against the call
+
+  // Kept so anything already sent still resolves, but they mean what a LONG
+  // reader assumed they meant and should not be offered in the UI.
   broke_out: "won",
+  broke_down: "lost",
   // V14: wins are teaching data too. Grading a deletion as a WIN lets the
   // self-learning loop reinforce the setup signature instead of only ever
   // learning from failures (which biases the aggregate gate pessimistic).
