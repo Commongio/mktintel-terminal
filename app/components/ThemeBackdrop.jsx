@@ -35,6 +35,16 @@ export const THEME_LIST = [
 export { isVideoTheme };
 
 // ── canvas renderer for the lightweight themes ────────────────────────────────
+//
+// ADDING A THEME: see docs/THEMES.md. Two edits -- a row in BASIC_THEMES above
+// and an `if (theme === "...")` block inside draw() below. Everything else
+// (sizing, DPR, the rAF loop, first paint, tab-hidden pause, teardown, the
+// user's filter and tint) is handled here and must not be reimplemented.
+//
+// The two constraints that are not obvious and have both caused bugs: keep
+// alpha at or above ~0.30 or the theme rounds to invisible under a translucent
+// panel, and animate from `now` rather than a counter or the speed becomes
+// frame-rate dependent.
 function CanvasThemes({ theme, accent }) {
   const ref = useRef(null);
 
