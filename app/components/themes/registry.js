@@ -32,6 +32,10 @@ import midnight from "./midnight.js";
 import obsidian from "./obsidian.js";
 import carbon from "./carbon.js";
 import quantum from "./quantum.js";
+import eclipse from "./eclipse.js";
+import blueprint from "./blueprint.js";
+import deepcurrent from "./deepcurrent.js";
+import pulse from "./pulse.js";
 import aurora from "./aurora.js";
 import gridpulse from "./gridpulse.js";
 
@@ -39,7 +43,14 @@ import gridpulse from "./gridpulse.js";
  * Order is display order in Settings. Midnight first: it is the signature
  * theme and the intended default for new users.
  */
-export const CANVAS_THEMES = [midnight, obsidian, carbon, quantum, aurora, gridpulse];
+export const CANVAS_THEMES = [
+  // The Kronos Collection, in the order they were designed. The family rule:
+  // no bright colours, no fast motion, nothing that competes with a chart,
+  // and each one recognisable from the others at a glance.
+  midnight, obsidian, carbon, quantum, eclipse, blueprint, deepcurrent, pulse,
+  // Predecessors, kept because they work and someone may be sitting on one.
+  aurora, gridpulse,
+];
 
 export const THEME_BY_ID = Object.fromEntries(CANVAS_THEMES.map((t) => [t.id, t]));
 
