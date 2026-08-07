@@ -33,7 +33,7 @@ import obsidian from "./obsidian.js";
 import carbon from "./carbon.js";
 import quantum from "./quantum.js";
 import eclipse from "./eclipse.js";
-import blueprint from "./blueprint.js";
+import globe from "./globe.js";
 import deepcurrent from "./deepcurrent.js";
 import pulse from "./pulse.js";
 import aurora from "./aurora.js";
@@ -47,7 +47,8 @@ export const CANVAS_THEMES = [
   // The Kronos Collection, in the order they were designed. The family rule:
   // no bright colours, no fast motion, nothing that competes with a chart,
   // and each one recognisable from the others at a glance.
-  midnight, obsidian, carbon, quantum, eclipse, blueprint, deepcurrent, pulse,
+  // `globe` replaced `blueprint`, which was a texture rather than a scene.
+  midnight, obsidian, carbon, quantum, eclipse, globe, deepcurrent, pulse,
   // Predecessors, kept because they work and someone may be sitting on one.
   aurora, gridpulse,
 ];

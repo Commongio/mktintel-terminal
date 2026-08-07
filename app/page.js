@@ -104,7 +104,12 @@ function buildDefaultMeta(){const m={};DEFAULT_WATCHLIST.forEach(s=>{m[s]=COMPAN
 // canvas theme. Never default to a video id: that's the black-screen case.
 const FALLBACK_THEME="aurora";
 const RETIRED_THEMES={
-  globe:"orb", newsglobe:"orb",         // renamed
+  // `globe` is NOT listed here. It used to map to "orb" (renamed, then dropped),
+  // but it is a real canvas theme again -- and a retired id wins over a live one
+  // in migrateTheme, so leaving the mapping in place would make the theme
+  // unselectable: it would survive until reload and then silently become aurora.
+  newsglobe:"globe",                    // renamed; the successor is the globe theme
+  blueprint:"globe",                    // replaced in V21
   worldmap:FALLBACK_THEME, candles:FALLBACK_THEME, // removed in V10.3
   sphere:FALLBACK_THEME, flux:FALLBACK_THEME,      // Spline-only scenes, dropped in V10.4
   // Video themes, retired. Named rather than left to the generic fallback so
