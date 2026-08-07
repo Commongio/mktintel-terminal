@@ -36,8 +36,8 @@ import eclipse from "./eclipse.js";
 import globe from "./globe.js";
 import deepcurrent from "./deepcurrent.js";
 import pulse from "./pulse.js";
+import blackhole from "./blackhole.js";
 import aurora from "./aurora.js";
-import gridpulse from "./gridpulse.js";
 
 /**
  * Order is display order in Settings. Midnight first: it is the signature
@@ -48,9 +48,12 @@ export const CANVAS_THEMES = [
   // no bright colours, no fast motion, nothing that competes with a chart,
   // and each one recognisable from the others at a glance.
   // `globe` replaced `blueprint`, which was a texture rather than a scene.
+  // `globe` replaced `blueprint` and `blackhole` replaced `gridpulse`; both
+  // predecessors were textures rather than scenes.
   midnight, obsidian, carbon, quantum, eclipse, globe, deepcurrent, pulse,
-  // Predecessors, kept because they work and someone may be sitting on one.
-  aurora, gridpulse,
+  blackhole,
+  // Predecessor, kept because it works and someone may be sitting on it.
+  aurora,
 ];
 
 export const THEME_BY_ID = Object.fromEntries(CANVAS_THEMES.map((t) => [t.id, t]));
