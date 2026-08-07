@@ -1,118 +1,86 @@
 "use client";
-// ThemeBackdrop.jsx — terminal themes (V10.4: canvas + looping video; Spline removed).
+// ThemeBackdrop.jsx — terminal themes.
 //
-// BASIC (canvas/CSS, ~0KB, always fast):
-//   none      — Classic: no backdrop canvas; page.js renders its dot-grid CSS bg.
-//   aurora    — slow aurora ribbons.
-//   gridpulse — perspective data-grid with traveling pulses.
+// Themes are modules in ./themes, registered in ./themes/registry.js. Each owns
+// its own particles, geometry and math; nothing is shared and adding one
+// touches no existing theme. See docs/THEMES.md for the contract.
 //
-// VIDEO (looping royalty-free clips we own — see lib/videoThemes.js):
-//   Registered in VIDEO_THEMES. Only themes with an actual asset file are listed,
-//   so an unshipped theme can never render as a black screen.
+// This file provides everything a theme must NOT reimplement: canvas creation,
+// sizing, the DPR transform, the rAF loop, a guaranteed first paint, the
+// tab-hidden pause, teardown, and the user's filter and colour tint.
 //
-// All themes accept the user's CSS color filter (hue/sat/brightness).
-// Choosing a non-Classic theme is an explicit opt-in to motion, so we render it
-// regardless of the OS "reduce motion" setting (many users have Windows animation
-// effects off, which browsers report as prefers-reduced-motion; that must NOT
-// blank a backdrop the user deliberately selected).
+// `none` renders nothing — page.js draws its own dot-grid CSS background.
+//
+// Video themes are gone (12MB of MP4 over the wire) but the machinery remains:
+// lib/videoThemes.js behaves correctly against an empty registry, so dropping
+// an asset back in still works. See public/themes/README.md.
+//
+// Choosing a non-Classic theme is an explicit opt-in to motion, so it renders
+// regardless of the OS "reduce motion" setting — many users have Windows
+// animation effects off, which browsers report as prefers-reduced-motion, and
+// that must NOT blank a backdrop the user deliberately selected.
 
 import { useRef, useEffect } from "react";
 import VideoBackdrop from "./VideoBackdrop";
 import { AVAILABLE_VIDEO_THEMES, isVideoTheme, videoThemeSrc } from "../../lib/videoThemes";
-
-// Basic canvas themes.
-const BASIC_THEMES = [
-  { id: "none",      label: "Classic",    desc: "Clean dot-grid terminal" },
-  { id: "aurora",    label: "Aurora",     desc: "Slow aurora ribbons" },
-  { id: "gridpulse", label: "Grid Pulse", desc: "Perspective data-grid with traveling pulses" },
-];
+import { CANVAS_THEMES, getTheme, makeRgba } from "./themes/registry";
 
 // Unified list consumed by the Themes settings tab.
 export const THEME_LIST = [
-  ...BASIC_THEMES.map((t) => ({ ...t, group: "basic" })),
+  { id: "none", label: "Classic", desc: "Clean dot-grid terminal", group: "basic" },
+  ...CANVAS_THEMES.map((t) => ({ id: t.id, label: t.label, desc: t.desc, group: "basic" })),
   ...AVAILABLE_VIDEO_THEMES.map((t) => ({ id: t.id, label: t.label, desc: t.desc, mb: t.mb, group: "video" })),
 ];
 export { isVideoTheme };
 
-// ── canvas renderer for the lightweight themes ────────────────────────────────
-//
-// ADDING A THEME: see docs/THEMES.md. Two edits -- a row in BASIC_THEMES above
-// and an `if (theme === "...")` block inside draw() below. Everything else
-// (sizing, DPR, the rAF loop, first paint, tab-hidden pause, teardown, the
-// user's filter and tint) is handled here and must not be reimplemented.
-//
-// The two constraints that are not obvious and have both caused bugs: keep
-// alpha at or above ~0.30 or the theme rounds to invisible under a translucent
-// panel, and animate from `now` rather than a counter or the speed becomes
-// frame-rate dependent.
+// ── canvas host ───────────────────────────────────────────────────────────────
 function CanvasThemes({ theme, accent }) {
   const ref = useRef(null);
 
   useEffect(() => {
     const canvas = ref.current;
-    if (!canvas) return;
+    const mod = getTheme(theme);
+    if (!canvas || !mod) return;
+
     const ctx = canvas.getContext("2d");
+    // Capped at 1.5: a 3x retina canvas triples the fill cost for a backdrop
+    // nobody is looking at directly.
     const dpr = Math.min(1.5, window.devicePixelRatio || 1);
-    let w = 0, h = 0;
-    const resize = () => { w = canvas.clientWidth; h = canvas.clientHeight; canvas.width = w * dpr; canvas.height = h * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); };
+    const rgba = makeRgba(accent);
+
+    let w = 0, h = 0, state = null;
+
+    const resize = () => {
+      w = canvas.clientWidth;
+      h = canvas.clientHeight;
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      // Re-init on resize so themes can rebuild geometry for the new aspect.
+      // Themes seed deterministically from an index rather than Math.random(),
+      // so this reshapes the field instead of reshuffling it — otherwise
+      // dragging a window edge would restart the animation.
+      state = mod.init ? mod.init({ w, h, accent }) : {};
+    };
+
     resize();
     window.addEventListener("resize", resize);
 
-    const ac = (a) => {
-      const n = parseInt(String(accent).replace("#", ""), 16);
-      return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
-    };
-
-    let ribbons;
-    if (theme === "aurora") ribbons = Array.from({ length: 3 }, (_, i) => ({ off: i * 2.1, hue: i }));
-
     let raf, running = true;
-    const onVis = () => { running = document.visibilityState !== "hidden"; if (running) raf = requestAnimationFrame(loop); else cancelAnimationFrame(raf); };
+    const onVis = () => {
+      running = document.visibilityState !== "hidden";
+      if (running) raf = requestAnimationFrame(loop);
+      else cancelAnimationFrame(raf);
+    };
     document.addEventListener("visibilitychange", onVis);
 
-    // draw() is separate from the rAF loop so we can force a guaranteed FIRST
-    // paint below. Without it the backdrop is blank until rAF fires — and rAF is
-    // throttled to zero in some embedded/automation contexts and on background
-    // tabs, which renders the theme as "not displaying at all". Starfield already
-    // does this; CanvasThemes didn't, and should.
+    // Separate from the rAF loop so the first paint is guaranteed. rAF is
+    // throttled to zero in some embedded and automation contexts and on
+    // background tabs, which previously presented as "the theme is not
+    // displaying at all".
     const draw = (now) => {
       ctx.clearRect(0, 0, w, h);
-
-      if (theme === "aurora") {
-        for (const r0 of ribbons) {
-          ctx.beginPath();
-          for (let x = 0; x <= w; x += 14) {
-            const y = h * (0.25 + r0.hue * 0.22) + Math.sin(x / 190 + now / (5200 + r0.hue * 900) + r0.off) * 60 + Math.sin(x / 67 + now / 3400) * 22;
-            x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-          }
-          // V10.5b: alphas raised ~4x. At the old 0.08–0.10 the ribbons peaked at
-          // ~21/255 on-canvas — under a panel even slightly tinted, that rounds to
-          // invisible, which is why "the themes stopped displaying". These are the
-          // BACKDROP; they need to actually register behind translucent panels.
-          const cols = [ac(0.42), "rgba(127,169,216,0.36)", "rgba(160,153,224,0.34)"];
-          ctx.strokeStyle = cols[r0.hue % 3];
-          ctx.lineWidth = 46; ctx.lineCap = "round";
-          ctx.filter = "blur(18px)"; ctx.stroke(); ctx.filter = "none";
-        }
-      }
-
-      if (theme === "gridpulse") {
-        const horizon = h * 0.42;
-        ctx.strokeStyle = ac(0.34); ctx.lineWidth = 1;   // was 0.10 — see aurora note
-        for (let i = 0; i <= 24; i++) {
-          const t = i / 24, x = w / 2 + (t - 0.5) * w * 2.2;
-          ctx.beginPath(); ctx.moveTo(w / 2 + (t - 0.5) * w * 0.5, horizon); ctx.lineTo(x, h); ctx.stroke();
-        }
-        for (let i = 0; i < 14; i++) {
-          const t = ((now / 2600) + i / 14) % 1, y = horizon + Math.pow(t, 2.2) * (h - horizon);
-          ctx.globalAlpha = 0.7 * t + 0.08; ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); ctx.globalAlpha = 1;
-        }
-        for (let i = 0; i < 4; i++) {
-          const t = ((now / 1900) + i * 0.27) % 1, lane = [0.2, 0.4, 0.6, 0.8][i];
-          const x = w / 2 + (lane - 0.5) * w * (0.5 + 1.7 * Math.pow(t, 2.2)), y = horizon + Math.pow(t, 2.2) * (h - horizon);
-          ctx.fillStyle = ac(0.9 * (1 - t) + 0.1); ctx.beginPath(); ctx.arc(x, y, 2.8, 0, Math.PI * 2); ctx.fill();
-        }
-      }
+      mod.draw({ ctx, w, h, now, accent, state, rgba });
     };
 
     const loop = (now) => {
@@ -121,12 +89,25 @@ function CanvasThemes({ theme, accent }) {
       raf = requestAnimationFrame(loop);
     };
 
-    draw(performance.now());          // guaranteed first paint — never a blank backdrop
+    draw(performance.now());
     raf = requestAnimationFrame(loop);
-    return () => { running = false; cancelAnimationFrame(raf); window.removeEventListener("resize", resize); document.removeEventListener("visibilitychange", onVis); };
+
+    return () => {
+      running = false;
+      cancelAnimationFrame(raf);
+      window.removeEventListener("resize", resize);
+      document.removeEventListener("visibilitychange", onVis);
+      if (mod.destroy) mod.destroy(state);
+    };
   }, [theme, accent]);
 
-  return <canvas ref={ref} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none" }} aria-hidden="true" />;
+  return (
+    <canvas
+      ref={ref}
+      style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none" }}
+      aria-hidden="true"
+    />
+  );
 }
 
 export default function ThemeBackdrop({ theme = "none", accent = "#4C9E92", filter = "none", tint = "", tintStrength = 0.5 }) {
@@ -134,10 +115,10 @@ export default function ThemeBackdrop({ theme = "none", accent = "#4C9E92", filt
 
   const videoSrc = isVideoTheme(theme) ? videoThemeSrc(theme) : null;
 
-  // Color tint: a blend layer over the theme. mix-blend-mode "color" re-hues the
-  // footage to the chosen color while KEEPING its luminance/detail — so the user
-  // can make any theme teal/purple/amber without washing it to a flat block, which
-  // a plain opacity overlay would do. Only rendered when a tint is actually set.
+  // Colour tint: a blend layer over the theme. mix-blend-mode "color" re-hues
+  // it while KEEPING luminance and detail — so any theme can be made
+  // teal/purple/amber without washing to a flat block, which a plain opacity
+  // overlay would do. Only rendered when a tint is actually set.
   const tintLayer = tint && tintStrength > 0
     ? <div style={{ position: "absolute", inset: 0, background: tint, mixBlendMode: "color", opacity: Math.min(1, tintStrength), pointerEvents: "none" }} />
     : null;
