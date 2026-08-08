@@ -1,6 +1,5 @@
 // app/layout.js
 import "./globals.css";
-import "./frosted.css";
 
 export const metadata = {
   // V14.6: the last surviving "MKTINTEL PRO" string. It was only in <title>, but

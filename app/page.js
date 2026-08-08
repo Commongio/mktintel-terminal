@@ -847,7 +847,7 @@ function DataSyncStatus({user,T,accent}){
 }
 
 function SettingsPanel(props){
-  const{onClose,mainBg,setMainBg,mainText,setMainText,leftBg,setLeftBg,leftText,setLeftText,rightBg,setRightBg,rightText,setRightText,accentKey,setAccentKey,density,setDensity,leftWidth,setLeftWidth,rightWidth,setRightWidth,chartRightWidth,setChartRightWidth,onResetAll,T,accent,fontSize,setFontSize,chatStyle,setChatStyle,bgImage,setBgImage,user,onSignOut,themeSel,setThemeSel,sidePanels,setSidePanels,chatFont,setChatFont,onStartTour,bgVideo,onPickVideo,onRemoveVideo,displayName,setDisplayName,chatAutoDelete,setChatAutoDelete,onClearChatHistory,isDev,onPreviewV13Popup,frosted,setFrosted}=props;
+  const{onClose,mainBg,setMainBg,mainText,setMainText,leftBg,setLeftBg,leftText,setLeftText,rightBg,setRightBg,rightText,setRightText,accentKey,setAccentKey,density,setDensity,leftWidth,setLeftWidth,rightWidth,setRightWidth,chartRightWidth,setChartRightWidth,onResetAll,T,accent,fontSize,setFontSize,chatStyle,setChatStyle,bgImage,setBgImage,user,onSignOut,themeSel,setThemeSel,sidePanels,setSidePanels,chatFont,setChatFont,onStartTour,bgVideo,onPickVideo,onRemoveVideo,displayName,setDisplayName,chatAutoDelete,setChatAutoDelete,onClearChatHistory,isDev,onPreviewV13Popup}=props;
   const[confirmClear,setConfirmClear]=useState(false);
   const[tab,setTab]=useState("themes");
   const[uploadErr,setUploadErr]=useState("");
@@ -892,7 +892,7 @@ function SettingsPanel(props){
       {/* V11 M1: full-width sheet on a phone. A 310px drawer on a 375px screen
           leaves a useless 65px sliver of dimmed backdrop and squeezes the
           controls for no reason — on mobile the sheet IS the screen. */}
-      <div className="kronos-settings-sheet" data-frost-surface="modal" style={{background:T.panel,borderLeft:`1px solid ${T.border}`,padding:22,overflowY:"auto",boxShadow:"-8px 0 40px rgba(0,0,0,0.6)"}}>
+      <div className="kronos-settings-sheet" style={{background:T.panel,borderLeft:`1px solid ${T.border}`,padding:22,overflowY:"auto",boxShadow:"-8px 0 40px rgba(0,0,0,0.6)"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
           <span style={{fontFamily:FONT_MONO,fontSize:11,fontWeight:700,color:accent,letterSpacing:3}}> SETTINGS</span>
           <button onClick={onClose} aria-label="Close settings" style={{color:T.dim,fontSize:17,cursor:"pointer",minWidth:44,minHeight:44,display:"flex",alignItems:"center",justifyContent:"flex-end"}}><Icon name="close" size={14} /></button>
@@ -1092,33 +1092,6 @@ function SettingsPanel(props){
                      PREVIEW V13 POPUP
                   </button>
                 </>
-              )}
-            </div>
-
-            {/* V21: FROSTED — one switch for the whole UI, deliberately with no
-                sub-controls. Sliders would make it a look you tune; it is meant
-                to be a look you pick. The style lives in app/frosted.css. */}
-            <div style={{marginBottom:18,padding:"12px 13px",borderRadius:9,background:T.surface,border:`1px solid ${frosted?`${accent}38`:T.border}`}}>
-              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}}>
-                <div style={{minWidth:0}}>
-                  <div style={{fontFamily:FONT_MONO,fontSize:9,color:T.dim,letterSpacing:2,fontWeight:700,marginBottom:5}}>FROSTED UI</div>
-                  <div style={{fontFamily:FONT_CHAT,fontSize:10,color:T.dim,lineHeight:1.5}}>
-                    Translucent panels with a blurred backdrop. Best with an animated theme
-                    behind it — frost needs something to blur.
-                  </div>
-                </div>
-                <button onClick={()=>setFrosted(f=>!f)} aria-pressed={frosted} title="Toggle Frosted UI"
-                  style={{flexShrink:0,width:44,height:24,borderRadius:12,cursor:"pointer",padding:0,position:"relative",
-                    background:frosted?`${accent}30`:T.surface2,border:`1px solid ${frosted?`${accent}60`:T.border}`,transition:"background 0.18s, border-color 0.18s"}}>
-                  <span style={{position:"absolute",top:2,left:frosted?22:2,width:18,height:18,borderRadius:9,
-                    background:frosted?accent:T.dim,transition:"left 0.18s"}}/>
-                </button>
-              </div>
-              {frosted&&(themeSel?.id==="none")&&(
-                <div style={{fontFamily:FONT_MONO,fontSize:8,color:"#C9A15B",marginTop:9,lineHeight:1.5}}>
-                  Your backdrop is set to Classic, so there is little behind the panels to blur.
-                  Pick a theme in the Themes tab to see the effect.
-                </div>
               )}
             </div>
 
@@ -1458,7 +1431,7 @@ function ChartPage({symbol,onSymbolChange,interval="1d",onIntervalChange,annotat
           so on mobile it becomes a flex row under the chart instead. */}
       <div style={isMobile
         ?{flex:"1 1 0",minHeight:0,borderTop:`1px solid ${TR.border}`,display:"flex",flexDirection:"column",background:TR.panel}
-        :{width:chartRightWidth,minWidth:chartRightWidth,borderLeft:`1px solid ${TR.border}`,display:"flex",flexDirection:"column",background:TR.panel}} data-frost-surface>
+        :{width:chartRightWidth,minWidth:chartRightWidth,borderLeft:`1px solid ${TR.border}`,display:"flex",flexDirection:"column",background:TR.panel}}>
         <div style={{padding:"11px 14px",borderBottom:`1px solid ${TR.border}`,display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
           <div style={{width:7,height:7,borderRadius:"50%",background:accent,boxShadow:`0 0 8px ${accent}`}}/>
           <span style={{fontFamily:FONT_MONO,fontSize:10,fontWeight:700,color:accent,letterSpacing:2}}>AI DESK</span>
@@ -1864,9 +1837,6 @@ export default function MarketTerminal(){
   // readable while letting the backdrop actually register behind it. Users who
   // want the old look can still switch to Solid in Settings → Themes.
   const[sidePanels,setSidePanels]=useState({mode:"transparent",opacity:0.85});
-  // V21: Frosted UI. One switch, no sub-knobs -- the whole point is that it is
-  // a single look, not another panel of sliders. See app/frosted.css.
-  const[frosted,setFrosted]=useState(false);
   const[chatFont,setChatFont]=useState("inter");
   const[layouts,setLayouts]=useState({});          // {terminal:[{i,x,y,w,h},...]}
   const[collapsed,setCollapsed]=useState({});      // V10.2: {panelKey:true} collapsed panels
@@ -1965,8 +1935,8 @@ export default function MarketTerminal(){
   useEffect(()=>{try{localStorage.setItem("mktintel_w",JSON.stringify(watchlist));}catch{}},[watchlist]);
   useEffect(()=>{try{localStorage.setItem("mktintel_wm",JSON.stringify(watchlistMeta));}catch{}},[watchlistMeta]);
   // V9/V10: local persistence for personalization/layouts (works with or without accounts)
-  useEffect(()=>{try{const s=localStorage.getItem("kronos_personal");if(s){const p=JSON.parse(s);if(p.chatStyle)setChatStyle(p.chatStyle);if(p.bgImage)setBgImage(prev=>({...prev,...p.bgImage}));if(p.bgVideo)setBgVideo(prev=>({...prev,...p.bgVideo}));if(p.layouts)setLayouts(p.layouts);if(p.collapsed)setCollapsed(p.collapsed);if(p.notes)setNotes(p.notes);if(p.themeSel)setThemeSel(migrateTheme(p.themeSel));if(p.sidePanels)setSidePanels(p.sidePanels);if(p.chatFont)setChatFont(p.chatFont);if(p.interactionMode)setInteractionMode(p.interactionMode);if(p.displayName)setDisplayName(p.displayName);if(typeof p.frosted==="boolean")setFrosted(p.frosted);}}catch{}},[]);
-  useEffect(()=>{try{localStorage.setItem("kronos_personal",JSON.stringify({chatStyle,bgImage,bgVideo,layouts,collapsed,notes,themeSel,sidePanels,chatFont,interactionMode,displayName,frosted}));}catch{}},[chatStyle,bgImage,bgVideo,layouts,collapsed,notes,themeSel,sidePanels,chatFont,interactionMode,displayName,frosted]);
+  useEffect(()=>{try{const s=localStorage.getItem("kronos_personal");if(s){const p=JSON.parse(s);if(p.chatStyle)setChatStyle(p.chatStyle);if(p.bgImage)setBgImage(prev=>({...prev,...p.bgImage}));if(p.bgVideo)setBgVideo(prev=>({...prev,...p.bgVideo}));if(p.layouts)setLayouts(p.layouts);if(p.collapsed)setCollapsed(p.collapsed);if(p.notes)setNotes(p.notes);if(p.themeSel)setThemeSel(migrateTheme(p.themeSel));if(p.sidePanels)setSidePanels(p.sidePanels);if(p.chatFont)setChatFont(p.chatFont);if(p.interactionMode)setInteractionMode(p.interactionMode);if(p.displayName)setDisplayName(p.displayName);}}catch{}},[]);
+  useEffect(()=>{try{localStorage.setItem("kronos_personal",JSON.stringify({chatStyle,bgImage,bgVideo,layouts,collapsed,notes,themeSel,sidePanels,chatFont,interactionMode,displayName}));}catch{}},[chatStyle,bgImage,bgVideo,layouts,collapsed,notes,themeSel,sidePanels,chatFont,interactionMode,displayName]);
 
   // Rehydrate the background video blob from IndexedDB into an object URL.
   // (The blob is device-local; only the {enabled,name} metadata is persisted.)
@@ -2608,7 +2578,7 @@ export default function MarketTerminal(){
             [data-mode="command"] [data-animated]{animation:none!important;}
             [data-mode="command"]{filter:saturate(0.55);}
           `}</style>
-          <div className="kronos-shell" data-mode={interactionMode} data-frosted={frosted?"1":undefined} style={{
+          <div className="kronos-shell" data-mode={interactionMode} style={{
             display:"flex",flexDirection:"column",
             backgroundColor:T.bg,
             fontFamily:FONT_CHOICES.find(f=>f.id===chatFont)?.stack||FONT_CHAT,
@@ -2652,7 +2622,7 @@ export default function MarketTerminal(){
             appearance settings — showing watchlist widths and terminal themes there
             was noise, since none of it is visible from the bot. */}
         {showSettings&&view==="bot"&&<BotSettings onClose={()=>setShowSettings(false)} T={T} accent={accent}/>}
-        {showSettings&&view!=="bot"&&<SettingsPanel onClose={()=>setShowSettings(false)} mainBg={mainBg} setMainBg={setMainBg} mainText={mainText} setMainText={setMainText} leftBg={leftBg} setLeftBg={setLeftBg} leftText={leftText} setLeftText={setLeftText} rightBg={rightBg} setRightBg={setRightBg} rightText={rightText} setRightText={setRightText} accentKey={accentKey} setAccentKey={setAccentKey} density={density} setDensity={setDensity} leftWidth={leftWidth} setLeftWidth={setLeftWidth} rightWidth={rightWidth} setRightWidth={setRightWidth} chartRightWidth={chartRightWidth} setChartRightWidth={setChartRightWidth} onResetAll={resetAll} T={T} accent={accent} fontSize={fontSize} setFontSize={setFontSize} chatStyle={chatStyle} setChatStyle={setChatStyle} bgImage={bgImage} setBgImage={setBgImage} bgVideo={bgVideo} onPickVideo={handlePickVideo} onRemoveVideo={handleRemoveVideo} themeSel={themeSel} setThemeSel={setThemeSel} sidePanels={sidePanels} setSidePanels={setSidePanels} chatFont={chatFont} setChatFont={setChatFont} onStartTour={()=>setShowTour(true)} user={user} onSignOut={async()=>{try{await getSupabase()?.auth.signOut();}catch{}window.location.reload();}} displayName={displayName} setDisplayName={setDisplayName} chatAutoDelete={chatAutoDelete} setChatAutoDelete={setChatAutoDelete} onClearChatHistory={clearChatHistory} frosted={frosted} setFrosted={setFrosted} isDev={isDev} onPreviewV13Popup={()=>{setShowSettings(false);setV13PopupPreview(true);}}/>}
+        {showSettings&&view!=="bot"&&<SettingsPanel onClose={()=>setShowSettings(false)} mainBg={mainBg} setMainBg={setMainBg} mainText={mainText} setMainText={setMainText} leftBg={leftBg} setLeftBg={setLeftBg} leftText={leftText} setLeftText={setLeftText} rightBg={rightBg} setRightBg={setRightBg} rightText={rightText} setRightText={setRightText} accentKey={accentKey} setAccentKey={setAccentKey} density={density} setDensity={setDensity} leftWidth={leftWidth} setLeftWidth={setLeftWidth} rightWidth={rightWidth} setRightWidth={setRightWidth} chartRightWidth={chartRightWidth} setChartRightWidth={setChartRightWidth} onResetAll={resetAll} T={T} accent={accent} fontSize={fontSize} setFontSize={setFontSize} chatStyle={chatStyle} setChatStyle={setChatStyle} bgImage={bgImage} setBgImage={setBgImage} bgVideo={bgVideo} onPickVideo={handlePickVideo} onRemoveVideo={handleRemoveVideo} themeSel={themeSel} setThemeSel={setThemeSel} sidePanels={sidePanels} setSidePanels={setSidePanels} chatFont={chatFont} setChatFont={setChatFont} onStartTour={()=>setShowTour(true)} user={user} onSignOut={async()=>{try{await getSupabase()?.auth.signOut();}catch{}window.location.reload();}} displayName={displayName} setDisplayName={setDisplayName} chatAutoDelete={chatAutoDelete} setChatAutoDelete={setChatAutoDelete} onClearChatHistory={clearChatHistory} isDev={isDev} onPreviewV13Popup={()=>{setShowSettings(false);setV13PopupPreview(true);}}/>}
 
         {/* HEADER — on mobile this condenses to wordmark + market badge + gear.
             The page-name row and the ⇄ bot flip are redundant on a phone: the
@@ -2748,10 +2718,10 @@ export default function MarketTerminal(){
               <div style={{flex:1,display:"flex",flexDirection:"column",minWidth:0,overflow:"hidden"}}>{consoleInner}</div>
             )}
             {view==="terminal"&&mobilePanel==="watchlist"&&(
-              <div data-frost-surface style={{flex:1,display:"flex",flexDirection:"column",minWidth:0,overflow:"hidden",background:TL.panel}}>{watchlistInner}</div>
+              <div style={{flex:1,display:"flex",flexDirection:"column",minWidth:0,overflow:"hidden",background:TL.panel}}>{watchlistInner}</div>
             )}
             {mobileTab==="news"&&(
-              <div data-frost-surface style={{flex:1,display:"flex",flexDirection:"column",minWidth:0,overflow:"hidden",background:TR.panel}}>{newsInner}</div>
+              <div style={{flex:1,display:"flex",flexDirection:"column",minWidth:0,overflow:"hidden",background:TR.panel}}>{newsInner}</div>
             )}
             {mobileTab==="chart"&&(
               <ChartPage isMobile symbol={chartSymbol} onSymbolChange={setChartSymbol} interval={chartInterval} onIntervalChange={setChartInterval}
@@ -2786,7 +2756,7 @@ export default function MarketTerminal(){
               <CollapsedRail label="Watchlist" side="left" onExpand={()=>toggleCollapse("term_watchlist")} accent={accent} T={TL}/>
             ):(
             <>
-              <div data-frost-surface style={{width:leftWidth,minWidth:leftWidth,borderRight:`1px solid ${TL.border}`,display:"flex",flexDirection:"column",background:TL.panel,position:"relative"}}>
+              <div style={{width:leftWidth,minWidth:leftWidth,borderRight:`1px solid ${TL.border}`,display:"flex",flexDirection:"column",background:TL.panel,position:"relative"}}>
                 <button onClick={()=>toggleCollapse("term_watchlist")} title="Collapse watchlist" style={{position:"absolute",top:8,right:8,zIndex:10,width:18,height:18,borderRadius:4,background:`${TL.panel}cc`,border:`1px solid ${TL.border}`,color:TL.dim,cursor:"pointer",fontFamily:FONT_MONO,fontSize:9,display:"flex",alignItems:"center",justifyContent:"center"}}>◂</button>
                 {watchlistInner}
               </div>
