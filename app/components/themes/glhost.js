@@ -38,7 +38,7 @@
 // that has handed out a 2D context can never return a WebGL one, so without
 // the key, switching from any 2D theme to this one would fail permanently.
 
-const VERT = `attribute vec2 position;
+export const FULLSCREEN_VERT = `attribute vec2 position;
 void main() { gl_Position = vec4(position, 0.0, 1.0); }`;
 
 // highp is not guaranteed in fragment shaders. It is universal on desktop and
@@ -75,8 +75,8 @@ function compile(gl, src, type) {
  * Locations are resolved ONCE here rather than per frame -- getUniformLocation
  * is a string lookup against the linked program and is not free at 60fps.
  */
-export function buildProgram(gl, fragSrc, uniforms = []) {
-  const vs = compile(gl, VERT, gl.VERTEX_SHADER);
+export function buildProgram(gl, fragSrc, uniforms = [], vertSrc = FULLSCREEN_VERT) {
+  const vs = compile(gl, vertSrc, gl.VERTEX_SHADER);
   const fs = compile(gl, fragSrc, gl.FRAGMENT_SHADER);
   const program = gl.createProgram();
   gl.attachShader(program, vs);
@@ -94,25 +94,52 @@ export function buildProgram(gl, fragSrc, uniforms = []) {
 
   gl.useProgram(program);
 
-  // ONE oversized triangle, not two triangles forming a quad. It covers the
-  // viewport with 3 vertices instead of 6, and -- the part that actually
-  // matters -- it has no interior edge. A quad's diagonal seam makes the GPU
-  // rasterise the pixels along it twice, in separate 2x2 quads.
-  const buffer = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
-  const posLoc = gl.getAttribLocation(program, "position");
-  gl.enableVertexAttribArray(posLoc);
-  gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
-
   const u = {};
   for (const name of uniforms) u[name] = gl.getUniformLocation(program, name);
+
+  // A fullscreen program gets its triangle here; anything with its own
+  // geometry supplies a different vertex shader and builds its own buffers.
+  let buffer = null;
+  if (vertSrc === FULLSCREEN_VERT) {
+    // ONE oversized triangle, not two triangles forming a quad. It covers the
+    // viewport with 3 vertices instead of 6, and -- the part that actually
+    // matters -- it has no interior edge. A quad's diagonal seam makes the GPU
+    // rasterise the pixels along it twice, in separate 2x2 quads.
+    buffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+  }
 
   return { program, buffer, u };
 }
 
+/** Upload a static Float32Array attribute and return its buffer. */
+export function attribBuffer(gl, program, name, data, size) {
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
+  const loc = gl.getAttribLocation(program, name);
+  return { buf, loc, size };
+}
+
+/** Bind a set of attribute buffers built by attribBuffer. */
+export function bindAttribs(gl, attribs) {
+  for (const a of attribs) {
+    if (a.loc < 0) continue;      // stripped by the compiler as unused
+    gl.bindBuffer(gl.ARRAY_BUFFER, a.buf);
+    gl.enableVertexAttribArray(a.loc);
+    gl.vertexAttribPointer(a.loc, a.size, gl.FLOAT, false, 0, 0);
+  }
+}
+
 /** Draw the fullscreen triangle. The shader writes every pixel, so no clear. */
-export function drawFullscreen(gl) {
+export function drawFullscreen(gl, state) {
+  if (state?.buffer) {
+    gl.bindBuffer(gl.ARRAY_BUFFER, state.buffer);
+    const loc = gl.getAttribLocation(state.program, "position");
+    gl.enableVertexAttribArray(loc);
+    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+  }
   gl.drawArrays(gl.TRIANGLES, 0, 3);
 }
 
@@ -124,8 +151,26 @@ export function drawFullscreen(gl) {
 export function teardown(gl, state) {
   if (!gl || !state) return;
   try {
-    if (state.buffer) gl.deleteBuffer(state.buffer);
-    if (state.program) gl.deleteProgram(state.program);
+    // DISABLE THE ATTRIBUTE ARRAYS BEFORE DELETING THE BUFFERS THEY POINT AT.
+    //
+    // Enabled vertex attrib arrays are CONTEXT state, not program state, and
+    // they outlive both the program and the buffer. Delete a buffer while an
+    // array still references it and the array is left pointing at a dead
+    // object; the next draw on that context is INVALID_OPERATION.
+    //
+    // Which is not hypothetical: React StrictMode remounts on the same canvas,
+    // so run two's very first draw inherited run one's enabled arrays pointing
+    // at run one's freed buffers. It rendered correctly -- the error does not
+    // stop the draw -- and only showed up as a non-zero gl.getError().
+    const max = gl.getParameter(gl.MAX_VERTEX_ATTRIBS) || 16;
+    for (let i = 0; i < max; i++) gl.disableVertexAttribArray(i);
+    gl.bindBuffer(gl.ARRAY_BUFFER, null);
+    gl.useProgram(null);
+
+    // Accepts either shape: a single program/buffer, or the arrays a
+    // multi-pass theme collects.
+    for (const b of state.buffers || (state.buffer ? [state.buffer] : [])) if (b) gl.deleteBuffer(b);
+    for (const p of state.programs || (state.program ? [state.program] : [])) if (p) gl.deleteProgram(p);
   } catch { /* context may already be lost; nothing left to release */ }
 }
 

@@ -35,33 +35,62 @@ const GL_THEMES = CANVAS_THEMES.filter((t) => t.kind === "webgl");
 const TWOD_THEMES = CANVAS_THEMES.filter((t) => t.kind !== "webgl");
 
 for (const theme of GL_THEMES) {
-  test(`${theme.id}: shader source is well formed`, async () => {
+  test(`${theme.id}: shader sources are well formed`, async () => {
     const mod = await import(`./${theme.id}.js`);
-    const src = mod._FRAG;
-    assert.ok(typeof src === "string" && src.length > 200, "no shader source exported");
+    const sources = mod._SHADERS || (mod._FRAG ? [mod._FRAG] : []);
+    assert.ok(sources.length > 0, "no shader source exported");
 
-    // Balanced delimiters. An unbalanced brace is the single most common way a
-    // hand-edited shader breaks, and GLSL gives no line context worth reading.
-    for (const [open, close] of [["{", "}"], ["(", ")"]]) {
-      const o = src.split(open).length - 1, c = src.split(close).length - 1;
-      assert.equal(o, c, `unbalanced ${open}${close} in ${theme.id}: ${o} vs ${c}`);
+    for (const src of sources) {
+      assert.ok(typeof src === "string" && src.length > 80, "empty shader source");
+      // Balanced delimiters. An unbalanced brace is the most common way a
+      // hand-edited shader breaks, and GLSL gives no line context worth reading.
+      for (const [open, close] of [["{", "}"], ["(", ")"]]) {
+        const o = src.split(open).length - 1, c = src.split(close).length - 1;
+        assert.equal(o, c, `unbalanced ${open}${close}: ${o} vs ${c}`);
+      }
+      assert.match(src, /void\s+main\s*\(/, "no main()");
+      // A fragment shader must write gl_FragColor; a vertex shader gl_Position.
+      assert.ok(/gl_FragColor\s*=/.test(src) || /gl_Position\s*=/.test(src),
+        "main() writes neither gl_FragColor nor gl_Position");
     }
 
-    assert.match(src, /void\s+main\s*\(/, "no main()");
-    assert.match(src, /gl_FragColor\s*=/, "main() never writes gl_FragColor");
-    // Precision must be guarded rather than declared flat: highp is not
+    // Every FRAGMENT shader needs the guarded precision prefix. highp is not
     // guaranteed in fragment shaders, and naming it unconditionally fails to
-    // COMPILE where it is absent instead of degrading.
-    assert.match(src, /GL_FRAGMENT_PRECISION_HIGH/, "precision is not guarded");
+    // COMPILE where it is absent rather than degrading — a black screen.
+    // Vertex shaders get highp by default and need no prefix.
+    for (const src of sources) {
+      if (!/gl_FragColor\s*=/.test(src)) continue;
+      assert.match(src, /GL_FRAGMENT_PRECISION_HIGH/, "fragment precision is not guarded");
+    }
 
-    // Every uniform the shader declares must be one the theme asks the host to
-    // resolve. A typo here yields a null location, and setting a null uniform
-    // is silently ignored by WebGL — the shader then reads zero forever.
-    const declared = [...src.matchAll(/^\s*uniform\s+\w+\s+(\w+)\s*;/gm)].map((m) => m[1]);
-    assert.ok(declared.length > 0, "no uniforms declared");
-    const initSrc = theme.init.toString() + theme.draw.toString();
+    // Every uniform declared anywhere must be one the theme asks the host to
+    // resolve. A typo yields a null location, and setting a null uniform is
+    // SILENTLY IGNORED by WebGL — the shader then reads zero forever, with no
+    // error at compile, link or draw.
+    const all = sources.join("\n");
+    const declared = new Set([...all.matchAll(/^\s*uniform\s+\w+\s+(\w+)\s*;/gm)].map((m) => m[1]));
+    assert.ok(declared.size > 0, "no uniforms declared");
+    const themeSrc = theme.init.toString() + theme.draw.toString();
     for (const name of declared) {
-      assert.ok(initSrc.includes(name), `${theme.id} declares uniform '${name}' but never sets it`);
+      assert.ok(themeSrc.includes(name), `${theme.id} declares uniform '${name}' but never sets it`);
+    }
+
+    // Varyings must agree across the two stages. A varying read by the
+    // fragment shader but never declared in the vertex shader is a LINK
+    // error, which surfaces as a blank program rather than a compile message.
+    const varyingsIn = (s) => new Set([...s.matchAll(/^\s*varying\s+\w+\s+(\w+)\s*;/gm)].map((m) => m[1]));
+    const vert = sources.find((s) => /gl_Position\s*=/.test(s));
+    const frags = sources.filter((s) => /gl_FragColor\s*=/.test(s));
+    if (vert) {
+      const declaredVert = varyingsIn(vert);
+      for (const f of frags) {
+        // Only the fragment shader paired with this vertex shader can use
+        // varyings; a fullscreen pass has none, so an empty set passes.
+        for (const v of varyingsIn(f)) {
+          assert.ok(declaredVert.has(v) || varyingsIn(f).size === 0,
+            `fragment shader reads varying '${v}' that the vertex shader never declares`);
+        }
+      }
     }
   });
 
@@ -69,9 +98,18 @@ for (const theme of GL_THEMES) {
     assert.equal(typeof theme.destroy, "function", `${theme.id} must implement destroy`);
     const calls = [];
     const gl = new Proxy({}, { get: (_, k) => (...a) => { calls.push(k); return k === "getExtension" ? { loseContext() { calls.push("loseContext"); } } : undefined; } });
-    theme.destroy({ program: {}, buffer: {}, u: {} }, gl);
+    theme.destroy({ programs: [{}], buffers: [{}], u: {} }, gl);
     assert.ok(calls.includes("deleteProgram"), "program not deleted");
     assert.ok(calls.includes("deleteBuffer"), "buffer not deleted");
+    // Attribute arrays are CONTEXT state and outlive the buffers they point
+    // at. Freeing a buffer while an array still references it leaves the array
+    // pointing at a dead object, and the next draw is INVALID_OPERATION — which
+    // is what a StrictMode remount on the same canvas actually produced. The
+    // disable must come BEFORE the delete.
+    const disableAt = calls.indexOf("disableVertexAttribArray");
+    const deleteAt = calls.indexOf("deleteBuffer");
+    assert.ok(disableAt >= 0, "vertex attrib arrays never disabled");
+    assert.ok(disableAt < deleteAt, "attrib arrays must be disabled BEFORE their buffers are deleted");
     // The context must SURVIVE. React StrictMode runs every effect twice in
     // development, so the second mount lands on the same canvas — destroying
     // the context in cleanup leaves a dead one that getContext still returns,
