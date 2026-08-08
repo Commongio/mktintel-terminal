@@ -34,7 +34,7 @@ import carbon from "./carbon.js";
 import ambient from "./ambient.js";
 import eclipse from "./eclipse.js";
 import globe from "./globe.js";
-import orb from "./orb.js";
+import dots from "./dots.js";
 import pulse from "./pulse.js";
 import blackhole from "./blackhole.js";
 import aurora from "./aurora.js";
@@ -48,10 +48,9 @@ export const CANVAS_THEMES = [
   // no bright colours, no fast motion, nothing that competes with a chart,
   // and each one recognisable from the others at a glance.
   // Replacements: `globe` for `blueprint` and `blackhole` for `gridpulse`,
-  // both textures rather than scenes; `ambient` for `quantum`; `orb` for
-  // `deepcurrent`. Note `orb` is the THEME — unrelated to GalaxyOrb.jsx, which
-  // is the VIX-reactive orb on the bot dashboard.
-  midnight, obsidian, carbon, ambient, eclipse, globe, orb, pulse,
+  // both textures rather than scenes; `ambient` for `quantum`; `dots` for
+  // `deepcurrent`.
+  midnight, obsidian, carbon, ambient, eclipse, globe, dots, pulse,
   blackhole,
   // Predecessor, kept because it works and someone may be sitting on it.
   aurora,

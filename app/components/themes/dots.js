@@ -1,4 +1,4 @@
-// Orb — a field of dots with a wave travelling through it.
+// Dots — a field of dots with a wave travelling through it.
 //
 // Ported from VANTA.DOTS. Vanta could not come in: it is two CDN script tags
 // (three.js r134 plus vanta.dots.min.js) for a backdrop, and this registry has
@@ -65,8 +65,8 @@ const WOBBLE = 3.2;         // px
 const hash = (i, s) => { const x = Math.sin(i * 12.9898 + s * 78.233) * 43758.5453; return x - Math.floor(x); };
 
 export default {
-  id: "orb",
-  label: "Orb",
+  id: "dots",
+  label: "Dots",
   desc: "A field of dots with a wave travelling through it",
 
   init() {
