@@ -25,7 +25,66 @@ function makeCtx(counter) {
 const SIZES = [[1920, 1080], [1280, 800], [3840, 2160]];
 const TIMES = [0, 16.7, 1000, 53_000, 67_000, 91_000, 500_000];
 
-for (const theme of CANVAS_THEMES) {
+// ── shader themes ───────────────────────────────────────────────────────────
+// A WebGL theme cannot be exercised here: there is no GL context in Node, and
+// stubbing one would only assert that the stub was called. What CAN be checked
+// without a GPU is the source itself, and these are the failures that actually
+// happen — a missing uniform or an unbalanced brace produces a black screen
+// with the error buried in a getShaderInfoLog nobody reads.
+const GL_THEMES = CANVAS_THEMES.filter((t) => t.kind === "webgl");
+const TWOD_THEMES = CANVAS_THEMES.filter((t) => t.kind !== "webgl");
+
+for (const theme of GL_THEMES) {
+  test(`${theme.id}: shader source is well formed`, async () => {
+    const mod = await import(`./${theme.id}.js`);
+    const src = mod._FRAG;
+    assert.ok(typeof src === "string" && src.length > 200, "no shader source exported");
+
+    // Balanced delimiters. An unbalanced brace is the single most common way a
+    // hand-edited shader breaks, and GLSL gives no line context worth reading.
+    for (const [open, close] of [["{", "}"], ["(", ")"]]) {
+      const o = src.split(open).length - 1, c = src.split(close).length - 1;
+      assert.equal(o, c, `unbalanced ${open}${close} in ${theme.id}: ${o} vs ${c}`);
+    }
+
+    assert.match(src, /void\s+main\s*\(/, "no main()");
+    assert.match(src, /gl_FragColor\s*=/, "main() never writes gl_FragColor");
+    // Precision must be guarded rather than declared flat: highp is not
+    // guaranteed in fragment shaders, and naming it unconditionally fails to
+    // COMPILE where it is absent instead of degrading.
+    assert.match(src, /GL_FRAGMENT_PRECISION_HIGH/, "precision is not guarded");
+
+    // Every uniform the shader declares must be one the theme asks the host to
+    // resolve. A typo here yields a null location, and setting a null uniform
+    // is silently ignored by WebGL — the shader then reads zero forever.
+    const declared = [...src.matchAll(/^\s*uniform\s+\w+\s+(\w+)\s*;/gm)].map((m) => m[1]);
+    assert.ok(declared.length > 0, "no uniforms declared");
+    const initSrc = theme.init.toString() + theme.draw.toString();
+    for (const name of declared) {
+      assert.ok(initSrc.includes(name), `${theme.id} declares uniform '${name}' but never sets it`);
+    }
+  });
+
+  test(`${theme.id}: releases GL objects but NOT the context`, () => {
+    assert.equal(typeof theme.destroy, "function", `${theme.id} must implement destroy`);
+    const calls = [];
+    const gl = new Proxy({}, { get: (_, k) => (...a) => { calls.push(k); return k === "getExtension" ? { loseContext() { calls.push("loseContext"); } } : undefined; } });
+    theme.destroy({ program: {}, buffer: {}, u: {} }, gl);
+    assert.ok(calls.includes("deleteProgram"), "program not deleted");
+    assert.ok(calls.includes("deleteBuffer"), "buffer not deleted");
+    // The context must SURVIVE. React StrictMode runs every effect twice in
+    // development, so the second mount lands on the same canvas — destroying
+    // the context in cleanup leaves a dead one that getContext still returns,
+    // and every compile against it fails with a null info log. A valid shader
+    // then reports "compile failed: null". That is not hypothetical; it is
+    // what this cost to find. Context lifetime belongs to the canvas element,
+    // which the host keys on theme id.
+    assert.ok(!calls.includes("loseContext"),
+      `${theme.id} destroyed the GL context; it must outlive cleanup so a StrictMode remount can reuse the canvas`);
+  });
+}
+
+for (const theme of TWOD_THEMES) {
   test(`${theme.id}: init and draw without throwing, at every size`, () => {
     for (const [w, h] of SIZES) {
       const state = theme.init ? theme.init({ w, h, accent: "#4C9E92" }) : {};

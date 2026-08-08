@@ -46,6 +46,38 @@ Your block lives inside `draw(now)` in `CanvasThemes`. Available to you:
 `draw()` is called with a cleared canvas — `ctx.clearRect` already ran. Do not
 clear it again, and do not fill it opaque (see *Transparency* below).
 
+### Shader themes (`kind: "webgl"`)
+
+A theme that declares `kind: "webgl"` receives `gl` instead of `ctx` and owns
+its own pixels entirely. Reach for this only when the effect genuinely cannot
+be done in 2D — `midnight` qualifies because it evaluates 3D noise twice per
+*pixel*, roughly 4.6 million evaluations a frame at 1080p. Almost nothing else
+does; a particle field is cheaper and more controllable in 2D.
+
+| | |
+|---|---|
+| `gl` | WebGL context. `alpha:false`, no depth, no antialias. |
+| `dpr` | Device-pixel ratio, capped at **1** for shaders. `iResolution` must be `w*dpr, h*dpr` — `gl_FragCoord` is in device pixels. |
+
+Use `./glhost.js` rather than hand-rolling: it compiles, links, builds the
+fullscreen triangle and resolves uniform locations once. Four rules, each of
+which has already cost a debugging session:
+
+1. **Guard the precision qualifier.** Use the exported `PRECISION` prefix.
+   `precision highp float;` on its own fails to *compile* where highp is
+   unavailable, rather than degrading — which looks like a black screen.
+2. **`destroy` is mandatory, and must not destroy the context.** Delete the
+   program and buffer only. Calling `loseContext()` breaks React StrictMode's
+   double-invoke: the second mount reuses the same canvas, `getContext` returns
+   the dead context, and every compile fails with a *null* info log.
+3. **`init` runs once, not per resize.** Only the viewport changes. Re-running
+   it recompiles the shader on every frame of a window drag.
+4. **Never throw out of `init`.** The host catches it and disables the
+   backdrop, but a backdrop must never be able to unmount the terminal.
+
+The wrapper keys the canvas on theme id, which is load-bearing: a canvas that
+has handed out a 2D context can never return a WebGL one.
+
 ### Animate from `now`, never from a counter
 
 ```js

@@ -25,6 +25,10 @@ import VideoBackdrop from "./VideoBackdrop";
 import { AVAILABLE_VIDEO_THEMES, isVideoTheme, videoThemeSrc } from "../../lib/videoThemes";
 import { CANVAS_THEMES, getTheme, makeRgba } from "./themes/registry";
 
+// Where a shader theme lands when WebGL is unavailable. `ambient` is 2D, has no
+// dependencies, and is the closest thing in the set to a drifting light field.
+const WEBGL_FALLBACK = "ambient";
+
 // Unified list consumed by the Themes settings tab.
 export const THEME_LIST = [
   { id: "none", label: "Classic", desc: "Clean dot-grid terminal", group: "basic" },
@@ -39,22 +43,61 @@ function CanvasThemes({ theme, accent }) {
 
   useEffect(() => {
     const canvas = ref.current;
-    const mod = getTheme(theme);
+    let mod = getTheme(theme);
     if (!canvas || !mod) return;
 
-    const ctx = canvas.getContext("2d");
-    // Capped at 1.5: a 3x retina canvas triples the fill cost for a backdrop
-    // nobody is looking at directly.
-    const dpr = Math.min(1.5, window.devicePixelRatio || 1);
+    // A shader theme asks for a GL context instead of a 2D one. If it cannot be
+    // had — WebGL disabled, blocklisted driver, too many live contexts — fall
+    // back to a real 2D theme rather than leaving a black rectangle. A blank
+    // backdrop and a subtle backdrop look identical, and this codebase has
+    // already shipped that confusion once.
+    let gl = null;
+    if (mod.kind === "webgl") {
+      try {
+        gl = canvas.getContext("webgl", { alpha: false, antialias: false, depth: false, powerPreference: "low-power" })
+          || canvas.getContext("experimental-webgl", { alpha: false, antialias: false, depth: false });
+      } catch { gl = null; }
+      if (!gl) mod = getTheme(WEBGL_FALLBACK) || null;
+      if (!mod) return;
+    }
+    const isGL = mod.kind === "webgl" && gl;
+
+    // Capped at 1.5 for 2D: a 3x retina canvas triples the fill cost for a
+    // backdrop nobody is looking at directly. Shader themes are capped at 1
+    // — this one runs 3D noise twice per PIXEL, so a 2.25x device-pixel count
+    // is a 2.25x GPU cost for detail nobody is inspecting.
+    const dpr = Math.min(isGL ? 1 : 1.5, window.devicePixelRatio || 1);
+    const ctx = isGL ? null : canvas.getContext("2d");
     const rgba = makeRgba(accent);
 
-    let w = 0, h = 0, state = null;
+    let w = 0, h = 0, state = null, glFailed = false;
 
     const resize = () => {
       w = canvas.clientWidth;
       h = canvas.clientHeight;
       canvas.width = w * dpr;
       canvas.height = h * dpr;
+      if (isGL) {
+        gl.viewport(0, 0, canvas.width, canvas.height);
+        // GL programs survive a resize — only the viewport changes — so init
+        // runs once. Re-running it would recompile the shader on every mouse
+        // move during a window drag.
+        if (!state && !glFailed) {
+          try {
+            state = mod.init ? mod.init({ gl, w, h, accent }) : {};
+          } catch (err) {
+            // A shader that will not compile must not take the terminal with
+            // it. This threw out of a useEffect once and unmounted the whole
+            // app — "This page couldn't load" over a trading screen, because a
+            // decorative backdrop failed. The backdrop is the least important
+            // thing on this page and gets the least important failure.
+            glFailed = true;
+            state = null;
+            if (typeof console !== "undefined") console.warn(`[theme:${mod.id}] shader unavailable, backdrop disabled:`, err?.message || err);
+          }
+        }
+        return;
+      }
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       // Re-init on resize so themes can rebuild geometry for the new aspect.
       // Themes seed deterministically from an index rather than Math.random(),
@@ -79,6 +122,14 @@ function CanvasThemes({ theme, accent }) {
     // background tabs, which previously presented as "the theme is not
     // displaying at all".
     const draw = (now) => {
+      if (isGL) {
+        // Nothing to draw if the shader never compiled. Silent rather than a
+        // per-frame error storm — the warning was logged once at init.
+        if (!state) return;
+        // No clear: the shader writes every pixel of the fullscreen triangle.
+        mod.draw({ gl, w, h, now, accent, state, dpr });
+        return;
+      }
       ctx.clearRect(0, 0, w, h);
       mod.draw({ ctx, w, h, now, accent, state, rgba });
     };
@@ -97,12 +148,17 @@ function CanvasThemes({ theme, accent }) {
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", resize);
       document.removeEventListener("visibilitychange", onVis);
-      if (mod.destroy) mod.destroy(state);
+      // Releases the GL program and buffer, and deliberately NOT the context —
+      // see the note in themes/glhost.js. The context is bounded by the canvas
+      // being keyed on the theme id above, so an unmounted theme takes its
+      // context with it.
+      if (mod.destroy) mod.destroy(state, gl);
     };
   }, [theme, accent]);
 
   return (
     <canvas
+      key={theme}
       ref={ref}
       style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none" }}
       aria-hidden="true"
