@@ -59,6 +59,38 @@ for (const theme of CANVAS_THEMES) {
     assert.ok(counter.n < 900, `${theme.id} issued ${counter.n} draw ops in one frame`);
   });
 
+  test(`${theme.id}: restores context state it changed`, () => {
+    // The host reuses ONE context for the life of the theme and only calls
+    // clearRect between frames, so anything left set on it persists into the
+    // next frame -- and into whatever the next theme draws.
+    //
+    // globalCompositeOperation is the dangerous one. `ambient` draws additively
+    // ("lighter"); left set, the next frame's opaque background fill blends
+    // additively over the last, and the screen ramps to white in about a
+    // second. That is invisible to the op counter and to the purity check,
+    // which is why it needs its own invariant.
+    const stateOf = { globalCompositeOperation: "source-over", globalAlpha: 1 };
+    const ctx = new Proxy({}, {
+      get(_, k) {
+        if (k === "createLinearGradient" || k === "createRadialGradient") return () => stubGrad;
+        if (k === "save") return () => { saved.push({ ...stateOf }); };
+        if (k === "restore") return () => { Object.assign(stateOf, saved.pop() ?? {}); };
+        if (k in stateOf) return stateOf[k];
+        return () => {};
+      },
+      set(_, k, v) { if (k in stateOf) stateOf[k] = v; return true; },
+    });
+    const saved = [];
+    const state = theme.init ? theme.init({ w: 1920, h: 1080, accent: "#4C9E92" }) : {};
+    for (const now of TIMES) {
+      theme.draw({ ctx, w: 1920, h: 1080, now, accent: "#4C9E92", state, rgba: makeRgba("#4C9E92") });
+    }
+    assert.equal(stateOf.globalCompositeOperation, "source-over",
+      `${theme.id} left globalCompositeOperation set; the next frame will blend wrong`);
+    assert.equal(stateOf.globalAlpha, 1, `${theme.id} left globalAlpha set`);
+    assert.equal(saved.length, 0, `${theme.id} has unbalanced save()/restore()`);
+  });
+
   test(`${theme.id}: init is deterministic`, () => {
     // A resize re-runs init. If it used Math.random() the field would reshuffle
     // every time a window edge moved, which reads as the theme restarting.

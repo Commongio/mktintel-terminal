@@ -109,7 +109,7 @@ const RETIRED_THEMES={
   // in migrateTheme, so leaving the mapping in place would make the theme
   // unselectable: it would survive until reload and then silently become aurora.
   newsglobe:"globe",                    // renamed; the successor is the globe theme
-  blueprint:"globe", gridpulse:"blackhole", // replaced in V21
+  blueprint:"globe", gridpulse:"blackhole", quantum:"ambient", // replaced in V21
   worldmap:FALLBACK_THEME, candles:FALLBACK_THEME, // removed in V10.3
   sphere:FALLBACK_THEME, flux:FALLBACK_THEME,      // Spline-only scenes, dropped in V10.4
   // Video themes, retired. Named rather than left to the generic fallback so
